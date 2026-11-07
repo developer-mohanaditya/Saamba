@@ -518,3 +518,20 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   .layout-sidebar .workspace-sidebar .library { width:auto; margin-top:12px; }
 }
 @media(prefers-reduced-motion:reduce) { .nav-chevron { transition:none; } }
+
+/* Speaker Chips & Inline Editor */
+.speaker-bar { display:flex; align-items:center; gap:.5rem; margin-bottom:12px; flex-wrap:wrap; padding:4px 0; }
+.speaker-bar-label { font-size:.78rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+.speaker-chip { display:inline-flex; align-items:center; gap:.4rem; border:1px solid var(--line); border-radius:999px; padding:.3rem .65rem; background:#fff; color:var(--green); font-size:.78rem; cursor:pointer; transition:all .15s ease; }
+.speaker-chip:hover { background:var(--soft); border-color:var(--green); }
+.speaker-chip .chip-edit { font-size:.75rem; opacity:.6; }
+.speaker-chip:hover .chip-edit { opacity:1; }
+
+.speaker-tag { display:inline-flex; align-items:center; gap:.3rem; cursor:pointer; padding:2px 6px; margin:-2px -4px; border-radius:4px; transition:background .15s ease; }
+.speaker-tag:hover { background:#e8eee7; }
+.speaker-edit-btn { font-size:.7rem; opacity:.4; transition:opacity .15s; }
+.speaker-tag:hover .speaker-edit-btn { opacity:1; color:var(--green); }
+
+.speaker-scope-options { display:flex; flex-direction:column; gap:.5rem; margin-bottom:14px; background:#f7f9f6; padding:10px 12px; border-radius:8px; border:1px solid var(--line); font-size:.85rem; }
+.speaker-scope-options label { display:flex; align-items:center; gap:.5rem; margin:0; cursor:pointer; }
+.speaker-scope-options input[type="radio"] { width:auto; margin:0; accent-color:var(--green); }

@@ -471,6 +471,45 @@ class Handler(BaseHTTPRequestHandler):
                 result=db.execute('UPDATE meetings SET title=? WHERE id=?',(title.strip(),parts[3]))
                 if not result.rowcount: return self.send_json({'error':'Meeting not found'},404)
             return self.send_json({'ok':True})
+        if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4]=='speakers':
+            mid = parts[3]
+            try:
+                size = int(self.headers.get('Content-Length','0'))
+                if not 0 < size <= 8192: raise ValueError()
+                payload = json.loads(self.rfile.read(size))
+                if not isinstance(payload, dict): raise ValueError()
+            except Exception:
+                return self.send_json({'error': 'Invalid speaker payload'}, 400)
+            with connect() as db:
+                row = db.execute('SELECT transcript FROM meetings WHERE id=?', (mid,)).fetchone()
+                if not row: return self.send_json({'error': 'Meeting not found'}, 404)
+                segments = json.loads(row['transcript'] or '[]')
+                action = payload.get('action')
+                if action == 'reassign':
+                    index = int(payload.get('index', -1))
+                    speaker = payload.get('speaker')
+                    if 0 <= index < len(segments):
+                        segments[index]['speaker'] = speaker
+                    else:
+                        return self.send_json({'error': 'Segment index out of range'}, 400)
+                elif action == 'rename':
+                    old_name = payload.get('from')
+                    new_name = str(payload.get('to', '')).strip()
+                    if not new_name:
+                        return self.send_json({'error': 'Speaker name cannot be empty'}, 400)
+                    for s in segments:
+                        spk = s.get('speaker')
+                        matches = (spk == old_name) or (str(spk) == str(old_name))
+                        if not matches and isinstance(old_name, str) and old_name.lower().startswith('speaker '):
+                            num_part = old_name.lower().replace('speaker ', '').strip()
+                            if num_part.isdigit() and spk == (int(num_part) - 1):
+                                matches = True
+                        if matches:
+                            s['speaker'] = new_name
+                else:
+                    return self.send_json({'error': 'Unknown speaker action'}, 400)
+                db.execute('UPDATE meetings SET transcript=? WHERE id=?', (json.dumps(segments), mid))
+            return self.send_json({'ok': True})
         if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4] in ('transcript','summary','both'):
             mid, mode=parts[3],parts[4]
             with connect() as db:
