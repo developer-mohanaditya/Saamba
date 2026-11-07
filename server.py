@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse, unquote, quote, parse_qs
 from datetime import datetime, timezone
 import groq_pipeline
+import gemini_pipeline
 import live_capture
 import sys
 import wave
@@ -11,6 +12,20 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).parent
+
+def _load_env():
+    env_file = ROOT / '.env'
+    if env_file.exists():
+        with open(env_file, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+_load_env()
+
 DATA = Path(os.environ.get('SAAMBA_DATA_DIR', ROOT / 'data')).expanduser()
 DATA.mkdir(parents=True, exist_ok=True, mode=0o700)
 if os.name == 'posix':
@@ -95,9 +110,25 @@ def summary_preview_callback(mid):
 def process(mid):
     with connect() as db:
         meeting = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+    gemini_key = os.environ.get('GEMINI_API_KEY')
+    if gemini_key:
+        try:
+            path = DATA / meeting['filename']
+            update(mid, status='transcribing', error=None)
+            segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key)
+            update(mid, transcript=json.dumps(segments), status='summarizing', error=None)
+            summary = gemini_pipeline.summarize(segments, gemini_key)
+            update(mid, summary=summary, status='ready', error=None)
+            return
+        except gemini_pipeline.ProcessingError as exc:
+            update(mid, status='error', error=str(exc))
+            return
+        except Exception as exc:
+            update(mid, status='error', error=f'Gemini processing failed: {exc}')
+            return
     key = os.environ.get('GROQ_API_KEY')
     if not key:
-        update(mid, status='needs setup', error='Set GROQ_API_KEY and restart Saamba to transcribe.')
+        update(mid, status='needs setup', error='Set GEMINI_API_KEY or GROQ_API_KEY in .env and restart Saamba.')
         return
     try:
         path = DATA / meeting['filename']
@@ -137,9 +168,31 @@ def process(mid):
 
 def create_notes(mid, mode):
     """Build requested artifacts while keeping existing data until replacements are ready."""
+    gemini_key = os.environ.get('GEMINI_API_KEY')
+    if gemini_key:
+        try:
+            with connect() as db:
+                meeting = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+            path = DATA / meeting['filename']
+            if mode in ('transcript', 'both'):
+                update(mid, status='transcribing', error=None)
+                segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key)
+                update(mid, transcript=json.dumps(segments))
+            else:
+                segments = json.loads(meeting['transcript'] or '[]')
+            if mode in ('summary', 'both'):
+                update(mid, status='summarizing', error=None)
+                summary = gemini_pipeline.summarize(segments, gemini_key)
+                update(mid, summary=summary, status='ready', error=None)
+            else:
+                update(mid, status='ready', error=None)
+            return
+        except gemini_pipeline.ProcessingError as exc:
+            update(mid, status='error', error=str(exc))
+            return
     key = os.environ.get('GROQ_API_KEY')
     if not key:
-        update(mid, status='needs setup', error='Set GROQ_API_KEY and restart Saamba to create notes.')
+        update(mid, status='needs setup', error='Set GEMINI_API_KEY or GROQ_API_KEY in .env and restart Saamba.')
         return
     try:
         with connect() as db:
