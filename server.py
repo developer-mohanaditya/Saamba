@@ -79,13 +79,15 @@ def action_items(summary, checks=None):
             raw_text = item.group(1).strip()
             stamp = re.search(r'\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]', raw_text)
             seconds = (int(stamp.group(1))*60+int(stamp.group(2)) if stamp.group(1) else float(stamp.group(3))) if stamp else None
-            # Strip the [MM:SS] timestamp from displayed text so it doesn't duplicate the button
-            text = re.sub(r'\s*\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]\s*', ' ', raw_text).strip()
-            # Format (Speaker N) or [Speaker N] cleanly in square brackets
-            text = re.sub(r'\((Speaker\s*\w+)\)', r'[\1]', text)
+            spk_match = re.search(r'\[(Speaker\s*\w+|[A-Za-z]+)\]|\((Speaker\s*\w+|[A-Za-z]+)\)', raw_text, re.IGNORECASE)
+            speaker_label = (spk_match.group(1) or spk_match.group(2)).strip() if spk_match else None
+            text = re.sub(r'\s*\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]\s*', ' ', raw_text)
+            if speaker_label:
+                text = re.sub(r'\s*\[\s*' + re.escape(speaker_label) + r'\s*\]\s*|\s*\(\s*' + re.escape(speaker_label) + r'\s*\)\s*', ' ', text, flags=re.IGNORECASE)
+            text = ' '.join(text.split()).strip()
             counts[text] = counts.get(text, 0) + 1
             key = hashlib.sha256((text + '\0' + str(counts[text])).encode()).hexdigest()
-            result.append({'key': key, 'text': text, 'checked': bool(checks.get(key)), 'start': seconds})
+            result.append({'key': key, 'text': text, 'checked': bool(checks.get(key)), 'start': seconds, 'speaker': speaker_label})
     return result
 
 def update(mid, **values):
@@ -352,7 +354,7 @@ class Handler(BaseHTTPRequestHandler):
             row['transcript']=json.loads(row['transcript'] or '[]'); row.pop('filename'); return self.send_json(row)
         file={'/':'index.html','/classic':'classic.html','/classic-app.js':'classic-app.js','/classic-style.css':'classic-style.css','/app.js':'app.js','/style.css':'style.css','/capture.js':'capture.js','/capture-worklet.js':'capture-worklet.js'}.get(path)
         if not file: return self.send_json({'error':'Not found'},404)
-        content=(ROOT/'static'/file).read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(file)[0] or 'text/plain'); self.send_header('Content-Length',str(len(content))); self.end_headers(); self.wfile.write(content)
+        content=(ROOT/'static'/file).read_bytes(); self.send_response(200); self.send_header('Content-Type',mimetypes.guess_type(file)[0] or 'text/plain'); self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate'); self.send_header('Content-Length',str(len(content))); self.end_headers(); self.wfile.write(content)
     def do_POST(self):
         path=urlparse(self.path).path
         origin = self.headers.get('Origin')
@@ -502,8 +504,10 @@ class Handler(BaseHTTPRequestHandler):
                         matches = (spk == old_name) or (str(spk) == str(old_name))
                         if not matches and isinstance(old_name, str) and old_name.lower().startswith('speaker '):
                             num_part = old_name.lower().replace('speaker ', '').strip()
-                            if num_part.isdigit() and spk == (int(num_part) - 1):
-                                matches = True
+                            if num_part.isdigit():
+                                n = int(num_part)
+                                if spk in (n, str(n), n - 1, str(n - 1)):
+                                    matches = True
                         if matches:
                             s['speaker'] = new_name
                 else:
