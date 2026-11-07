@@ -19,12 +19,37 @@ def duration(path):
     except Exception:
         return 0.0
 
+def detect_mime_type(path):
+    """Detect MIME type using file command or extension fallback."""
+    try:
+        out = subprocess.check_output(['file', '-b', '--mime-type', str(path)], stderr=subprocess.DEVNULL).decode().strip()
+        if 'mpeg' in out or 'mp3' in out:
+            return 'audio/mp3'
+        if 'wav' in out:
+            return 'audio/wav'
+        if 'webm' in out:
+            return 'audio/webm'
+        if 'ogg' in out:
+            return 'audio/ogg'
+        if 'mp4' in out:
+            return 'video/mp4'
+        if out.startswith('audio/') or out.startswith('video/'):
+            return out
+    except Exception:
+        pass
+    p = str(path).lower()
+    if p.endswith('.mp3'):
+        return 'audio/mp3'
+    if p.endswith('.webm'):
+        return 'audio/webm'
+    if p.endswith('.mp4'):
+        return 'video/mp4'
+    return 'audio/wav'
+
 def upload_audio(path, key):
     """Upload audio file to Google AI File API and return active file URI."""
     file_size = os.path.getsize(path)
-    mime_type = "audio/mp3" if str(path).endswith(".mp3") else "audio/wav"
-    if str(path).endswith(".webm"):
-        mime_type = "audio/webm"
+    mime_type = detect_mime_type(path)
 
     init_url = f"{API_BASE}/upload/v1beta/files?key={key}"
     headers = {
