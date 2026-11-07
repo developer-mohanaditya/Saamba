@@ -121,7 +121,12 @@ def parse_timestamps(raw_text):
                 current_time = float(h_or_m * 60 + m_or_s)
             
             if m.group(4):
-                current_speaker = m.group(4).strip()
+                spk_str = m.group(4).strip()
+                spk_num = re.search(r'\d+', spk_str)
+                if spk_num:
+                    current_speaker = max(0, int(spk_num.group()) - 1)
+                else:
+                    current_speaker = None
             rest = m.group(5).strip()
             if rest:
                 buffer.append(rest)
