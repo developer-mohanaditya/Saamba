@@ -1,0 +1,17 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert');
+let handler,removed,updated,action;let joined=true;const sent=[],created=[];
+const apps=[{id:1,url:'http://127.0.0.1:24917/'}];
+const chrome={action:{onClicked:{addListener:fn=>action=fn}},tabCapture:{getMediaStreamId:async opts=>{assert.equal(opts.targetTabId,42);assert.equal(opts.consumerTabId,1);return 'synthetic-id';}},runtime:{onMessage:{addListener:fn=>handler=fn}},tabs:{get:async id=>({id,url:'https://meet.google.com/abc-defg-hij',title:'Synthetic meeting'}),create:async arg=>{created.push(arg);return {id:9,url:arg.url}},query:async q=>q.url==='https://meet.google.com/*'?[{id:42,url:'https://meet.google.com/abc-defg-hij'}]:apps,sendMessage:async(id,m)=>{sent.push([id,m]);if(m.type==='saamba-meeting-state')return {joined}},update:async()=>{},onRemoved:{addListener:fn=>removed=fn},onUpdated:{addListener:fn=>updated=fn}}};
+vm.runInNewContext(fs.readFileSync('extension/background.js','utf8'),{chrome,URL,setTimeout});
+(async()=>{
+ handler({type:'joined-meeting'},{tab:{id:42},url:'https://meet.google.com/abc-defg-hij'});await new Promise(setImmediate);
+ assert(sent.some(x=>x[0]===1&&x[1].type==='meeting-detected'&&x[1].meetingTabId===42));assert.equal(created.length,0);
+ sent.length=0;updated(42,{url:'https://meet.google.com/abc-defg-hij'});await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-detected'));
+ sent.length=0;handler({type:'saamba-ready'},{tab:{id:1},url:'http://127.0.0.1:24917/'});await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-detected'));
+ sent.length=0;let response;assert.equal(handler({type:'request-tab-capture',meetingTabId:42},{tab:{id:1},url:'http://127.0.0.1:24917/'},value=>response=value),true);await new Promise(setImmediate);assert(response.ok);assert(sent.some(x=>x[1].type==='start-tab-capture'));
+ sent.length=0;removed(42);await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-ended'&&x[1].meetingTabId===42));
+ joined=false;sent.length=0;await action({id:42,url:'https://meet.google.com/abc-defg-hij'});assert(!sent.some(x=>x[1].type==='start-tab-capture'));joined=true;
+ sent.length=0;await action({id:42,url:'https://meet.google.com/'});assert(!sent.some(x=>x[1].type==='start-tab-capture'));
+ sent.length=0;await action({id:42,url:'https://meet.google.com/abc-defg-hij',title:'Synthetic meeting'});assert(sent.some(x=>x[0]===1&&x[1].type==='start-tab-capture'));
+ sent.length=0;handler({type:'meeting-ended'},{tab:{id:42},url:'https://example.com/'});await new Promise(setImmediate);assert.equal(sent.length,0);console.log('Meeting detection and routing: passed');
+})().catch(e=>{console.error(e);process.exitCode=1});
