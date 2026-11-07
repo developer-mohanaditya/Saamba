@@ -1,3 +1,39 @@
-data/
-__pycache__/
+# Local environment and secrets
 .env
+.env.*
+*.env
+*.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+credentials.json
+secrets.json
+
+# Meeting recordings, transcripts and local databases
+data/
+recordings/
+uploads/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.webm
+*.flac
+*.ogg
+*.opus
+*.aac
+
+# Local and generated files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
