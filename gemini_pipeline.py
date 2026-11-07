@@ -177,16 +177,60 @@ Never translate or rewrite words to make them more fluent."""
     except urllib.error.HTTPError as e:
         raise ProcessingError(f"Gemini transcription failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
 
+def clean_summary_text(text):
+    """Strip introductory conversational preamble and clean section headings."""
+    import re
+    lines = text.strip().splitlines()
+    start_idx = 0
+    for idx, l in enumerate(lines):
+        if re.match(r"^(?:#{1,4}\s+|\*\*)?(?:\d+[\.\)]\s*)?summary\b", l.strip(), re.IGNORECASE):
+            start_idx = idx
+            break
+    if start_idx > 0:
+        lines = lines[start_idx:]
+    cleaned = []
+    for l in lines:
+        l = re.sub(r"^(#{1,4}\s+)\d+[\.\)]\s*", r"\1", l)
+        l = re.sub(r"^\d+[\.\)]\s+(Summary|Key Points|Decisions|Action Items)\s*:?", r"### \1", l, flags=re.IGNORECASE)
+        cleaned.append(l)
+    return "\n".join(cleaned).strip()
+
 def summarize(segments, key):
-    """Generate executive summary, key points, decisions, and action items."""
-    transcript_text = "\n".join([f"[{s.get('speaker') or 'Speaker'}]: {s.get('text', '')}" for s in segments])
+    """Generate executive summary, key points, decisions, and action items with source timestamps."""
+    def format_speaker(spk):
+        if spk is None:
+            return "Speaker"
+        if isinstance(spk, int):
+            return f"Speaker {spk + 1}"
+        return str(spk)
+
+    def format_time(sec):
+        m = int(sec // 60)
+        s = int(sec % 60)
+        return f"{m:02d}:{s:02d}"
+
+    transcript_text = "\n".join([f"[{format_time(s.get('start', 0))}] [{format_speaker(s.get('speaker'))}]: {s.get('text', '')}" for s in segments])
     
     prompt = f"""You are a professional meeting intelligence analyst.
-Analyze the following meeting transcript (Telugu & English) and generate a comprehensive English briefing:
-1. Summary (<= 150 words)
-2. Key Points (bulleted)
-3. Decisions (bulleted)
-4. Action Items (bulleted, actionable)
+Analyze the following meeting transcript (Telugu & English) and generate a clean executive English briefing.
+
+CRITICAL FORMATTING INSTRUCTIONS:
+- Do NOT include any introductory preamble or conversational filler (e.g., do NOT write "Here is the...", "Sure!", etc.). Begin directly with "### Summary".
+- Do NOT use numbered section headings (use "### Summary", "### Key Points", "### Decisions", "### Action Items").
+- For each bullet under "### Action Items", you MUST cite the approximate source timestamp from the transcript as [MM:SS] and speaker attribution (e.g., - **Task Title:** Description [14:20] (Speaker 1)).
+
+Required Sections:
+### Summary
+(concise executive overview <= 150 words)
+
+### Key Points
+(bullet points of core discussion points)
+
+### Decisions
+(bullet points of agreed decisions)
+
+### Action Items
+(bullet points with actionable tasks, source timestamp [MM:SS], and speaker attribution)
 
 Transcript:
 {transcript_text}"""
@@ -200,7 +244,8 @@ Transcript:
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+            raw = data["candidates"][0]["content"]["parts"][0]["text"]
+            return clean_summary_text(raw)
     except urllib.error.HTTPError as e:
         raise ProcessingError(f"Gemini summarization failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
 
