@@ -227,10 +227,10 @@ Required Sections:
 (bullet points of core discussion points)
 
 ### Decisions
-(bullet points of agreed decisions)
+(bullet points of agreed decisions, if applicable to this meeting; omit this section if no specific decisions were made)
 
 ### Action Items
-(bullet points with actionable tasks, source timestamp [MM:SS], and speaker attribution)
+(bullet points with actionable tasks, source timestamp [MM:SS], and speaker attribution in square brackets [Speaker N])
 
 Transcript:
 {transcript_text}"""

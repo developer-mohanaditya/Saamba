@@ -76,11 +76,15 @@ def action_items(summary, checks=None):
             continue
         item = re.match(r'^[-*]\s+(?:\[[ xX]\]\s*)?(.+)', stripped)
         if active and item:
-            text = item.group(1).strip()
+            raw_text = item.group(1).strip()
+            stamp = re.search(r'\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]', raw_text)
+            seconds = (int(stamp.group(1))*60+int(stamp.group(2)) if stamp.group(1) else float(stamp.group(3))) if stamp else None
+            # Strip the [MM:SS] timestamp from displayed text so it doesn't duplicate the button
+            text = re.sub(r'\s*\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]\s*', ' ', raw_text).strip()
+            # Format (Speaker N) or [Speaker N] cleanly in square brackets
+            text = re.sub(r'\((Speaker\s*\w+)\)', r'[\1]', text)
             counts[text] = counts.get(text, 0) + 1
             key = hashlib.sha256((text + '\0' + str(counts[text])).encode()).hexdigest()
-            stamp = re.search(r'\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]', text)
-            seconds = (int(stamp.group(1))*60+int(stamp.group(2)) if stamp.group(1) else float(stamp.group(3))) if stamp else None
             result.append({'key': key, 'text': text, 'checked': bool(checks.get(key)), 'start': seconds})
     return result
 
