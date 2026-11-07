@@ -66,10 +66,12 @@ def action_items(summary, checks=None):
         stripped = line.strip()
         heading = re.match(r'^(?:#{1,4}\s+(.+?)|\*\*(.+?)\*\*)\s*:?[ ]*$', stripped)
         if heading:
-            name = (heading.group(1) or heading.group(2)).strip().rstrip(':').lower()
+            raw_name = (heading.group(1) or heading.group(2)).strip().rstrip(':').lower()
+            name = re.sub(r'^\d+[\.\)]\s*', '', raw_name)
             active = name in ('action items', 'action item', 'next steps')
             continue
-        if stripped.lower().rstrip(':') in ('action items', 'next steps'):
+        cleaned_stripped = re.sub(r'^\d+[\.\)]\s*', '', stripped.lower().rstrip(':'))
+        if cleaned_stripped in ('action items', 'next steps'):
             active = True
             continue
         item = re.match(r'^[-*]\s+(?:\[[ xX]\]\s*)?(.+)', stripped)
