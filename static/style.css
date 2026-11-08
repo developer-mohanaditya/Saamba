@@ -909,8 +909,17 @@ html.init-sidebar-collapsed .icon-expand {
   justify-content: center;
   cursor: pointer;
   border-radius: 4px;
-  transition: color .15s ease, background-color .15s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, color .15s ease, background-color .15s ease;
   line-height: 1;
+}
+.transcript-tab-wrapper:hover .transcript-more-btn,
+.transcript-tab-wrapper:focus-within .transcript-more-btn,
+.transcript-menu-wrap.is-open .transcript-more-btn,
+.transcript-menu-wrap:has(.transcript-dropdown:not([hidden])) .transcript-more-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 .transcript-more-btn:hover {
   color: var(--ink);
