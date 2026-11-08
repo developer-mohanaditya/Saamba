@@ -1,4 +1,4 @@
-import os, json, sqlite3, uuid, mimetypes, threading, urllib.request, urllib.error, shutil, re, hashlib
+import os, json, sqlite3, uuid, mimetypes, threading, urllib.request, urllib.error, shutil, re, hashlib, queue
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, unquote, quote, parse_qs
@@ -50,6 +50,7 @@ with connect() as db:
     db.execute('CREATE TABLE IF NOT EXISTS summary_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, summary TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
     db.execute('CREATE TABLE IF NOT EXISTS summary_requests (meeting_id TEXT NOT NULL, request_hash TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY (meeting_id, request_hash))')
     db.execute('CREATE TABLE IF NOT EXISTS summary_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL, completed INTEGER NOT NULL, total INTEGER NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS transcript_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL)')
     db.execute('CREATE TABLE IF NOT EXISTS action_checks (meeting_id TEXT NOT NULL, item_key TEXT NOT NULL, checked INTEGER NOT NULL, PRIMARY KEY (meeting_id,item_key))')
     db.execute('CREATE TABLE IF NOT EXISTS chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, scope TEXT NOT NULL, created_at TEXT NOT NULL)')
     db.execute('CREATE TABLE IF NOT EXISTS meeting_translations (meeting_id TEXT NOT NULL, language_code TEXT NOT NULL, language_name TEXT NOT NULL, transcript TEXT NOT NULL, summary TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (meeting_id, language_code))')
@@ -60,6 +61,38 @@ if os.name == 'posix':
 
 saved_snapshots = {}
 cancellation_tokens = {}
+
+class EventHub:
+    """Thread-safe publish/subscribe broker for real-time SSE updates."""
+    def __init__(self):
+        self._listeners = {}
+        self._lock = threading.Lock()
+
+    def subscribe(self, mid):
+        q = queue.Queue(maxsize=300)
+        with self._lock:
+            self._listeners.setdefault(mid, []).append(q)
+        return q
+
+    def unsubscribe(self, mid, q):
+        with self._lock:
+            listeners = self._listeners.get(mid, [])
+            if q in listeners:
+                listeners.remove(q)
+            if not listeners:
+                self._listeners.pop(mid, None)
+
+    def broadcast(self, mid, event_type, data):
+        with self._lock:
+            listeners = list(self._listeners.get(mid, []))
+        msg = {"event": event_type, "data": data}
+        for q in listeners:
+            try:
+                q.put_nowait(msg)
+            except queue.Full:
+                pass
+
+event_hub = EventHub()
 
 def action_items(summary, checks=None):
     checks = checks or {}
@@ -122,6 +155,34 @@ def summary_preview_callback(mid):
             db.execute('INSERT OR REPLACE INTO summary_preview VALUES (?,?,?,?)', (mid, '\n\n'.join(parts), completed, total))
     return publish
 
+def publish_transcript_chunk(mid, chunk):
+    event_hub.broadcast(mid, 'transcript_chunk', {'text': chunk})
+    try:
+        with connect() as db:
+            row = db.execute('SELECT content FROM transcript_preview WHERE meeting_id=?', (mid,)).fetchone()
+            new_content = (row['content'] if row else '') + chunk
+            db.execute('INSERT OR REPLACE INTO transcript_preview VALUES (?,?)', (mid, new_content))
+    except Exception:
+        pass
+
+def publish_summary_chunk(mid, chunk):
+    event_hub.broadcast(mid, 'summary_chunk', {'text': chunk})
+    try:
+        with connect() as db:
+            row = db.execute('SELECT content FROM summary_preview WHERE meeting_id=?', (mid,)).fetchone()
+            new_content = (row['content'] if row else '') + chunk
+            db.execute('INSERT OR REPLACE INTO summary_preview VALUES (?,?,?,?)', (mid, new_content, 1, 1))
+    except Exception:
+        pass
+
+def clear_previews(mid):
+    try:
+        with connect() as db:
+            db.execute('DELETE FROM transcript_preview WHERE meeting_id=?', (mid,))
+            db.execute('DELETE FROM summary_preview WHERE meeting_id=?', (mid,))
+    except Exception:
+        pass
+
 def process(mid):
     with connect() as db:
         meeting = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
@@ -129,17 +190,28 @@ def process(mid):
     if gemini_key:
         try:
             path = DATA / meeting['filename']
+            clear_previews(mid)
             update(mid, status='transcribing', error=None)
-            segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key)
+            event_hub.broadcast(mid, 'status', {'status': 'transcribing'})
+            segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key, on_chunk=lambda c: publish_transcript_chunk(mid, c))
+            event_hub.broadcast(mid, 'transcript_done', {'segments': segments})
             update(mid, transcript=json.dumps(segments), status='summarizing', error=None)
-            summary = gemini_pipeline.summarize(segments, gemini_key)
+            event_hub.broadcast(mid, 'status', {'status': 'summarizing'})
+            summary = gemini_pipeline.summarize(segments, gemini_key, on_chunk=lambda c: publish_summary_chunk(mid, c))
+            clear_previews(mid)
             update(mid, summary=summary, status='ready', error=None)
+            event_hub.broadcast(mid, 'summary_done', {'summary': summary})
+            event_hub.broadcast(mid, 'status', {'status': 'ready'})
             return
         except gemini_pipeline.ProcessingError as exc:
+            clear_previews(mid)
             update(mid, status='error', error=str(exc))
+            event_hub.broadcast(mid, 'error', {'error': str(exc)})
             return
         except Exception as exc:
+            clear_previews(mid)
             update(mid, status='error', error=f'Gemini processing failed: {exc}')
+            event_hub.broadcast(mid, 'error', {'error': f'Gemini processing failed: {exc}'})
             return
     key = os.environ.get('GROQ_API_KEY')
     if not key:
@@ -193,36 +265,50 @@ def create_notes(mid, mode):
             if not meeting:
                 return
             path = DATA / meeting['filename']
+            clear_previews(mid)
             if mode in ('transcript', 'both'):
                 update(mid, status='transcribing', error=None)
-                segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key)
+                event_hub.broadcast(mid, 'status', {'status': 'transcribing'})
+                segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key, on_chunk=lambda c: publish_transcript_chunk(mid, c))
                 if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                    clear_previews(mid)
                     return
                 update(mid, transcript=json.dumps(segments), summary=None if mode == 'transcript' else meeting['summary'])
+                event_hub.broadcast(mid, 'transcript_done', {'segments': segments})
             else:
                 segments = json.loads(meeting['transcript'] or '[]')
             if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                clear_previews(mid)
                 return
             if mode in ('summary', 'both'):
                 update(mid, status='summarizing', error=None)
-                summary = gemini_pipeline.summarize(segments, gemini_key)
+                event_hub.broadcast(mid, 'status', {'status': 'summarizing'})
+                summary = gemini_pipeline.summarize(segments, gemini_key, on_chunk=lambda c: publish_summary_chunk(mid, c))
                 if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                    clear_previews(mid)
                     return
                 update(mid, summary=summary, status='ready', error=None)
+                event_hub.broadcast(mid, 'summary_done', {'summary': summary})
             else:
                 update(mid, status='ready', error=None)
+            clear_previews(mid)
+            event_hub.broadcast(mid, 'status', {'status': 'ready'})
             saved_snapshots.pop(mid, None)
             cancellation_tokens.pop(mid, None)
             return
         except gemini_pipeline.ProcessingError as exc:
+            clear_previews(mid)
             if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
                 return
             update(mid, status='error', error=str(exc))
+            event_hub.broadcast(mid, 'error', {'error': str(exc)})
             return
         except Exception as exc:
+            clear_previews(mid)
             if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
                 return
             update(mid, status='error', error=f'Processing failed: {exc}')
+            event_hub.broadcast(mid, 'error', {'error': f'Processing failed: {exc}'})
             return
     key = os.environ.get('GROQ_API_KEY')
     if not key:
@@ -305,11 +391,156 @@ def delete_meeting(mid):
             db.close()
         shutil.rmtree(trash)
 
+def render_snapshot_html(m):
+    title = m.get('title') or 'Meeting'
+    created_at = m.get('created_at', '')
+    summary = m.get('summary') or ''
+    lines = summary.splitlines()
+    html_lines = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('### '):
+            html_lines.append(f'<h3>{stripped[4:]}</h3>')
+        elif stripped.startswith('## '):
+            html_lines.append(f'<h2>{stripped[3:]}</h2>')
+        elif stripped.startswith('# '):
+            html_lines.append(f'<h1>{stripped[2:]}</h1>')
+        elif stripped.startswith('- ') or stripped.startswith('* '):
+            item = stripped[2:]
+            item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', item)
+            html_lines.append(f'<li>{item}</li>')
+        elif stripped:
+            item = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', stripped)
+            html_lines.append(f'<p>{item}</p>')
+    body_html = '\n'.join(html_lines) if html_lines else '<p style="color:#627264;font-style:italic">No summary available yet.</p>'
+
+    date_str = created_at[:10] if len(created_at) >= 10 else ''
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} — Saamba Notes</title>
+<style>
+:root {{
+  --bg: #f8f6f0;
+  --surface: #ffffff;
+  --ink: #1a241e;
+  --muted: #627264;
+  --brand: #234235;
+  --accent: #deb569;
+  --font-serif: "Iowan Old Style", "Apple Garamond", "Baskerville", "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}}
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  padding: 40px 20px;
+}}
+.container {{
+  max-width: 760px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 48px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}}
+.header {{
+  border-bottom: 1px solid #e8e4dc;
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+}}
+.badge {{
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--brand);
+  background: rgba(35, 66, 53, 0.08);
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}}
+h1 {{
+  font-family: var(--font-serif);
+  font-size: 32px;
+  color: var(--brand);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}}
+.meta {{
+  color: var(--muted);
+  font-size: 13px;
+}}
+h2, h3 {{
+  font-family: var(--font-serif);
+  color: var(--brand);
+  margin-top: 28px;
+  margin-bottom: 12px;
+}}
+h3 {{ font-size: 18px; }}
+p {{ margin-bottom: 14px; font-size: 15px; }}
+li {{ margin-left: 24px; margin-bottom: 8px; font-size: 15px; }}
+.footer {{
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid #e8e4dc;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <span class="badge">Saamba Meeting Notes · Read-only snapshot</span>
+    <h1>{title}</h1>
+    <div class="meta">{date_str}</div>
+  </div>
+  <div class="content">
+    {body_html}
+  </div>
+  <div class="footer">
+    <span>Generated by Saamba</span>
+    <span>{created_at}</span>
+  </div>
+</div>
+</body>
+</html>"""
+
 class Handler(BaseHTTPRequestHandler):
     def send_json(self, obj, status=200):
         data=json.dumps(obj).encode(); self.send_response(status); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data)
     def do_GET(self):
         path=urlparse(self.path).path
+        if path.startswith('/share/'):
+            share_parts = path.split('/')
+            if len(share_parts) == 3:
+                mid = share_parts[2]
+                with connect() as db:
+                    row = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+                if not row:
+                    self.send_response(404)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(b'<h1>Meeting snapshot not found</h1>')
+                    return
+                html = render_snapshot_html(dict(row))
+                content = html.encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+                return
         if path=='/api/meetings':
             with connect() as db: rows=[dict(x) for x in db.execute("SELECT id,title,created_at,status,error,mime,CASE WHEN summary IS NOT NULL AND summary != '' THEN 1 ELSE 0 END AS has_summary,CASE WHEN transcript IS NOT NULL AND transcript != '[]' THEN 1 ELSE 0 END AS has_transcript FROM meetings ORDER BY created_at DESC")]
             return self.send_json(rows)
@@ -336,6 +567,33 @@ class Handler(BaseHTTPRequestHandler):
                 trans_dict = dict(trans_row)
                 trans_dict['transcript'] = json.loads(trans_dict['transcript'] or '[]')
                 return self.send_json(trans_dict)
+            if len(parts)==5 and parts[4]=='events':
+                q = event_hub.subscribe(mid)
+                try:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/event-stream')
+                    self.send_header('Cache-Control', 'no-cache, no-transform')
+                    self.send_header('Connection', 'keep-alive')
+                    self.send_header('X-Accel-Buffering', 'no')
+                    self.end_headers()
+                    init_data = json.dumps({'status': row['status']})
+                    self.wfile.write(f"event: init\ndata: {init_data}\n\n".encode('utf-8'))
+                    self.wfile.flush()
+                    while True:
+                        try:
+                            msg = q.get(timeout=10)
+                            evt = msg['event']
+                            d_str = json.dumps(msg['data'])
+                            self.wfile.write(f"event: {evt}\ndata: {d_str}\n\n".encode('utf-8'))
+                            self.wfile.flush()
+                        except queue.Empty:
+                            self.wfile.write(b": ping\n\n")
+                            self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    pass
+                finally:
+                    event_hub.unsubscribe(mid, q)
+                return
             if len(parts)==5 and parts[4]=='download':
                 if row['status'] == 'recording': return self.send_json({'error':'Stop recording before downloading.'},409)
                 is_video = row['mime'].startswith('video/')
@@ -387,10 +645,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             with connect() as db:
                 preview=db.execute('SELECT content,completed,total FROM summary_preview WHERE meeting_id=?',(mid,)).fetchone()
+                t_preview=db.execute('SELECT content FROM transcript_preview WHERE meeting_id=?',(mid,)).fetchone()
                 checks={r['item_key']:r['checked'] for r in db.execute('SELECT item_key,checked FROM action_checks WHERE meeting_id=?',(mid,))}
                 trans_list=[dict(r) for r in db.execute('SELECT language_code, language_name, created_at FROM meeting_translations WHERE meeting_id=? ORDER BY created_at ASC',(mid,))]
             row['action_items']=action_items(row['summary'],checks)
             row['summary_preview']=dict(preview) if preview and row['status']=='summarizing' else None
+            row['transcript_preview']=t_preview['content'] if t_preview and row['status']=='transcribing' else None
             row['translations']=trans_list
             row['transcript']=json.loads(row['transcript'] or '[]'); row.pop('filename'); return self.send_json(row)
         file={'/':'index.html','/classic':'classic.html','/classic-app.js':'classic-app.js','/classic-style.css':'classic-style.css','/app.js':'app.js','/style.css':'style.css','/capture.js':'capture.js','/capture-worklet.js':'capture-worklet.js'}.get(path)

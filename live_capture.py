@@ -113,6 +113,8 @@ def transcribe(server, mid, index):
             rows=db.execute('SELECT segments FROM transcript_chunks WHERE meeting_id=? ORDER BY chunk_index',(mid,)).fetchall()
             combined=[segment for row in rows for segment in json.loads(row['segments'])]
             db.execute('UPDATE meetings SET transcript=?, error=NULL WHERE id=?',(json.dumps(combined),mid))
+        if hasattr(server, 'event_hub'):
+            server.event_hub.broadcast(mid, 'live_chunk', {'segments': segments, 'chunk_index': index, 'total': len(combined)})
     elif not gemini_key and groq_key:
         server.update(mid, error='Live transcription is delayed. Audio is saved; processing will retry after the meeting.')
 
@@ -187,14 +189,25 @@ def finish_processing(server,mid):
     segments=[s for row in rows for s in json.loads(row['segments'])]
     with server.connect() as db: db.execute('DELETE FROM summary_preview WHERE meeting_id=?',(mid,))
     server.update(mid,status='summarizing',transcript=json.dumps(segments),error=None)
+    if hasattr(server, 'event_hub'):
+        server.event_hub.broadcast(mid, 'status', {'status': 'summarizing'})
     gemini_key = os.environ.get('GEMINI_API_KEY')
     if gemini_key:
         try:
-            summary = gemini_pipeline.summarize(segments, gemini_key)
+            summary = gemini_pipeline.summarize(segments, gemini_key, on_chunk=lambda c: server.publish_summary_chunk(mid, c) if hasattr(server, 'publish_summary_chunk') else None)
             server.update(mid, status='ready', summary=summary, error=None)
+            if hasattr(server, 'clear_previews'):
+                server.clear_previews(mid)
+            if hasattr(server, 'event_hub'):
+                server.event_hub.broadcast(mid, 'summary_done', {'summary': summary})
+                server.event_hub.broadcast(mid, 'status', {'status': 'ready'})
             return
         except Exception as exc:
             server.update(mid, status='error', error=str(exc))
+            if hasattr(server, 'clear_previews'):
+                server.clear_previews(mid)
+            if hasattr(server, 'event_hub'):
+                server.event_hub.broadcast(mid, 'error', {'error': str(exc)})
             return
     try:
         request_get,request_set=server.summary_request_cache(mid)

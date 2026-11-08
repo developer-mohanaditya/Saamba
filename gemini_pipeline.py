@@ -151,13 +151,13 @@ def upload_audio(path, key):
             except Exception:
                 pass
 
-def parse_timestamps(raw_text):
+def parse_timestamps(raw_text, time_offset=0.0):
     """Parse timestamped transcript text into Saamba segment format:
     [{'start': float_sec, 'speaker': str or None, 'text': str}]
     """
     import re
     segments = []
-    current_time = 0.0
+    current_time = float(time_offset)
     current_speaker = None
     buffer = []
 
@@ -181,9 +181,15 @@ def parse_timestamps(raw_text):
             m_or_s = int(m.group(2))
             s_opt = m.group(3)
             if s_opt is not None:
-                current_time = float(h_or_m * 3600 + m_or_s * 60 + int(s_opt))
+                parsed_sec = float(h_or_m * 3600 + m_or_s * 60 + int(s_opt))
             else:
-                current_time = float(h_or_m * 60 + m_or_s)
+                parsed_sec = float(h_or_m * 60 + m_or_s)
+            
+            # If time_offset is present and parsed_sec is relative (less than offset), add offset
+            if time_offset > 0 and parsed_sec < time_offset:
+                current_time = parsed_sec + time_offset
+            else:
+                current_time = parsed_sec
             
             if m.group(4):
                 spk_str = m.group(4).strip()
@@ -207,8 +213,8 @@ def parse_timestamps(raw_text):
 
     return segments
 
-def transcribe_audio(path, key):
-    """Transcribe entire meeting recording in a single pass with Gemini Flash."""
+def stream_transcribe_audio(path, key, on_chunk=None, time_offset=0.0):
+    """Transcribe audio with Gemini Flash streaming tokens via SSE."""
     file_uri, mime_type = upload_audio(path, key)
     
     system_prompt = """You are a meticulous multilingual meeting transcription specialist.
@@ -218,7 +224,7 @@ Preserve Telugu speech in Telugu script. Preserve English speech in Latin script
 Include exact [HH:MM:SS] timestamps and stable speaker labels (e.g. [00:01:23] Speaker 1: text).
 Never translate or rewrite words to make them more fluent."""
 
-    url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:generateContent?key={key}"
+    url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:streamGenerateContent?alt=sse&key={key}"
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": [{
@@ -233,16 +239,70 @@ Never translate or rewrite words to make them more fluent."""
     
     timeout_sec = calculate_timeout(duration(path))
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+    accumulated = []
     try:
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            raw_text = extract_candidate_text(data, "transcription")
-            segments = parse_timestamps(raw_text)
-            if not segments:
-                segments = [{"start": 0.0, "speaker": None, "text": raw_text}]
-            return segments, raw_text
+            for line in resp:
+                l = line.decode('utf-8', errors='ignore').strip()
+                if l.startswith('data:'):
+                    try:
+                        data = json.loads(l[5:].strip())
+                        cand = data.get("candidates", [{}])[0]
+                        parts = cand.get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            text_piece = parts[0]["text"]
+                            accumulated.append(text_piece)
+                            if on_chunk and text_piece:
+                                on_chunk(text_piece)
+                    except Exception:
+                        continue
+        raw_text = "".join(accumulated)
+        if not raw_text.strip():
+            raise ProcessingError("Gemini streaming returned empty transcript.")
+        segments = parse_timestamps(raw_text, time_offset=time_offset)
+        if not segments:
+            segments = [{"start": time_offset, "speaker": None, "text": raw_text}]
+        return segments, raw_text
     except urllib.error.HTTPError as e:
-        raise ProcessingError(f"Gemini transcription failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+        raise ProcessingError(f"Gemini streaming transcription failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+
+def transcribe_audio(path, key, on_chunk=None):
+    """Transcribe meeting recording with real-time SSE streaming. Automatically chunks audio files > 30 minutes
+    to guarantee output stays within Gemini's 8,192 token window."""
+    total_sec = duration(path)
+    if total_sec <= 1800:
+        return stream_transcribe_audio(path, key, on_chunk=on_chunk, time_offset=0.0)
+    
+    # Slice into 20-minute (1200s) chunks for long audio to avoid token capping
+    chunk_len = 1200
+    all_segments = []
+    raw_parts = []
+    num_chunks = int((total_sec + chunk_len - 1) // chunk_len)
+    
+    for i in range(num_chunks):
+        start_sec = i * chunk_len
+        temp_chunk = f"/tmp/saamba_stream_chunk_{uuid.uuid4().hex[:8]}.mp3"
+        try:
+            cmd = [
+                'ffmpeg', '-y', '-ss', str(start_sec), '-t', str(chunk_len),
+                '-i', str(path), '-vn', '-ac', '1', '-b:a', '64k', temp_chunk
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=120)
+            if not os.path.exists(temp_chunk) or os.path.getsize(temp_chunk) == 0:
+                continue
+            
+            if on_chunk:
+                on_chunk(f"\n\n--- Part {i+1} of {num_chunks} [{int(start_sec//60)}:00] ---\n\n")
+            
+            chunk_segs, chunk_raw = stream_transcribe_audio(temp_chunk, key, on_chunk=on_chunk, time_offset=float(start_sec))
+            all_segments.extend(chunk_segs)
+            raw_parts.append(chunk_raw)
+        finally:
+            if os.path.exists(temp_chunk):
+                try: os.remove(temp_chunk)
+                except Exception: pass
+                
+    return all_segments, "\n\n".join(raw_parts)
 
 def transcribe_chunk(path, key):
     """Transcribe a short live audio chunk using inline audio with Gemini Flash."""
@@ -286,8 +346,8 @@ def clean_summary_text(text):
     res = "\n".join(cleaned).strip()
     return re.sub(r'\s*[—–]\s*', ', ', res)
 
-def summarize(segments, key):
-    """Generate executive summary, key points, decisions, and action items with source timestamps."""
+def stream_summarize(segments, key, on_chunk=None):
+    """Generate executive summary, key points, decisions, and action items with real-time SSE streaming."""
     def format_speaker(spk):
         if spk is None:
             return "Speaker"
@@ -326,20 +386,40 @@ Required Sections:
 Transcript:
 {transcript_text}"""
 
-    url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:generateContent?key={key}"
+    url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:streamGenerateContent?alt=sse&key={key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "safetySettings": SAFETY_SETTINGS,
         "generationConfig": {"temperature": 0.2}
     }
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+    accumulated = []
     try:
         with urllib.request.urlopen(req, timeout=300) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            raw = extract_candidate_text(data, "summarization")
-            return clean_summary_text(raw)
+            for line in resp:
+                l = line.decode('utf-8', errors='ignore').strip()
+                if l.startswith('data:'):
+                    try:
+                        data = json.loads(l[5:].strip())
+                        cand = data.get("candidates", [{}])[0]
+                        parts = cand.get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            text_piece = parts[0]["text"]
+                            accumulated.append(text_piece)
+                            if on_chunk and text_piece:
+                                on_chunk(text_piece)
+                    except Exception:
+                        continue
+        full_text = "".join(accumulated)
+        if not full_text.strip():
+            raise ProcessingError("Gemini streaming returned empty summary.")
+        return clean_summary_text(full_text)
     except urllib.error.HTTPError as e:
         raise ProcessingError(f"Gemini summarization failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+
+def summarize(segments, key, on_chunk=None):
+    """Generate executive summary, with optional real-time streaming callback."""
+    return stream_summarize(segments, key, on_chunk=on_chunk)
 
 def chat(messages, transcript_text, key):
     """Answer user questions about the meeting."""
