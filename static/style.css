@@ -981,7 +981,9 @@ html.init-sidebar-collapsed .icon-expand {
   line-height: 1.4 !important;
 }
 .segment-time {
-  flex: 0 0 42px !important;
+  flex: 0 0 auto !important;
+  min-width: 38px !important;
+  white-space: nowrap !important;
   font-size: 12px !important;
   line-height: 18px !important;
   color: var(--green) !important;

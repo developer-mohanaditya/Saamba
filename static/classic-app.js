@@ -1,6 +1,15 @@
 const $ = s => document.querySelector(s); let selected = null, current = null, lastVersion = null;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const time = n => { n=Math.floor(Number(n)||0); return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
+const time = n => {
+  n = Math.floor(Number(n) || 0);
+  const s = n % 60;
+  const m = Math.floor(n / 60) % 60;
+  const h = Math.floor(n / 3600);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${Math.floor(n / 60)}:${String(s).padStart(2, '0')}`;
+};
 const date = s => new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 const busyStatus = status => ['queued','transcribing','summarizing'].includes(status);
 const statusText = status => ({queued:'Getting ready',transcribing:'Creating transcript',summarizing:'Creating summary',recording:'Recording',ready:'Ready',error:'Needs attention','needs setup':'Setup needed'}[status] || status);
