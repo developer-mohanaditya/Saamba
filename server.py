@@ -189,7 +189,7 @@ def create_notes(mid, mode):
             if mode in ('transcript', 'both'):
                 update(mid, status='transcribing', error=None)
                 segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key)
-                update(mid, transcript=json.dumps(segments))
+                update(mid, transcript=json.dumps(segments), summary=None if mode == 'transcript' else meeting['summary'])
             else:
                 segments = json.loads(meeting['transcript'] or '[]')
             if mode in ('summary', 'both'):
@@ -201,6 +201,9 @@ def create_notes(mid, mode):
             return
         except gemini_pipeline.ProcessingError as exc:
             update(mid, status='error', error=str(exc))
+            return
+        except Exception as exc:
+            update(mid, status='error', error=f'Processing failed: {exc}')
             return
     key = os.environ.get('GROQ_API_KEY')
     if not key:

@@ -117,7 +117,7 @@
 .subtle-button:disabled { opacity:.48; cursor:not-allowed; }
 .share-menu { position:relative; }
 .share-options { position:absolute; right:0; z-index:5; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; width:160px; box-shadow:0 8px 24px #0002; }
-.share-options button { display:block; background:none; border:0; padding:8px; color:var(--muted); cursor:not-allowed; }
+.share-options button { display:block; background:none; border:0; padding:8px; color:var(--muted); cursor:pointer; }
 .share-options small { display:block; color:var(--muted); padding:4px 8px; }
 .tabs { align-items:center; flex-shrink:0; }
 .search { margin:0 0 0 auto; width:min(210px,45%); padding:7px 11px; font-size:12px; background:#f6f8f2; border-radius:999px; }
@@ -161,7 +161,7 @@
 .subtle-button { display:inline-flex; align-items:center; gap:.35rem; white-space:nowrap; font-size:.8rem; }
 .subtle-button svg { width:1rem; height:1rem; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
 .share-options { width:max-content; min-width:170px; }
-.share-options button { width:100%; text-align:left; font:inherit; font-size:.8rem; color:var(--green); }
+.share-options button { width:100%; text-align:left; font:inherit; font-size:.8rem; color:var(--green); cursor:pointer; }
 .share-options button:not(:disabled):hover { background:var(--soft); }
 .share-options button:disabled { opacity:.55; cursor:not-allowed; }
 .status-chip:not(.is-busy):not(.is-error)::before { content:''; width:.45rem; height:.45rem; background:#4c805f; border-radius:50%; }
