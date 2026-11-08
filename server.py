@@ -563,8 +563,12 @@ class Handler(BaseHTTPRequestHandler):
             if not segments and not summary_text:
                 return self.send_json({'error': 'No transcript or summary to translate.'}, 400)
             try:
-                translated_segments = gemini_pipeline.translate_transcript(segments, lang_name, gemini_key) if segments else []
-                translated_summary = gemini_pipeline.translate_summary(summary_text, lang_name, gemini_key) if summary_text else ''
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                    trans_fut = pool.submit(gemini_pipeline.translate_transcript, segments, lang_name, gemini_key) if segments else None
+                    summ_fut = pool.submit(gemini_pipeline.translate_summary, summary_text, lang_name, gemini_key) if summary_text else None
+                    translated_segments = trans_fut.result() if trans_fut else []
+                    translated_summary = summ_fut.result() if summ_fut else ''
                 now = datetime.now(timezone.utc).isoformat()
                 with connect() as db:
                     db.execute('INSERT OR REPLACE INTO meeting_translations (meeting_id, language_code, language_name, transcript, summary, created_at) VALUES (?,?,?,?,?,?)',

@@ -255,8 +255,8 @@ const $ = s => document.querySelector(s);
 let selected = null, current = null, lastVersion = null, editing = false;
 const chats = {};
 const downloads = new Set();
-const activeTranslationTabs = {};
-const translationsCache = {};
+const activeTranslationByMeeting = {}; // mid -> { code, name, status: 'loading'|'ready'|'error', error: null, data: null }
+const translationsCache = {}; // `${mid}:${code}` -> data
 let mediaCollapsed = false;
 try { mediaCollapsed = localStorage.getItem('saamba-media-collapsed') === 'true'; } catch (_) {}
 function syncMediaPane() {
@@ -276,16 +276,11 @@ function initTranslateDialog() {
   const translateForm = $('#translate-form');
   const translateClose = $('#close-translate-dialog');
   const translateCancel = $('#translate-cancel');
-  const translateStatus = $('#translate-status');
-  const translateStatusText = $('#translate-status-text');
   const translateError = $('#translate-error');
-  const translateSubmit = $('#translate-submit');
   if (!translateDialog) return;
   const closeDialog = () => {
     translateDialog.close();
-    if (translateStatus) translateStatus.hidden = true;
     if (translateError) translateError.textContent = '';
-    if (translateSubmit) translateSubmit.disabled = false;
   };
   if (translateClose) translateClose.onclick = closeDialog;
   if (translateCancel) translateCancel.onclick = closeDialog;
@@ -302,59 +297,95 @@ function initTranslateDialog() {
   });
 
   if (translateForm) {
-    translateForm.onsubmit = async e => {
+    translateForm.onsubmit = e => {
       e.preventDefault();
       const targetMid = translateForm.dataset.meetingId;
       if (!targetMid) return;
-      const code = $('#translate-target-code')?.value || 'es';
-      const name = $('#translate-target-name')?.value || 'Spanish';
-      if (translateStatusText) translateStatusText.textContent = `Translating conversation into ${name}…`;
-      if (translateStatus) translateStatus.hidden = false;
-      if (translateError) translateError.textContent = '';
-      if (translateSubmit) translateSubmit.disabled = true;
-      try {
-        const result = await api(`/api/meetings/${targetMid}/translate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ language_code: code, language_name: name })
-        });
-        translationsCache[`${targetMid}:${code}`] = result;
-        if (!activeTranslationTabs[targetMid]) {
-          activeTranslationTabs[targetMid] = new Set();
-        }
-        activeTranslationTabs[targetMid].add(code);
-        closeDialog();
-        showToast(`Conversation translated into ${name}.`);
+      const code = $('#translate-target-code')?.value || 'en';
+      const name = $('#translate-target-name')?.value || 'English';
+
+      // 1. Close dialog immediately as requested by user
+      closeDialog();
+
+      // 2. Set active thread-scoped translation with loading state
+      activeTranslationByMeeting[targetMid] = {
+        code,
+        name,
+        status: 'loading',
+        error: null,
+        data: translationsCache[`${targetMid}:${code}`] || null
+      };
+
+      // 3. Immediately re-render with active translation tab and loading state
+      current = null;
+      openMeeting(targetMid, false, `trans-${code}`);
+
+      // 4. If already in memory cache, mark ready immediately
+      if (translationsCache[`${targetMid}:${code}`]) {
+        activeTranslationByMeeting[targetMid].status = 'ready';
+        activeTranslationByMeeting[targetMid].data = translationsCache[`${targetMid}:${code}`];
         current = null;
-        await openMeeting(targetMid, false, `trans-${code}`);
-      } catch (err) {
-        if (translateError) translateError.textContent = err.message || 'Translation failed.';
-      } finally {
-        if (translateStatus) translateStatus.hidden = true;
-        if (translateSubmit) translateSubmit.disabled = false;
+        openMeeting(targetMid, false, `trans-${code}`);
+        return;
       }
+
+      // 5. Asynchronously call translation endpoint
+      api(`/api/meetings/${targetMid}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language_code: code, language_name: name })
+      }).then(result => {
+        translationsCache[`${targetMid}:${code}`] = result;
+        if (activeTranslationByMeeting[targetMid]?.code === code) {
+          activeTranslationByMeeting[targetMid] = {
+            code,
+            name,
+            status: 'ready',
+            error: null,
+            data: result
+          };
+          if (current === targetMid) {
+            current = null;
+            openMeeting(targetMid, false, `trans-${code}`);
+          }
+          showToast(`Conversation translated into ${name}.`);
+        }
+      }).catch(err => {
+        if (activeTranslationByMeeting[targetMid]?.code === code) {
+          activeTranslationByMeeting[targetMid] = {
+            code,
+            name,
+            status: 'error',
+            error: err.message || 'Translation failed.',
+            data: null
+          };
+          if (current === targetMid) {
+            current = null;
+            openMeeting(targetMid, false, `trans-${code}`);
+          }
+        }
+      });
     };
   }
 }
-function openTranslateModal(meetingId, existingList = []) {
+function openTranslateModal(meetingId) {
   const translateDialog = $('#translate-dialog');
   const translateForm = $('#translate-form');
-  const translateStatus = $('#translate-status');
   const translateError = $('#translate-error');
-  const translateSubmit = $('#translate-submit');
   if (!translateDialog) return;
   translateForm.dataset.meetingId = meetingId;
-  if (translateStatus) translateStatus.hidden = true;
   if (translateError) translateError.textContent = '';
-  if (translateSubmit) translateSubmit.disabled = false;
 
-  const existingCodes = new Set((existingList || []).map(t => t.language_code));
+  const activeTrans = activeTranslationByMeeting[meetingId];
+  const targetCode = activeTrans?.code || 'en';
   document.querySelectorAll('.lang-chip').forEach(chip => {
-    const isCached = existingCodes.has(chip.dataset.code);
-    const baseText = chip.dataset.name;
-    const flag = chip.textContent.trim().split(' ')[0];
-    chip.innerHTML = `${flag} ${esc(baseText)}${isCached ? ' <span class="chip-cached-badge" title="Cached">✓</span>' : ''}`;
+    chip.classList.toggle('is-selected', chip.dataset.code === targetCode);
   });
+  const codeInput = $('#translate-target-code');
+  const nameInput = $('#translate-target-name');
+  if (codeInput) codeInput.value = targetCode;
+  const selectedChip = document.querySelector(`.lang-chip[data-code="${targetCode}"]`);
+  if (nameInput && selectedChip) nameInput.value = selectedChip.dataset.name;
 
   translateDialog.showModal();
 }
@@ -614,65 +645,60 @@ async function openMeeting(id,rerender=true,targetTab=null){
   selected=id;const m=await api(`/api/meetings/${id}`);if(rerender){await refresh();return;}
   if(!chats[id]){const messages=await api(`/api/meetings/${id}/chat`);if(selected!==id)return;chats[id]={messages,scope:'this',collapsed:false,question:''};}
 
-  const translationsList = await api(`/api/meetings/${id}/translations`).catch(() => []);
-  if (!activeTranslationTabs[id]) {
-    activeTranslationTabs[id] = new Set(translationsList.map(t => t.language_code));
-  }
-  if (targetTab && targetTab.startsWith('trans-')) {
-    activeTranslationTabs[id].add(targetTab.replace('trans-', ''));
-  }
-  const neededLangs = Array.from(activeTranslationTabs[id]).filter(code => !translationsCache[`${id}:${code}`]);
-  if (neededLangs.length) {
-    await Promise.all(neededLangs.map(async code => {
-      try {
-        const transData = await api(`/api/meetings/${id}/translations/${code}`);
-        translationsCache[`${id}:${code}`] = transData;
-      } catch (_) {}
-    }));
-  }
-
-  const openTransLangs = Array.from(activeTranslationTabs[id] || []).sort().join(',');
-  const version=JSON.stringify([m.id,m.title,m.status,m.error,m.summary,m.summary_preview,m.transcript,m.mime,m.action_items,openTransLangs]);
-  if(current===id&&lastVersion===version&&!targetTab)return;lastVersion=version;
-  const same=current===id,oldPlayer=$('#player'),position=same?oldPlayer?.currentTime||0:0,playing=same&&oldPlayer&&!oldPlayer.paused;
-  const previousTab=same&&document.querySelector('.tab.active')?.dataset.tab;
-  const activeTab=targetTab||previousTab||(m.status==='recording'?'transcript':'summary');
-  const searchTerm=same?($('#search')?.value||''):'';const oldScroll=same?($('#notes-scroll')?.scrollTop||0):0;current=id;
-  const canRewrite=!busyStatus(m.status)&&m.status!=='recording';
-  const video=m.mime.startsWith('video/');
-  const totalActions=m.action_items?.length||0;
-  const checkedActions=m.action_items?.filter(a=>a.checked).length||0;
-  const actionCounterText=totalActions>0?`${checkedActions}/${totalActions}`:'0';
-  const uniqueSpeakers=[]; const seenSpeakers=new Set();
-  for(const s of m.transcript){
-    if(s.speaker!=null){
+  const activeTrans = activeTranslationByMeeting[id] || null;
+  const transVersion = activeTrans ? `${activeTrans.code}:${activeTrans.status}:${activeTrans.data ? 'ready' : 'empty'}` : 'none';
+  const version = JSON.stringify([m.id, m.title, m.status, m.error, m.summary, m.summary_preview, m.transcript, m.mime, m.action_items, transVersion]);
+  if (current === id && lastVersion === version && !targetTab) return;
+  lastVersion = version;
+  const same = current === id, oldPlayer = $('#player'), position = same ? oldPlayer?.currentTime || 0 : 0, playing = same && oldPlayer && !oldPlayer.paused;
+  const previousTab = same && document.querySelector('.tab.active')?.dataset.tab;
+  const activeTab = targetTab || previousTab || (m.status === 'recording' ? 'transcript' : 'summary');
+  const searchTerm = same ? ($('#search')?.value || '') : '';
+  const oldScroll = same ? ($('#notes-scroll')?.scrollTop || 0) : 0;
+  current = id;
+  const canRewrite = !busyStatus(m.status) && m.status !== 'recording';
+  const video = m.mime.startsWith('video/');
+  const totalActions = m.action_items?.length || 0;
+  const checkedActions = m.action_items?.filter(a => a.checked).length || 0;
+  const actionCounterText = totalActions > 0 ? `${checkedActions}/${totalActions}` : '0';
+  const uniqueSpeakers = [];
+  const seenSpeakers = new Set();
+  for (const s of m.transcript) {
+    if (s.speaker != null) {
       const name = speakerDisplayName(s.speaker);
-      if(!seenSpeakers.has(name)){
+      if (!seenSpeakers.has(name)) {
         seenSpeakers.add(name);
         uniqueSpeakers.push(s.speaker);
       }
     }
   }
-  const speakerBar='';
+  const speakerBar = '';
   const editIcon = `<svg class="speaker-edit-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`;
-  const segments=m.transcript.map((s,idx)=>`<button class="segment" data-time="${Number(s.start)||0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker==null?'':`<span class="speaker-tag" data-speaker="${esc(s.speaker)}" data-index="${idx}" title="Click to rename or reassign speaker"><strong>${esc(speakerDisplayName(s.speaker))}</strong><span class="speaker-edit-btn" aria-hidden="true">${editIcon}</span></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
+  const segments = m.transcript.map((s, idx) => `<button class="segment" data-time="${Number(s.start) || 0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker == null ? '' : `<span class="speaker-tag" data-speaker="${esc(s.speaker)}" data-index="${idx}" title="Click to rename or reassign speaker"><strong>${esc(speakerDisplayName(s.speaker))}</strong><span class="speaker-edit-btn" aria-hidden="true">${editIcon}</span></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
 
   let translationTabsHtml = '';
   let translationPanesHtml = '';
-  if (activeTranslationTabs[id]) {
-    for (const code of activeTranslationTabs[id]) {
-      const trans = translationsCache[`${id}:${code}`];
-      if (!trans) continue;
-      const tabId = `trans-${code}`;
-      const isTabActive = activeTab === tabId;
-      translationTabsHtml += `<button class="tab translation-tab ${isTabActive ? 'active' : ''}" data-tab="${esc(tabId)}" title="Translated into ${esc(trans.language_name)}">${icon('translate')} Transcript · ${esc(trans.language_name)} <span class="tab-close" data-close-lang="${esc(code)}" title="Close translation tab" role="button" aria-label="Close tab">×</span></button>`;
+  if (activeTrans) {
+    const tabId = `trans-${activeTrans.code}`;
+    const isTabActive = activeTab === tabId;
+    const isLoading = activeTrans.status === 'loading';
+    const isError = activeTrans.status === 'error';
 
-      const transSegments = (trans.transcript || []).map(s => `<button class="segment" data-time="${Number(s.start)||0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker==null?'':`<span class="speaker-tag" data-speaker="${esc(s.speaker)}"><strong>${esc(speakerDisplayName(s.speaker))}</strong></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
+    translationTabsHtml = `<button class="tab translation-tab ${isTabActive ? 'active' : ''}" data-tab="${esc(tabId)}" title="Translated into ${esc(activeTrans.name)}">Transcript · ${esc(activeTrans.name)}${isLoading ? ' ' + spinner() : ''} <span class="tab-close" data-close-tab="true" title="Close translation tab" role="button" aria-label="Close tab">×</span></button>`;
 
-      translationPanesHtml += `<div id="${esc(tabId)}" class="tab-content" ${isTabActive ? '' : 'hidden'}><div class="translation-header-info"><span class="translation-badge">${icon('translate')} Translated into ${esc(trans.language_name)}</span></div><div class="segments">${transSegments}</div></div>`;
+    let paneContent = '';
+    if (isLoading) {
+      paneContent = `<div class="activity" role="status">${spinner()}<div><strong>Translating conversation into ${esc(activeTrans.name)}…</strong><p>Generating translated transcript segments with audio synchronization.</p></div></div>`;
+    } else if (isError) {
+      paneContent = `<p class="notice is-error">${esc(activeTrans.error)}</p>`;
+    } else {
+      const transSegments = (activeTrans.data?.transcript || []).map(s => `<button class="segment" data-time="${Number(s.start) || 0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker == null ? '' : `<span class="speaker-tag" data-speaker="${esc(s.speaker)}"><strong>${esc(speakerDisplayName(s.speaker))}</strong></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
+      paneContent = `<div class="segments">${transSegments}</div>`;
     }
+    translationPanesHtml = `<div id="${esc(tabId)}" class="tab-content" ${isTabActive ? '' : 'hidden'}>${paneContent}</div>`;
   }
-  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button disabled>${icon('mail')}Send to email</button><button disabled>${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap" ${activeTab==='transcript'?'':'hidden'}><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options">⋮</button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button></div></div></div>${translationTabsHtml}<div id="search-wrap" class="search-wrap" ${activeTab==='transcript'||activeTab.startsWith('trans-')?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div>${translationPanesHtml}</div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player"><svg class="media-chevron-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
+
+  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button disabled>${icon('mail')}Send to email</button><button disabled>${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap"><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button></div></div></div>${translationTabsHtml}<div id="search-wrap" class="search-wrap" ${activeTab==='transcript'||activeTab.startsWith('trans-')?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div>${translationPanesHtml}</div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player"><svg class="media-chevron-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
   const title=$('#meeting-title');title.onclick=()=>{
     editing=true;const input=document.createElement('input');input.className='title-input';input.value=m.title;input.maxLength=200;input.setAttribute('aria-label','Meeting name');title.replaceWith(input);input.focus();input.setSelectionRange(input.value.length,input.value.length);let done=false;
     const save=async()=>{if(done)return;done=true;const value=input.value.trim();try{if(value&&value!==m.title)await api(`/api/meetings/${id}/rename`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:value})});}catch(e){alert(e.message);}finally{editing=false;current=null;refresh();}};
@@ -706,8 +732,6 @@ async function openMeeting(id,rerender=true,targetTab=null){
     document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));
     document.querySelectorAll('.tab-content').forEach(x=>x.hidden=x.id!==(action?'summary':b.dataset.tab));
     $('#search-wrap').hidden=!isAnyTranscript;
-    const menuWrap=$('#transcript-menu-wrap');
-    if(menuWrap)menuWrap.hidden=!isOriginalTranscript;
     const drop=$('#transcript-dropdown');
     if(drop)drop.hidden=true;
     const note=$('#speaker-note');
@@ -721,10 +745,7 @@ async function openMeeting(id,rerender=true,targetTab=null){
   document.querySelectorAll('.tab-close').forEach(closeBtn=>{
     closeBtn.onclick=(e)=>{
       e.stopPropagation();
-      const code=closeBtn.dataset.closeLang;
-      if(activeTranslationTabs[id]){
-        activeTranslationTabs[id].delete(code);
-      }
+      activeTranslationByMeeting[id]=null;
       current=null;
       openMeeting(id,false,'transcript');
     };
@@ -819,7 +840,7 @@ async function openMeeting(id,rerender=true,targetTab=null){
     menuTranslate.onclick=e=>{
       e.stopPropagation();
       if(moreDrop)moreDrop.hidden=true;
-      openTranslateModal(id, translationsList);
+      openTranslateModal(id);
     };
   }
   if(speakerForm)speakerForm.onsubmit=async e=>{

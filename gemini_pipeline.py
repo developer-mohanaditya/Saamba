@@ -1,7 +1,7 @@
 """Gemini 3.8 Flash pipeline for Saamba meeting transcription, translation, and chat.
 Single-pass ingestion: uploads the full audio to Google File API, avoiding artificial chunking.
 """
-import os, json, time, uuid, subprocess, urllib.request, urllib.error, re
+import os, json, time, uuid, subprocess, urllib.request, urllib.error, re, concurrent.futures
 from pathlib import Path
 
 MODEL_TRANSCRIPTION = os.environ.get('SAAMBA_GEMINI_MODEL', 'gemini-3.8-flash')
@@ -281,11 +281,10 @@ def translate_transcript(segments, target_language, key):
     if not segments:
         return []
     
-    batch_size = 40
-    translated_all = []
+    batch_size = 50
+    chunks = [segments[i:i + batch_size] for i in range(0, len(segments), batch_size)]
     
-    for i in range(0, len(segments), batch_size):
-        chunk = segments[i:i + batch_size]
+    def translate_chunk(chunk):
         lines = [f"[{idx}] {seg.get('text', '')}" for idx, seg in enumerate(chunk)]
         input_text = "\n".join(lines)
         
@@ -314,18 +313,25 @@ RULES:
                     m = re.match(r"^\[(\d+)\]\s*(.*)", line)
                     if m:
                         trans_map[int(m.group(1))] = m.group(2).strip()
+                chunk_res = []
                 for idx, seg in enumerate(chunk):
-                    translated_text = trans_map.get(idx, seg.get("text", ""))
-                    translated_all.append({
+                    chunk_res.append({
                         "start": seg.get("start", 0),
                         "speaker": seg.get("speaker"),
-                        "text": translated_text
+                        "text": trans_map.get(idx, seg.get("text", ""))
                     })
+                return chunk_res
         except urllib.error.HTTPError as e:
             raise ProcessingError(f"Transcript translation failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
         except Exception as e:
             raise ProcessingError(f"Transcript translation failed: {e}")
-            
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(chunks), 5)) as pool:
+        results = list(pool.map(translate_chunk, chunks))
+
+    translated_all = []
+    for r in results:
+        translated_all.extend(r)
     return translated_all
 
 def translate_summary(summary_text, target_language, key):

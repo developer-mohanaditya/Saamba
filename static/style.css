@@ -885,21 +885,43 @@ html.init-sidebar-collapsed .icon-expand {
 }
 
 /* Transcript Tab Vertical 3-Dot Menu */
-.transcript-tab-wrapper { display:inline-flex; align-items:center; gap:0; position:relative; }
-.transcript-menu-wrap { position:relative; display:inline-flex; align-items:center; margin-left:4px; }
+.transcript-tab-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+}
+.transcript-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
 .transcript-more-btn {
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 1.25rem;
-  line-height: 1;
-  padding: 4px 6px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   border-radius: 4px;
-  transition: color .15s ease;
+  transition: color .15s ease, background-color .15s ease;
+  line-height: 1;
 }
-.transcript-more-btn:hover { color: var(--green); }
+.transcript-more-btn:hover {
+  color: var(--ink);
+  background: rgba(0,0,0,0.06);
+}
 .transcript-more-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.transcript-more-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
 .transcript-dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -1760,17 +1782,18 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   gap: 6px;
 }
 .tab.translation-tab .tab-close {
-  display: inline-grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   font-size: 13px;
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
   transition: background-color .15s ease, color .15s ease;
-  margin-left: 2px;
+  margin-left: 4px;
 }
 .tab.translation-tab .tab-close:hover {
   background: rgba(0,0,0,0.09);
@@ -1779,35 +1802,4 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
 .tab.translation-tab.active .tab-close:hover {
   background: rgba(35,66,53,0.15);
   color: var(--green);
-}
-.chip-cached-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  margin-left: auto;
-  opacity: 0.85;
-}
-.translation-header-info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  margin-bottom: 14px;
-  background: var(--soft);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.translation-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: var(--green);
-}
-.translation-badge svg {
-  stroke: var(--green);
 }
