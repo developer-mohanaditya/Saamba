@@ -1168,8 +1168,21 @@ html.init-sidebar-collapsed .icon-expand {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 220px;
+  max-height: 160px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4d745b #e8eee7;
+}
+.custom-select-options::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-select-options::-webkit-scrollbar-track {
+  background: #e8eee7;
+  border-radius: 4px;
+}
+.custom-select-options::-webkit-scrollbar-thumb {
+  background: #4d745b;
+  border-radius: 4px;
 }
 .custom-select-options[hidden] { display: none !important; }
 .custom-select-option {
@@ -1245,8 +1258,19 @@ html.init-sidebar-collapsed .icon-expand {
   border-radius: 14px;
   padding: 30px;
   width: min(480px, calc(100% - 32px));
+  min-height: 440px;
   box-shadow: 0 20px 70px #0003;
   background: #fff;
+  overflow: visible;
+}
+#speaker-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+}
+#speaker-form .delete-dialog-actions {
+  margin-top: auto;
+  padding-top: 24px;
 }
 #speaker-dialog label {
   font-size: .85rem;

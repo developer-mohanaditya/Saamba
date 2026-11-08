@@ -195,7 +195,7 @@ Never translate or rewrite words to make them more fluent."""
     
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
+        with urllib.request.urlopen(req, timeout=600) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
             segments = parse_timestamps(raw_text)
@@ -294,7 +294,7 @@ Transcript:
     }
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=300) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             raw = data["candidates"][0]["content"]["parts"][0]["text"]
             return clean_summary_text(raw)
