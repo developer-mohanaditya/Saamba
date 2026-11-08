@@ -156,12 +156,16 @@ def parse_timestamps(raw_text, time_offset=0.0):
     [{'start': float_sec, 'speaker': str or None, 'text': str}]
     """
     import re
+    raw_text = re.sub(r'<thought>.*?</thought>', '', raw_text, flags=re.DOTALL)
+    raw_text = re.sub(r'\bthought\b', '', raw_text)
+    raw_text = re.sub(r'(\s+)\[(\d{1,2}:\d{2}(?::\d{2})?)\]', r'\n[\2]', raw_text)
+
     segments = []
     current_time = float(time_offset)
     current_speaker = None
     buffer = []
 
-    pattern = re.compile(r'^\s*\[?(\d{1,2}):(\d{2})(?::(\d{2}))?\]?\s*(Speaker\s*\w+)?\s*:?\s*(.*)$', re.IGNORECASE)
+    pattern = re.compile(r'^\s*[-*•]?\s*\[?(\d{1,2}):(\d{2})(?::(\d{2}))?\]?\s*(?:\[|\()?(\bSpeaker\s*\w+|\b[A-Za-z]+)?(?:\]|\))?\s*:?\s*(.*)$', re.IGNORECASE)
 
     for line in raw_text.splitlines():
         line = line.strip()
@@ -221,8 +225,9 @@ def stream_transcribe_audio(path, key, on_chunk=None, time_offset=0.0):
 Transcribe the supplied meeting audio faithfully in the original language or languages spoken.
 The audio will often contain Telugu and English, including code-switching.
 Preserve Telugu speech in Telugu script. Preserve English speech in Latin script.
-Include exact [HH:MM:SS] timestamps and stable speaker labels (e.g. [00:01:23] Speaker 1: text).
-Never translate or rewrite words to make them more fluent."""
+Include exact [HH:MM:SS] timestamps and stable speaker labels at the beginning of every single line (e.g. [00:01:23] Speaker 1: text).
+Every sentence or natural pause (at least every 15-30 seconds) MUST start on a new line with its own [HH:MM:SS] timestamp and speaker label.
+Never lump large paragraphs together under a single timestamp, and never output meta-commentary, markdown bullets, or thought blocks."""
 
     url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:streamGenerateContent?alt=sse&key={key}"
     payload = {
