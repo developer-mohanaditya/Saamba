@@ -27,18 +27,21 @@ if (sidebarCollapseBtn) {
     setSidebarCollapsed(!sidebarCollapsed);
   });
 }
-workspaceToggle.addEventListener('click', (e) => {
-  if (sidebarCollapsed) {
-    e.stopPropagation();
-    return;
-  }
-});
+if (workspaceToggle) {
+  workspaceToggle.addEventListener('click', (e) => {
+    if (sidebarCollapsed) {
+      e.stopPropagation();
+      return;
+    }
+  });
+}
 let libraryExpanded = true;
 try { libraryExpanded = localStorage.getItem('saamba-library-expanded') !== 'false'; } catch (_) {}
 function syncLibrary() {
-  if (libraryPane) {
-    libraryPane.classList.toggle('is-collapsed', !libraryExpanded);
-    libraryPane.setAttribute('aria-hidden', String(!libraryExpanded));
+  const currentLibrary = document.querySelector('.library');
+  if (currentLibrary) {
+    currentLibrary.classList.toggle('is-collapsed', !libraryExpanded);
+    currentLibrary.setAttribute('aria-hidden', String(!libraryExpanded));
   }
   if (libraryToggle) {
     libraryToggle.setAttribute('aria-expanded', String(libraryExpanded));
@@ -50,21 +53,23 @@ function syncLibrary() {
   document.documentElement.classList.remove('init-library-collapsed');
 }
 syncLibrary();
-libraryToggle.addEventListener('click', (e) => {
-  if (sidebarCollapsed) {
-    e.stopPropagation();
-    setSidebarCollapsed(false);
-    if (!libraryExpanded) {
-      libraryExpanded = true;
-      try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
-      syncLibrary();
+if (libraryToggle) {
+  libraryToggle.addEventListener('click', (e) => {
+    if (sidebarCollapsed) {
+      e.stopPropagation();
+      setSidebarCollapsed(false);
+      if (!libraryExpanded) {
+        libraryExpanded = true;
+        try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+        syncLibrary();
+      }
+      return;
     }
-    return;
-  }
-  libraryExpanded = !libraryExpanded;
-  try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
-  syncLibrary();
-});
+    libraryExpanded = !libraryExpanded;
+    try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
+    syncLibrary();
+  });
+}
 
 const WORKSPACE_ICONS = {
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -129,7 +134,11 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
   const list = document.querySelector('#workspace-list');
   if (!list) return;
 
-  list.innerHTML = workspaces.map(ws => {
+  let html = '';
+  workspaces.forEach((ws, idx) => {
+    if (idx > 0) {
+      html += `<div class="workspace-divider" role="separator" aria-hidden="true"></div>`;
+    }
     const iconSvg = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
     let count = 0;
     if (ws.id === 'default') {
@@ -142,13 +151,19 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
     const chevronSvg = isActive
       ? `<svg class="nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>`
       : '';
-    return `<button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
-      <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
-      <span class="workspace-title">${esc(ws.name)}</span>
-      <span class="workspace-count">${count}</span>
-      ${chevronSvg}
-    </button>`;
-  }).join('');
+    html += `<div class="workspace-block ${isActive ? 'is-active' : ''}" data-workspace-id="${esc(ws.id)}">
+      <button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
+        <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
+        <span class="workspace-title">${esc(ws.name)}</span>
+        <span class="workspace-count">${count}</span>
+        ${chevronSvg}
+      </button>`;
+    if (isActive) {
+      html += `<section class="library ${!libraryExpanded ? 'is-collapsed' : ''}" id="meeting-library"><div id="meetings" class="meeting-list"></div></section>`;
+    }
+    html += `</div>`;
+  });
+  list.innerHTML = html;
 
   list.querySelectorAll('.workspace-nav-item').forEach(btn => {
     btn.onclick = (e) => {
@@ -160,7 +175,6 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
         libraryExpanded = true;
         try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
         try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
-        syncLibrary();
         updateActiveWorkspaceUI();
         refresh();
         return;
@@ -176,7 +190,6 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
       try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
       libraryExpanded = true;
       try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
-      syncLibrary();
       updateActiveWorkspaceUI();
       refresh();
     };
@@ -394,6 +407,30 @@ function initRewriteDialog() {
   }
 }
 initRewriteDialog();
+
+let pendingStopAction = null;
+function initStopConfirmDialog() {
+  const dialog = $('#stop-confirm-dialog');
+  const closeBtn = $('#close-stop-confirm-dialog');
+  const cancelBtn = $('#stop-confirm-cancel');
+  const form = $('#stop-confirm-form');
+  if (!dialog) return;
+  const close = () => {
+    dialog.close();
+    pendingStopAction = null;
+  };
+  if (closeBtn) closeBtn.onclick = close;
+  if (cancelBtn) cancelBtn.onclick = close;
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const action = pendingStopAction;
+      close();
+      if (action) await action();
+    };
+  }
+}
+initStopConfirmDialog();
 
 function openTranslateModal(meetingId) {
   const translateDialog = $('#translate-dialog');
@@ -788,19 +825,24 @@ async function openMeeting(id,rerender=true,targetTab=null){
   };}
   if($('#recover-live'))$('#recover-live').onclick=async()=>{if(capture&&capture.id===id){showToast('Use Stop recording to finish the active meeting.');return;}try{await api(`/api/live/${id}/finish`,{method:'POST'});current=null;refresh();}catch(e){showToast(e.message||String(e));}};
   document.querySelectorAll('#stop-processing-btn, #stop-activity-btn').forEach(btn => {
-    btn.onclick = async () => {
-      btn.disabled = true;
-      btn.textContent = 'Stopping…';
-      try {
-        await api(`/api/meetings/${id}/stop`, {method: 'POST'});
-        showToast('Processing stopped. Reverted to previous notes.');
-        current = null;
-        await refresh();
-      } catch(err) {
-        showToast(err.message || 'Could not stop processing.');
-        btn.disabled = false;
-        btn.textContent = 'Stop';
-      }
+    btn.onclick = () => {
+      pendingStopAction = async () => {
+        btn.disabled = true;
+        btn.textContent = 'Stopping…';
+        try {
+          await api(`/api/meetings/${id}/stop`, {method: 'POST'});
+          showToast('Processing stopped. Reverted to previous notes.');
+          current = null;
+          await refresh();
+        } catch(err) {
+          showToast(err.message || 'Could not stop processing.');
+          btn.disabled = false;
+          btn.textContent = 'Stop';
+        }
+      };
+      const dialog = $('#stop-confirm-dialog');
+      if (dialog) dialog.showModal();
+      else pendingStopAction();
     };
   });
   const search=$('#search');search.value=searchTerm;search.oninput=()=>document.querySelectorAll('.segment').forEach(x=>x.hidden=!x.textContent.toLowerCase().includes(search.value.toLowerCase()));search.dispatchEvent(new Event('input'));

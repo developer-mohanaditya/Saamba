@@ -1605,6 +1605,23 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   flex-direction: column;
   gap: 4px;
 }
+.workspace-block {
+  display: flex;
+  flex-direction: column;
+}
+.workspace-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 10px 8px;
+}
+.workspace-block.is-active .workspace-nav-item {
+  margin-bottom: 4px;
+}
+.layout-sidebar .workspace-sidebar .library {
+  margin-left: 8px;
+  padding-left: 6px;
+  border-left: 2px solid rgba(255, 255, 255, 0.18);
+}
 .workspace-nav-item {
   display: flex;
   align-items: center;
