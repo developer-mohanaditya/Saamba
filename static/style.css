@@ -1471,21 +1471,19 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 26px;
-  margin: 30px 12px 10px;
+  height: 24px;
+  margin: 28px 0 10px;
+  padding: 0 2px 0 12px;
 }
 .layout-sidebar .workspace-sidebar .workspace-section-header .side-label,
 .workspace-section-header .side-label {
   margin: 0 !important;
   padding: 0 !important;
-  line-height: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 650;
-  color: #d0ded1;
-  letter-spacing: 0.01em;
+  line-height: 1;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #eef3ef;
+  letter-spacing: -0.1px;
 }
 .create-workspace-btn {
   display: inline-flex;

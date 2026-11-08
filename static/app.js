@@ -140,7 +140,7 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
     const chevronSvg = isActive
       ? `<svg class="nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>`
       : '';
-    return `<button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" title="${esc(ws.name)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
+    return `<button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
       <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
       <span class="workspace-title">${esc(ws.name)}</span>
       <span class="workspace-count">${count}</span>
