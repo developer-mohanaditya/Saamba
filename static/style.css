@@ -279,12 +279,23 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .ask-panel {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   min-height: 0;
   overflow: hidden;
-  transition: padding .3s cubic-bezier(0.4, 0, 0.2, 1),
-              background-color .3s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color .3s cubic-bezier(0.4, 0, 0.2, 1),
-              max-height .35s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: bottom center;
+  transition: padding .32s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color .3s ease,
+              border-color .3s ease,
+              max-height .35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ask-panel.is-collapsed {
+  max-height: 52px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  overflow: visible;
 }
 .ask-head {
   flex: none;
@@ -361,10 +372,19 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .ask-panel.is-collapsed #ask-input { flex:1; min-width:0; min-height:34px; height:34px; padding:7px 0; overflow:hidden; }
 @media(min-width:1101px) {
   .detail { grid-template-rows:auto minmax(0,1fr); }
-  .ask-panel { height:100%; max-height:100%; align-self:stretch; }
-  .ask-panel.is-collapsed { height:auto; align-self:end; }
+  .ask-panel {
+    align-self: end !important;
+    max-height: calc(100vh - 280px);
+    transform-origin: bottom center;
+  }
 }
-@media (max-width:1100px) and (min-width:701px) { .ask-panel { align-self:stretch; } .ask-panel.is-collapsed { align-self:end; } }
+@media (max-width:1100px) and (min-width:701px) {
+  .ask-panel {
+    align-self: end !important;
+    max-height: calc(100vh - 280px);
+    transform-origin: bottom center;
+  }
+}
 .ask-panel.is-collapsed #ask-input { white-space:pre; overflow:hidden; }
 @media (min-width:1101px) and (max-height:800px) {
   .media-pane { padding:14px 18px; }
