@@ -338,8 +338,83 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 /* The conversation scrolls between a fixed heading and composer. */
 .ask-hint { flex:none; }
 .ask-content { display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#4d745b #e8eee7; }
-.suggestions { margin-top:auto; display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:12px 0 4px; }
-.suggestions button { max-width:100%; }
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 6px;
+  width: 100%;
+}
+.suggestions-intro {
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 2px;
+}
+.suggestions-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+.suggestion-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--soft);
+  border: 1px solid rgba(35, 66, 53, 0.08);
+  border-radius: 9px;
+  color: var(--deep);
+  text-align: left;
+  cursor: pointer;
+  transition: all .16s ease-in-out;
+  box-sizing: border-box;
+}
+.suggestion-card:hover {
+  background: #dfebe1;
+  border-color: rgba(35, 66, 53, 0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(35, 66, 53, 0.06);
+}
+.suggestion-card:active {
+  transform: translateY(0);
+}
+.suggestion-card-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.suggestion-card-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--green);
+  opacity: .85;
+}
+.suggestion-card-text {
+  font-size: .76rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--deep);
+  white-space: normal;
+  word-break: break-word;
+}
+.suggestion-card-arrow {
+  flex: none;
+  color: var(--green);
+  opacity: .5;
+  transition: transform .16s ease, opacity .16s ease;
+}
+.suggestion-card:hover .suggestion-card-arrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
 .chat-messages { display:flex; flex-direction:column; flex:none; max-height:none; overflow:visible; }
 .chat-message { max-width:88%; overflow-wrap:anywhere; white-space:normal; margin-top:10px; padding:10px 12px; animation:chat-appear .2s ease-out; }
 .chat-message.user { align-self:flex-end; background:#e7efe4; color:var(--deep); white-space:pre-wrap; border-radius:12px 12px 3px 12px; }
@@ -375,7 +450,7 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   .detail-meta .subtle-button { font-size:.68rem; padding:.35rem; gap:.2rem; }
   .detail-meta .status-chip { font-size:.65rem; padding:.35rem .45rem; }
 }
-.suggestions { align-items:flex-end; }
+/* suggestions alignment reset */
 .markdown-table { max-width:100%; overflow-x:auto; margin:.65em 0; }
 .markdown-table table { border-collapse:collapse; min-width:100%; font-size:inherit; }
 .markdown-table th,.markdown-table td { border:1px solid var(--line); padding:.45em .6em; text-align:left; vertical-align:top; }
