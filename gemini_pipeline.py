@@ -193,7 +193,8 @@ def clean_summary_text(text):
         l = re.sub(r"^(#{1,4}\s+)\d+[\.\)]\s*", r"\1", l)
         l = re.sub(r"^\d+[\.\)]\s+(Summary|Key Points|Decisions|Action Items)\s*:?", r"### \1", l, flags=re.IGNORECASE)
         cleaned.append(l)
-    return "\n".join(cleaned).strip()
+    res = "\n".join(cleaned).strip()
+    return re.sub(r'\s*[—–]\s*', ', ', res)
 
 def summarize(segments, key):
     """Generate executive summary, key points, decisions, and action items with source timestamps."""
