@@ -339,81 +339,64 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .ask-hint { flex:none; }
 .ask-content { display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#4d745b #e8eee7; }
 .suggestions {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 0 6px;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 10px 0 4px;
   width: 100%;
 }
 .suggestions-intro {
-  font-size: .68rem;
+  font-size: .7rem;
   font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  letter-spacing: .02em;
   color: var(--muted);
   padding-left: 2px;
 }
-.suggestions-cards {
+.suggestions-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  align-items: flex-start;
+  gap: 6px;
   width: 100%;
 }
-.suggestion-card {
-  display: flex;
+.suggestion-pill {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 12px;
   background: var(--soft);
-  border: 1px solid rgba(35, 66, 53, 0.08);
-  border-radius: 9px;
+  border: 1px solid rgba(35, 66, 53, 0.1);
+  border-radius: 8px;
   color: var(--deep);
   text-align: left;
   cursor: pointer;
-  transition: all .16s ease-in-out;
+  transition: all .15s ease-in-out;
   box-sizing: border-box;
 }
-.suggestion-card:hover {
+.suggestion-pill:hover {
   background: #dfebe1;
-  border-color: rgba(35, 66, 53, 0.22);
+  border-color: rgba(35, 66, 53, 0.25);
   transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(35, 66, 53, 0.06);
+  box-shadow: 0 2px 5px rgba(35, 66, 53, 0.06);
 }
-.suggestion-card:active {
+.suggestion-pill:active {
   transform: translateY(0);
 }
-.suggestion-card-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-.suggestion-card-icon {
+.suggestion-action-icon {
   flex: none;
-  margin-top: 2px;
-  color: var(--green);
-  opacity: .85;
+  color: var(--gold);
 }
-.suggestion-card-text {
-  font-size: .76rem;
+.suggestion-text {
+  font-size: .74rem;
   line-height: 1.35;
   font-weight: 500;
   color: var(--deep);
   white-space: normal;
   word-break: break-word;
-}
-.suggestion-card-arrow {
-  flex: none;
-  color: var(--green);
-  opacity: .5;
-  transition: transform .16s ease, opacity .16s ease;
-}
-.suggestion-card:hover .suggestion-card-arrow {
-  opacity: 1;
-  transform: translateX(3px);
 }
 .chat-messages { display:flex; flex-direction:column; flex:none; max-height:none; overflow:visible; }
 .chat-message { max-width:88%; overflow-wrap:anywhere; white-space:normal; margin-top:10px; padding:10px 12px; animation:chat-appear .2s ease-out; }
