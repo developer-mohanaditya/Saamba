@@ -8,6 +8,7 @@ const contentPane = document.querySelector('.content');
 const libraryToggle = document.querySelector('#library-toggle');
 const sidebarCollapseBtn = document.querySelector('#sidebar-collapse-btn');
 let sidebarCollapsed = false;
+try { sidebarCollapsed = localStorage.getItem('saamba-sidebar-collapsed') === 'true'; } catch (_) {}
 function setSidebarCollapsed(collapsed) {
   sidebarCollapsed = collapsed;
   document.querySelector('.app').classList.toggle('sidebar-collapsed', collapsed);
@@ -16,8 +17,10 @@ function setSidebarCollapsed(collapsed) {
     sidebarCollapseBtn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
     sidebarCollapseBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
   }
+  try { localStorage.setItem('saamba-sidebar-collapsed', String(collapsed)); } catch (_) {}
+  document.documentElement.classList.remove('init-sidebar-collapsed');
 }
-setSidebarCollapsed(false);
+setSidebarCollapsed(sidebarCollapsed);
 if (sidebarCollapseBtn) {
   sidebarCollapseBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -44,6 +47,7 @@ function syncLibrary() {
   if (activeNavItem) {
     activeNavItem.setAttribute('aria-expanded', String(libraryExpanded));
   }
+  document.documentElement.classList.remove('init-library-collapsed');
 }
 syncLibrary();
 libraryToggle.addEventListener('click', (e) => {
@@ -177,6 +181,7 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
       refresh();
     };
   });
+  syncLibrary();
 }
 
 function initWorkspaceDialog() {
@@ -697,7 +702,7 @@ async function openMeeting(id,rerender=true){
         expandTimer=setTimeout(()=>{
           chatPanel.classList.remove('is-expanding');
           if(autoFocus||document.activeElement===chatInput){chatInput.focus();}
-        },280);
+        },40);
       }else{
         chatPanel.classList.remove('is-expanding');
         chatPanel.classList.remove('is-collapsed');

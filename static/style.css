@@ -772,12 +772,18 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   max-height: 1400px;
   opacity: 1;
 }
-.layout-sidebar .workspace-sidebar .library.is-collapsed {
+.layout-sidebar .workspace-sidebar .library.is-collapsed,
+html.init-library-collapsed .layout-sidebar .workspace-sidebar .library {
   max-height: 0 !important;
   opacity: 0 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
+  transition: none !important;
   pointer-events: none;
+}
+html.init-library-collapsed .workspace-nav-item .nav-chevron {
+  transform: rotate(-90deg) !important;
+  transition: none !important;
 }
 .layout-sidebar .workspace-sidebar .section-heading { padding:0 8px 10px; }
 .layout-sidebar .workspace-sidebar .library-heading h2 { font-size:.9rem; }
@@ -808,18 +814,22 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   overflow-x: hidden;
 }
 .layout-sidebar.sidebar-collapsed > .workspace-sidebar,
+html.init-sidebar-collapsed .layout-sidebar > .workspace-sidebar,
 .workspace-sidebar.is-collapsed {
   width: 68px !important;
   padding: 30px 10px !important;
   align-items: center;
+  transition: none !important;
 }
-.sidebar-collapsed .sidebar-top {
+.sidebar-collapsed .sidebar-top,
+html.init-sidebar-collapsed .sidebar-top {
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
 }
-.sidebar-collapsed .brand {
+.sidebar-collapsed .brand,
+html.init-sidebar-collapsed .brand {
   justify-content: center;
   padding: 0;
 }
@@ -828,23 +838,37 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .sidebar-collapsed .nav span:nth-child(2),
 .sidebar-collapsed .nav-chevron,
 .sidebar-collapsed .library,
-.sidebar-collapsed .side-bottom {
+.sidebar-collapsed .side-bottom,
+html.init-sidebar-collapsed .brand-text,
+html.init-sidebar-collapsed .side-label,
+html.init-sidebar-collapsed .nav span:nth-child(2),
+html.init-sidebar-collapsed .nav-chevron,
+html.init-sidebar-collapsed .library,
+html.init-sidebar-collapsed .side-bottom,
+html.init-sidebar-collapsed .workspace-section-header,
+html.init-sidebar-collapsed .create-workspace-btn,
+html.init-sidebar-collapsed .workspace-title,
+html.init-sidebar-collapsed .workspace-count {
   display: none !important;
 }
-.sidebar-collapsed .nav {
+.sidebar-collapsed .nav,
+html.init-sidebar-collapsed .nav {
   padding: 10px;
   justify-content: center;
   margin-top: 14px;
   width: 44px;
 }
-.sidebar-collapsed .nav-icon {
+.sidebar-collapsed .nav-icon,
+html.init-sidebar-collapsed .nav-icon {
   margin: 0;
   font-size: 1.15rem;
 }
-.sidebar-collapsed .icon-collapse {
+.sidebar-collapsed .icon-collapse,
+html.init-sidebar-collapsed .icon-collapse {
   display: none !important;
 }
-.sidebar-collapsed .icon-expand {
+.sidebar-collapsed .icon-expand,
+html.init-sidebar-collapsed .icon-expand {
   display: block !important;
 }
 .sidebar-collapsed .workspace-sidebar {
