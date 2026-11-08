@@ -363,10 +363,13 @@ class Handler(BaseHTTPRequestHandler):
                         if not block: break
                         self.wfile.write(block); remaining-=len(block)
                 return
-            with connect() as db: preview=db.execute('SELECT content,completed,total FROM summary_preview WHERE meeting_id=?',(mid,)).fetchone()
-            with connect() as db: checks={r['item_key']:r['checked'] for r in db.execute('SELECT item_key,checked FROM action_checks WHERE meeting_id=?',(mid,))}
+            with connect() as db:
+                preview=db.execute('SELECT content,completed,total FROM summary_preview WHERE meeting_id=?',(mid,)).fetchone()
+                checks={r['item_key']:r['checked'] for r in db.execute('SELECT item_key,checked FROM action_checks WHERE meeting_id=?',(mid,))}
+                trans_list=[dict(r) for r in db.execute('SELECT language_code, language_name, created_at FROM meeting_translations WHERE meeting_id=? ORDER BY created_at ASC',(mid,))]
             row['action_items']=action_items(row['summary'],checks)
             row['summary_preview']=dict(preview) if preview and row['status']=='summarizing' else None
+            row['translations']=trans_list
             row['transcript']=json.loads(row['transcript'] or '[]'); row.pop('filename'); return self.send_json(row)
         file={'/':'index.html','/classic':'classic.html','/classic-app.js':'classic-app.js','/classic-style.css':'classic-style.css','/app.js':'app.js','/style.css':'style.css','/capture.js':'capture.js','/capture-worklet.js':'capture-worklet.js'}.get(path)
         if not file: return self.send_json({'error':'Not found'},404)

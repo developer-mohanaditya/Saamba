@@ -256,6 +256,7 @@ let selected = null, current = null, lastVersion = null, editing = false;
 const chats = {};
 const downloads = new Set();
 const activeTranslationByMeeting = {}; // mid -> { code, name, status: 'loading'|'ready'|'error', error: null, data: null }
+const dismissedTranslationByMeeting = {}; // mid -> boolean
 const translationsCache = {}; // `${mid}:${code}` -> data
 let mediaCollapsed = false;
 try { mediaCollapsed = localStorage.getItem('saamba-media-collapsed') === 'true'; } catch (_) {}
@@ -306,6 +307,8 @@ function initTranslateDialog() {
 
       // 1. Close dialog immediately as requested by user
       closeDialog();
+      dismissedTranslationByMeeting[targetMid] = false;
+      try { localStorage.setItem(`saamba-active-tab-${targetMid}`, `trans-${code}`); } catch(_) {}
 
       // 2. Set active thread-scoped translation with loading state
       activeTranslationByMeeting[targetMid] = {
@@ -645,6 +648,27 @@ async function openMeeting(id,rerender=true,targetTab=null){
   selected=id;const m=await api(`/api/meetings/${id}`);if(rerender){await refresh();return;}
   if(!chats[id]){const messages=await api(`/api/meetings/${id}/chat`);if(selected!==id)return;chats[id]={messages,scope:'this',collapsed:false,question:''};}
 
+  // If translation exists in DB and wasn't dismissed in this session, restore active translation
+  if (!activeTranslationByMeeting[id] && !dismissedTranslationByMeeting[id] && m.translations && m.translations.length > 0) {
+    const latest = m.translations[m.translations.length - 1];
+    if (!translationsCache[`${id}:${latest.language_code}`]) {
+      try {
+        const transData = await api(`/api/meetings/${id}/translations/${latest.language_code}`);
+        translationsCache[`${id}:${latest.language_code}`] = transData;
+      } catch (_) {}
+    }
+    const cachedData = translationsCache[`${id}:${latest.language_code}`];
+    if (cachedData) {
+      activeTranslationByMeeting[id] = {
+        code: latest.language_code,
+        name: latest.language_name,
+        status: 'ready',
+        error: null,
+        data: cachedData
+      };
+    }
+  }
+
   const activeTrans = activeTranslationByMeeting[id] || null;
   const transVersion = activeTrans ? `${activeTrans.code}:${activeTrans.status}:${activeTrans.data ? 'ready' : 'empty'}` : 'none';
   const version = JSON.stringify([m.id, m.title, m.status, m.error, m.summary, m.summary_preview, m.transcript, m.mime, m.action_items, transVersion]);
@@ -652,7 +676,9 @@ async function openMeeting(id,rerender=true,targetTab=null){
   lastVersion = version;
   const same = current === id, oldPlayer = $('#player'), position = same ? oldPlayer?.currentTime || 0 : 0, playing = same && oldPlayer && !oldPlayer.paused;
   const previousTab = same && document.querySelector('.tab.active')?.dataset.tab;
-  const activeTab = targetTab || previousTab || (m.status === 'recording' ? 'transcript' : 'summary');
+  const savedTab = (() => { try { return localStorage.getItem(`saamba-active-tab-${id}`); } catch(_) { return null; } })();
+  const validSavedTab = savedTab && (savedTab === 'summary' || savedTab === 'actions' || savedTab === 'transcript' || (activeTrans && savedTab === `trans-${activeTrans.code}`)) ? savedTab : null;
+  const activeTab = targetTab || previousTab || validSavedTab || (m.status === 'recording' ? 'transcript' : 'summary');
   const searchTerm = same ? ($('#search')?.value || '') : '';
   const oldScroll = same ? ($('#notes-scroll')?.scrollTop || 0) : 0;
   current = id;
@@ -726,6 +752,8 @@ async function openMeeting(id,rerender=true,targetTab=null){
   const search=$('#search');search.value=searchTerm;search.oninput=()=>document.querySelectorAll('.segment').forEach(x=>x.hidden=!x.textContent.toLowerCase().includes(search.value.toLowerCase()));search.dispatchEvent(new Event('input'));
   document.querySelectorAll('.tab').forEach(b=>b.onclick=(e)=>{
     if(e.target.closest('.tab-close'))return;
+    const tab=b.dataset.tab;
+    try { localStorage.setItem(`saamba-active-tab-${id}`, tab); } catch(_) {}
     const isOriginalTranscript=b.dataset.tab==='transcript';
     const isAnyTranscript=isOriginalTranscript||(b.dataset.tab&&b.dataset.tab.startsWith('trans-'));
     const action=b.dataset.tab==='actions';
@@ -745,7 +773,9 @@ async function openMeeting(id,rerender=true,targetTab=null){
   document.querySelectorAll('.tab-close').forEach(closeBtn=>{
     closeBtn.onclick=(e)=>{
       e.stopPropagation();
+      dismissedTranslationByMeeting[id]=true;
       activeTranslationByMeeting[id]=null;
+      try { localStorage.removeItem(`saamba-active-tab-${id}`); } catch(_) {}
       current=null;
       openMeeting(id,false,'transcript');
     };
