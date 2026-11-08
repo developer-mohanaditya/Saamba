@@ -269,7 +269,7 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 #ask-scope { border:0; color:var(--green); background:var(--soft); border-radius:7px; padding:5px; font:inherit; font-size:.72rem; }
 .ask-send { border:0; background:var(--green); color:white; border-radius:50%; width:28px; height:28px; }
 @media(min-width:701px) { .detail { grid-template-rows:auto 1fr; } .notes-card { grid-column:1; grid-row:1 / 3; } .media-pane { grid-column:2; grid-row:1; } .ask-panel { grid-column:2; grid-row:2; align-self:end !important; max-height:100%; overflow:auto; } }
-@media(max-width:700px) { .detail-header { align-items:stretch; } .detail-meta { flex-wrap:wrap; } .detail-meta .status-chip { margin-left:0; } .meeting-title { font-size:clamp(1.3rem,6vw,1.7rem); } .tabs { gap:10px; flex-wrap:wrap; } .tab { font-size:.8rem; } .ask-panel { grid-row:auto; } }
+@media(max-width:700px) { .detail-header { align-items:stretch; } .detail-meta { flex-wrap:wrap; } .detail-meta .status-chip { margin-left:0; } .meeting-title { font-size:clamp(1.3rem,6vw,1.7rem); } .tabs { gap:10px; flex-wrap:wrap; } .tab { font-size:.8rem; } .ask-panel { grid-row:auto; } .ask-panel:not(.is-collapsed) { height:380px; max-height:80vh; } }
 /* Keep the speaker notice outside the transcript's scroll viewport. */
 .speaker-note { position:static; flex:none; margin:0; padding:16px 0 0; background:var(--paper); }
 .notes-scroll { padding-top:14px; }
@@ -280,9 +280,9 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  height: min(380px, calc(100% - 12px));
+  height: calc(100% - 8px);
   min-height: 0;
-  max-height: calc(100% - 12px);
+  max-height: calc(100% - 8px);
   margin-bottom: 8px;
   overflow: hidden !important;
   align-self: end !important;
@@ -483,12 +483,13 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .ask-hint { flex:none; }
 .ask-content { display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#4d745b #e8eee7; }
 .suggestions {
-  margin-top: auto;
+  margin-top: 10px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 7px;
-  padding: 10px 0 4px;
+  padding: 6px 0;
   width: 100%;
 }
 .suggestions-intro {
@@ -704,6 +705,17 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 
 .media-heading { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
 .media-heading h3 { margin:0; min-width:0; }
+.media-actions { display:flex; align-items:center; gap:6px; flex:none; }
+.media-collapse-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; padding:0; border:0; border-radius:6px; background:transparent; color:var(--green); cursor:pointer; transition:background-color .15s ease, color .15s ease, transform .15s ease; }
+.media-collapse-btn:hover { background:rgba(0,0,0,0.06); }
+.media-collapse-btn:active { transform:scale(.92); }
+.media-collapse-btn svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; transition:transform .25s cubic-bezier(0.4, 0, 0.2, 1); }
+.media-pane { transition:padding .28s cubic-bezier(0.16, 1, 0.3, 1), background-color .2s ease; }
+.media-body { max-height:500px; opacity:1; overflow:hidden; transition:max-height .32s cubic-bezier(0.16, 1, 0.3, 1), opacity .22s ease, margin .28s ease; }
+.media-pane.is-collapsed { padding:14px 20px; cursor:pointer; }
+.media-pane.is-collapsed .media-heading h3 { margin:0; font-size:1.15rem; }
+.media-pane.is-collapsed .media-body { max-height:0 !important; opacity:0 !important; margin:0 !important; pointer-events:none !important; overflow:hidden !important; }
+.media-pane.is-collapsed .media-collapse-btn svg { transform:rotate(180deg); }
 .download-toggle { display:flex; align-items:stretch; padding:0; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--green); font:inherit; font-size:.8rem; cursor:pointer; overflow:hidden; }
 .download-toggle:disabled { cursor:wait; }
 .download-label { display:flex; align-items:center; gap:.4rem; padding:.55rem .65rem; white-space:nowrap; }
@@ -807,6 +819,15 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 }
 .sidebar-collapsed .icon-expand {
   display: block !important;
+}
+.sidebar-collapsed .workspace-sidebar {
+  cursor: pointer;
+}
+.sidebar-collapsed .workspace-sidebar .brand {
+  cursor: default;
+}
+.sidebar-collapsed .workspace-sidebar .nav {
+  cursor: pointer;
 }
 
 /* Transcript Tab Vertical 3-Dot Menu */
