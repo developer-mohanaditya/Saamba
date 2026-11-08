@@ -58,6 +58,9 @@ with connect() as db:
 if os.name == 'posix':
     DB.chmod(0o600)
 
+saved_snapshots = {}
+cancellation_tokens = {}
+
 def action_items(summary, checks=None):
     checks = checks or {}
     active = False
@@ -183,26 +186,42 @@ def create_notes(mid, mode):
     gemini_key = os.environ.get('GEMINI_API_KEY')
     if gemini_key:
         try:
+            if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                return
             with connect() as db:
                 meeting = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+            if not meeting:
+                return
             path = DATA / meeting['filename']
             if mode in ('transcript', 'both'):
                 update(mid, status='transcribing', error=None)
                 segments, raw_text = gemini_pipeline.transcribe_audio(path, gemini_key)
+                if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                    return
                 update(mid, transcript=json.dumps(segments), summary=None if mode == 'transcript' else meeting['summary'])
             else:
                 segments = json.loads(meeting['transcript'] or '[]')
+            if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                return
             if mode in ('summary', 'both'):
                 update(mid, status='summarizing', error=None)
                 summary = gemini_pipeline.summarize(segments, gemini_key)
+                if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                    return
                 update(mid, summary=summary, status='ready', error=None)
             else:
                 update(mid, status='ready', error=None)
+            saved_snapshots.pop(mid, None)
+            cancellation_tokens.pop(mid, None)
             return
         except gemini_pipeline.ProcessingError as exc:
+            if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                return
             update(mid, status='error', error=str(exc))
             return
         except Exception as exc:
+            if cancellation_tokens.get(mid) and cancellation_tokens[mid].is_set():
+                return
             update(mid, status='error', error=f'Processing failed: {exc}')
             return
     key = os.environ.get('GROQ_API_KEY')
@@ -590,15 +609,34 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({'error': str(exc)}, 500)
             except Exception as exc:
                 return self.send_json({'error': f'Translation failed: {exc}'}, 500)
+        if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4] in ('stop','abort'):
+            mid = parts[3]
+            token = cancellation_tokens.get(mid)
+            if token:
+                token.set()
+            snapshot = saved_snapshots.pop(mid, None)
+            with connect() as db:
+                if snapshot:
+                    db.execute("UPDATE meetings SET status=?, transcript=?, summary=?, error=NULL WHERE id=?",
+                               (snapshot['status'], snapshot['transcript'], snapshot['summary'], mid))
+                else:
+                    db.execute("UPDATE meetings SET status='ready', error=NULL WHERE id=? AND status IN ('queued','transcribing','summarizing')", (mid,))
+            return self.send_json({'ok': True, 'reverted': bool(snapshot)})
         if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4] in ('transcript','summary','both'):
             mid, mode=parts[3],parts[4]
             with connect() as db:
-                row=db.execute('SELECT status,transcript FROM meetings WHERE id=?',(mid,)).fetchone()
+                row=db.execute('SELECT status,transcript,summary FROM meetings WHERE id=?',(mid,)).fetchone()
                 if not row: return self.send_json({'error':'Meeting not found'},404)
                 if row['status'] in ('recording','queued','transcribing','summarizing'):
                     return self.send_json({'error':'Wait until the current recording or task finishes.'},409)
                 if mode=='summary' and not json.loads(row['transcript'] or '[]'):
                     return self.send_json({'error':'Create a transcript before making a summary.'},400)
+                saved_snapshots[mid] = {
+                    'status': 'ready' if row['status'] not in ('recording', 'error') else row['status'],
+                    'transcript': row['transcript'],
+                    'summary': row['summary']
+                }
+                cancellation_tokens[mid] = threading.Event()
                 changed=db.execute("UPDATE meetings SET status='queued',error=NULL WHERE id=? AND status NOT IN ('recording','queued','transcribing','summarizing')",(mid,))
                 if not changed.rowcount: return self.send_json({'error':'Wait until the current recording or task finishes.'},409)
             threading.Thread(target=create_notes,args=(mid,mode),daemon=True).start()
