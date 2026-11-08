@@ -454,34 +454,77 @@ async function openMeeting(id,rerender=true){
   $('#notes-scroll').scrollTop=oldScroll;
 }
 const audioInput=$('#audio'),fileClearRow=$('#file-clear-row'),fileChosenName=$('#file-chosen-name'),fileRemoveBtn=$('#file-remove-btn');
+let titleManuallyEdited=false;
+const titleInput=$('#title');
+if(titleInput){titleInput.oninput=()=>{titleManuallyEdited=titleInput.value.trim().length>0;};}
 function updateFileSelection(){
   const file=audioInput&&audioInput.files&&audioInput.files[0];
   if(file){if(fileChosenName)fileChosenName.textContent=file.name;if(fileClearRow)fileClearRow.hidden=false;}
   else{if(fileChosenName)fileChosenName.textContent='';if(fileClearRow)fileClearRow.hidden=true;}
 }
 $('#import-button').onclick=$('#empty-import').onclick=()=>{updateFileSelection();$('#import-dialog').showModal();};
-$('#close-dialog').onclick=()=>{$('#import-dialog').close();$('#upload-form').reset();updateFileSelection();};
-if(fileRemoveBtn){fileRemoveBtn.onclick=()=>{if(audioInput){audioInput.value='';updateFileSelection();const curr=$('#title').value.trim();if(curr.startsWith('Meeting · ')||audioInput.dataset.autoTitle===curr)$('#title').value='';}};}
+$('#close-dialog').onclick=()=>{$('#import-dialog').close();$('#upload-form').reset();titleManuallyEdited=false;if(audioInput)delete audioInput.dataset.autoTitle;updateFileSelection();};
+if(fileRemoveBtn){
+  fileRemoveBtn.onclick=()=>{
+    if(audioInput){
+      audioInput.value='';
+      updateFileSelection();
+      $('#title').value='';
+      titleManuallyEdited=false;
+      delete audioInput.dataset.autoTitle;
+    }
+  };
+}
 $('#audio').onchange=e=>{
   updateFileSelection();
-  const currentTitle=$('#title').value.trim();
-  const file=e.target.files[0];
+  const file=e.target.files&&e.target.files[0];
   if(!file)return;
-  if(currentTitle)return;
-  const rawBase=file.name.replace(/\.[^.]+$/, "").trim();
-  const cleaned=rawBase.replace(/[_-]+/g, " ").trim();
-  const isGeneric=/^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
-  let newTitle='';
-  if(isGeneric||!cleaned){
-    const today=new Date().toLocaleDateString(undefined, {month: "short", day: "numeric", year: "numeric"});
-    newTitle="Meeting · "+today;
-  }else{
-    newTitle=cleaned.charAt(0).toUpperCase()+cleaned.slice(1);
+  const currentTitle=$('#title').value.trim();
+  const isAutoAssigned=!titleManuallyEdited||!currentTitle||currentTitle.startsWith('Meeting · ')||(audioInput&&audioInput.dataset.autoTitle===currentTitle);
+  if(isAutoAssigned){
+    const rawBase=file.name.replace(/\.[^.]+$/, "").trim();
+    const cleaned=rawBase.replace(/[_-]+/g, " ").trim();
+    const isGeneric=/^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
+    let newTitle='';
+    if(isGeneric||!cleaned){
+      const today=new Date().toLocaleDateString(undefined, {month: "short", day: "numeric", year: "numeric"});
+      newTitle="Meeting · "+today;
+    }else{
+      newTitle=cleaned.charAt(0).toUpperCase()+cleaned.slice(1);
+    }
+    $('#title').value=newTitle;
+    if(audioInput)audioInput.dataset.autoTitle=newTitle;
+    titleManuallyEdited=false;
   }
-  $('#title').value=newTitle;
-  e.target.dataset.autoTitle=newTitle;
 };
-$('#upload-form').onsubmit=async e=>{e.preventDefault();const file=$('#audio').files[0];if(!file)return;$('#submit').disabled=true;$('#submit').textContent='Importing…';$('#upload-error').textContent='';try{const m=await api('/api/meetings',{method:'POST',headers:{'Content-Type':file.type||'application/octet-stream','X-Meeting-Title':encodeURIComponent($('#title').value)},body:file});$('#import-dialog').close();e.target.reset();updateFileSelection();selected=m.id;current=null;await refresh();}catch(err){$('#upload-error').textContent=err.message;}finally{$('#submit').disabled=false;$('#submit').textContent='Import meeting';}};
+$('#upload-form').onsubmit=async e=>{
+  e.preventDefault();
+  const file=$('#audio').files[0];
+  if(!file)return;
+  $('#submit').disabled=true;
+  $('#submit').textContent='Importing…';
+  $('#upload-error').textContent='';
+  try{
+    const m=await api('/api/meetings',{
+      method:'POST',
+      headers:{'Content-Type':file.type||'application/octet-stream','X-Meeting-Title':encodeURIComponent($('#title').value)},
+      body:file
+    });
+    $('#import-dialog').close();
+    e.target.reset();
+    titleManuallyEdited=false;
+    if(audioInput)delete audioInput.dataset.autoTitle;
+    updateFileSelection();
+    selected=m.id;
+    current=null;
+    await refresh();
+  }catch(err){
+    $('#upload-error').textContent=err.message;
+  }finally{
+    $('#submit').disabled=false;
+    $('#submit').textContent='Import meeting';
+  }
+};
 refresh().catch(e=>$('#meetings').textContent=e.message);setInterval(()=>refresh().catch(()=>{}),5000);
 
 $('#delete-cancel').onclick=()=>$('#delete-dialog').close();

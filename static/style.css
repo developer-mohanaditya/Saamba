@@ -280,12 +280,18 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  height: 380px;
+  height: min(380px, calc(100% - 12px));
   min-height: 0;
-  max-height: calc(100vh - 280px);
-  overflow: hidden;
+  max-height: calc(100% - 12px);
+  margin-bottom: 8px;
+  overflow: hidden !important;
   align-self: end !important;
   transform-origin: bottom center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   transition: height .32s cubic-bezier(0.16, 1, 0.3, 1),
               padding .28s ease,
               background-color .25s ease,
@@ -293,13 +299,16 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
               box-shadow .25s ease;
 }
 .ask-panel.is-collapsed {
-  height: 48px;
+  height: 52px;
   min-height: 0;
-  padding: 0 !important;
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  overflow: visible;
+  max-height: none;
+  margin-bottom: 8px;
+  padding: 8px 12px !important;
+  background: var(--paper) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+  overflow: hidden !important;
 }
 .ask-head {
   flex: none;
@@ -370,33 +379,41 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   opacity: 0.6;
 }
 .ask-send svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-.ask-panel.is-collapsed { padding:0 !important; background:transparent !important; border-color:transparent !important; overflow:visible; }
 .ask-panel.is-collapsed .ask-head { max-height: 0 !important; opacity: 0 !important; margin: 0 !important; pointer-events: none; overflow: hidden !important; }
 .ask-panel.is-collapsed .ask-content { max-height: 0 !important; opacity: 0 !important; padding: 0 !important; pointer-events: none; overflow: hidden !important; }
-.ask-panel.is-collapsed .scope-menu { display:none; }
-.ask-panel.is-collapsed #ask-body { display:block; }
-.ask-panel.is-collapsed #ask-form { display:flex; align-items:center; gap:8px; margin:0; padding:6px; background:var(--paper); }
+.ask-panel.is-collapsed .scope-menu { display:none !important; }
+.ask-panel.is-collapsed #ask-body { height:100% !important; display:flex !important; align-items:center !important; }
+.ask-panel.is-collapsed #ask-form {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
 .ask-expand-brand {
   display: none;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px 5px 8px;
+  padding: 0 4px 0 2px;
   border: 0;
-  border-radius: 8px;
-  background: var(--soft);
-  color: var(--green);
-  font-weight: 650;
-  font-size: 12px;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--deep);
+  font-weight: 700;
+  font-size: 13px;
   cursor: pointer;
   flex: none;
-  transition: background-color .15s ease, transform .15s ease;
+  transition: color .15s ease;
 }
 .ask-expand-brand:hover {
-  background: #e2ebd9;
-  transform: scale(1.02);
+  background: transparent !important;
+  color: var(--green);
 }
 .ask-expand-brand:active {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 .ask-expand-brand .ask-ai-icon {
   color: var(--gold);
@@ -410,27 +427,27 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   min-width: 0;
   min-height: 34px;
   height: 34px;
-  padding: 7px 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
   overflow: hidden;
-  text-align: center;
+  text-align: left !important;
   white-space: pre;
 }
 .ask-panel.is-collapsed #ask-input::placeholder {
-  text-align: center;
+  text-align: left !important;
   color: var(--muted);
 }
 @media(min-width:1101px) {
   .detail { grid-template-rows:auto minmax(0,1fr); }
   .ask-panel {
     align-self: end !important;
-    max-height: calc(100vh - 280px);
     transform-origin: bottom center;
   }
 }
 @media (max-width:1100px) and (min-width:701px) {
   .ask-panel {
     align-self: end !important;
-    max-height: calc(100vh - 280px);
     transform-origin: bottom center;
   }
 }
