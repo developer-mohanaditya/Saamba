@@ -312,10 +312,9 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 }
 .ask-head {
   flex: none;
-  max-height: 50px;
   opacity: 1;
   overflow: hidden;
-  transition: max-height .28s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease, margin .25s ease;
+  transition: opacity .16s ease-out;
 }
 .ask-head button { display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--green); transition: background-color .18s ease, transform .18s ease; }
 .ask-head button:hover { background:var(--soft); }
@@ -324,10 +323,9 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .ask-content {
   flex: 1;
   min-height: 0;
-  max-height: 800px;
   opacity: 1;
   overflow-y: auto;
-  transition: max-height .32s cubic-bezier(0.4, 0, 0.2, 1), opacity .22s ease, padding .28s ease;
+  transition: opacity .16s ease-out;
 }
 #ask-form {
   flex: none;
@@ -336,14 +334,20 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   border-radius: 12px;
   padding: 10px;
   background: #fafbf8;
+  transition: opacity .16s ease-out;
+}
+.ask-panel.is-expanding .ask-head,
+.ask-panel.is-expanding .ask-content,
+.ask-panel.is-expanding #ask-form {
+  opacity: 0 !important;
+  pointer-events: none !important;
   transition: none !important;
 }
-.ask-panel:not(.is-collapsed) #ask-form {
-  animation: ask-form-fadein .2s ease-out .24s backwards;
-}
-@keyframes ask-form-fadein {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.ask-panel:not(.is-collapsed):not(.is-expanding) .ask-head,
+.ask-panel:not(.is-collapsed):not(.is-expanding) .ask-content,
+.ask-panel:not(.is-collapsed):not(.is-expanding) #ask-form {
+  opacity: 1;
+  transition: opacity .16s ease-out;
 }
 #ask-input {
   display: block;
@@ -401,9 +405,9 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   opacity: 0.6;
 }
 .ask-send svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-.ask-panel.is-collapsed .ask-head { max-height: 0 !important; opacity: 0 !important; margin: 0 !important; pointer-events: none; overflow: hidden !important; }
-.ask-panel.is-collapsed .ask-content { max-height: 0 !important; opacity: 0 !important; padding: 0 !important; pointer-events: none; overflow: hidden !important; }
-.ask-panel.is-collapsed .scope-menu { display:none !important; }
+.ask-panel.is-collapsed .ask-head { display: none !important; }
+.ask-panel.is-collapsed .ask-content { display: none !important; }
+.ask-panel.is-collapsed .scope-menu { display: none !important; }
 .ask-panel.is-collapsed #ask-body { height:100% !important; display:flex !important; align-items:center !important; }
 .ask-panel.is-collapsed #ask-form {
   width: 100% !important;
@@ -1480,7 +1484,7 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   margin: 0 !important;
   padding: 0 !important;
   line-height: 1;
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
   color: #eef3ef;
   letter-spacing: -0.1px;
@@ -1489,8 +1493,8 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid rgba(255,255,255,0.22);
   border-radius: 6px;
@@ -1498,6 +1502,11 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   color: #d0ded1;
   cursor: pointer;
   transition: all .15s ease;
+}
+.create-workspace-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
 }
 .create-workspace-btn:hover {
   background: #435d4c;
@@ -1551,14 +1560,14 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   height: 17px;
 }
 .workspace-nav-item .workspace-title {
-  flex: 1;
+  flex: 0 1 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .workspace-nav-item .workspace-count {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 2px 7px;
   border-radius: 999px;
   background: rgba(255,255,255,0.12);
@@ -1577,12 +1586,21 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
-  margin-left: 2px;
+  margin-left: auto;
   flex: none;
   transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .workspace-nav-item[aria-expanded="false"] .nav-chevron {
   transform: rotate(-90deg);
+}
+.meeting-icon .video-icon {
+  width: 17px;
+  height: 17px;
+  fill: var(--green);
+}
+.meeting-icon .meeting-audio-symbol {
+  font-size: 15px;
+  line-height: 1;
 }
 
 /* Collapsed Sidebar Rail Adjustments */

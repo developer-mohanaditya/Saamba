@@ -8,7 +8,6 @@ const contentPane = document.querySelector('.content');
 const libraryToggle = document.querySelector('#library-toggle');
 const sidebarCollapseBtn = document.querySelector('#sidebar-collapse-btn');
 let sidebarCollapsed = false;
-try { sidebarCollapsed = localStorage.getItem('saamba-sidebar-collapsed') === 'true'; } catch (_) {}
 function setSidebarCollapsed(collapsed) {
   sidebarCollapsed = collapsed;
   document.querySelector('.app').classList.toggle('sidebar-collapsed', collapsed);
@@ -17,9 +16,8 @@ function setSidebarCollapsed(collapsed) {
     sidebarCollapseBtn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
     sidebarCollapseBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
   }
-  try { localStorage.setItem('saamba-sidebar-collapsed', String(collapsed)); } catch (_) {}
 }
-setSidebarCollapsed(sidebarCollapsed);
+setSidebarCollapsed(false);
 if (sidebarCollapseBtn) {
   sidebarCollapseBtn.addEventListener('click', e => {
     e.stopPropagation();
@@ -501,12 +499,22 @@ async function refresh(){
     $('#detail').innerHTML=`<div class="empty"><div class="empty-icon">♫</div><h2>${activeWorkspaceId==='default'?'Make room for the conversation.':`No meetings in ${esc(wsName)} yet.`}</h2><p>${activeWorkspaceId==='default'?'Import a recording to bring your notes, transcript, and audio together.':'Import a new recording while this workspace is selected to add meetings here.'}</p><button class="primary" id="empty-import">Import a meeting</button></div>`;
     $('#empty-import').onclick=()=>$('#import-dialog').showModal();
   }
-  $('#meetings').innerHTML=meetings.length?meetings.map(m=>`<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">♫</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`).join(''):`<div class="list-empty">No meetings in this workspace.<br>Start with a recording.</div>`;
+  $('#meetings').innerHTML=meetings.length?meetings.map(m=>{
+    const isVideo = m.mime && m.mime.startsWith('video/');
+    const meetingIconHtml = isVideo
+      ? `<svg class="meeting-media-icon video-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>`
+      : `<span class="meeting-audio-symbol">♫</span>`;
+    return `<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">${meetingIconHtml}</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`;
+  }).join(''):`<div class="list-empty">No meetings in this workspace.<br>Start with a recording.</div>`;
   document.querySelectorAll('.meeting').forEach(b=>b.onclick=()=>openMeeting(b.dataset.id));
   if(selected&&!editing)await openMeeting(selected,false);
 }
 function transcriptActivity(m){if(m.status==='transcribing')return activity('Creating your transcript','More passages will appear here as they are ready.');if(m.status==='recording')return activity('Listening for speech','New transcript segments will appear here as they are ready.');return m.transcript.length?'':'<p class="muted">No transcript yet.</p>';}
 async function openMeeting(id,rerender=true){
+  if(current!==id){
+    mediaCollapsed=false;
+    try{localStorage.setItem('saamba-media-collapsed','false');}catch(_){}
+  }
   selected=id;const m=await api(`/api/meetings/${id}`);if(rerender){await refresh();return;}
   if(!chats[id]){const messages=await api(`/api/meetings/${id}/chat`);if(selected!==id)return;chats[id]={messages,scope:'this',collapsed:false,question:''};}
   const version=JSON.stringify([m.id,m.title,m.status,m.error,m.summary,m.summary_preview,m.transcript,m.mime,m.action_items]);if(current===id&&lastVersion===version)return;lastVersion=version;
@@ -678,14 +686,44 @@ async function openMeeting(id,rerender=true){
   const chatPanel=$('#ask-panel'),chatInput=$('#ask-input'),chatScope=$('#ask-scope-toggle'),scopeMenu=$('#ask-scope-options'),chatMessages=$('.chat-messages');
   const chatContent=$('.ask-content'),suggestions=$('.suggestions');
   const renderChat=()=>{suggestions.hidden=!!chat.messages.length||!!chatInput.value.trim();chatMessages.innerHTML=chat.messages.map(x=>`<div class="chat-message ${esc(x.role)}">${x.role==='assistant'?markdown(x.text):esc(x.text)}</div>`).join('');chatContent.scrollTop=chatContent.scrollHeight;};
-  const setCollapsed=collapsed=>{chat.collapsed=collapsed;chatPanel.classList.toggle('is-collapsed',collapsed);$('#ask-collapse').setAttribute('aria-expanded',String(!collapsed));$('#ask-expand').setAttribute('aria-expanded',String(!collapsed));scopeMenu.hidden=true;chatScope.setAttribute('aria-expanded','false');};
-  setCollapsed(chat.collapsed);$('#ask-collapse').onclick=()=>setCollapsed(true);$('#ask-expand').onclick=()=>setCollapsed(false);
+  let expandTimer=null;
+  const setCollapsed=(collapsed,animate=true,autoFocus=false)=>{
+    chat.collapsed=collapsed;
+    clearTimeout(expandTimer);
+    if(!collapsed){
+      if(animate){
+        chatPanel.classList.add('is-expanding');
+        chatPanel.classList.remove('is-collapsed');
+        expandTimer=setTimeout(()=>{
+          chatPanel.classList.remove('is-expanding');
+          if(autoFocus||document.activeElement===chatInput){chatInput.focus();}
+        },280);
+      }else{
+        chatPanel.classList.remove('is-expanding');
+        chatPanel.classList.remove('is-collapsed');
+      }
+      $('#ask-collapse').setAttribute('aria-expanded','true');
+      $('#ask-expand').setAttribute('aria-expanded','true');
+      scopeMenu.hidden=true;
+      chatScope.setAttribute('aria-expanded','false');
+    }else{
+      chatPanel.classList.remove('is-expanding');
+      chatPanel.classList.add('is-collapsed');
+      $('#ask-collapse').setAttribute('aria-expanded','false');
+      $('#ask-expand').setAttribute('aria-expanded','false');
+      scopeMenu.hidden=true;
+      chatScope.setAttribute('aria-expanded','false');
+    }
+  };
+  setCollapsed(chat.collapsed,false);
+  $('#ask-collapse').onclick=()=>setCollapsed(true,true);
+  $('#ask-expand').onclick=()=>setCollapsed(false,true,true);
   const updateScope=()=>{chatScope.innerHTML=(chat.scope==='mine'?'My meetings':'This call')+' '+icon('chevron');};updateScope();
-  chatScope.onclick=()=>{if(chat.collapsed)setCollapsed(false);const opening=scopeMenu.hidden;document.querySelectorAll('.share-options').forEach(x=>x.hidden=true);document.querySelectorAll('[aria-expanded]').forEach(x=>{if(x!==$('#ask-collapse')&&x!==$('#ask-expand'))x.setAttribute('aria-expanded','false');});scopeMenu.hidden=!opening;chatScope.setAttribute('aria-expanded',String(opening));};
+  chatScope.onclick=()=>{if(chat.collapsed)setCollapsed(false,true);const opening=scopeMenu.hidden;document.querySelectorAll('.share-options').forEach(x=>x.hidden=true);document.querySelectorAll('[aria-expanded]').forEach(x=>{if(x!==$('#ask-collapse')&&x!==$('#ask-expand'))x.setAttribute('aria-expanded','false');});scopeMenu.hidden=!opening;chatScope.setAttribute('aria-expanded',String(opening));};
   scopeMenu.querySelectorAll('[data-scope]').forEach(option=>option.onclick=()=>{chat.scope=option.dataset.scope;updateScope();scopeMenu.hidden=true;chatScope.setAttribute('aria-expanded','false');});
-  chatInput.value=chat.question;chatInput.onfocus=()=>{if(chat.collapsed)setCollapsed(false);};chatInput.oninput=()=>{chat.question=chatInput.value;suggestions.hidden=!!chat.messages.length||!!chat.question.trim();};renderChat();
+  chatInput.value=chat.question;chatInput.onfocus=()=>{if(chat.collapsed)setCollapsed(false,true,true);};chatInput.oninput=()=>{chat.question=chatInput.value;suggestions.hidden=!!chat.messages.length||!!chat.question.trim();};renderChat();
   document.querySelectorAll('[data-question]').forEach(b=>b.onclick=()=>{chatInput.value=b.dataset.question;chat.question=chatInput.value;suggestions.hidden=true;chatInput.focus();});
-  $('#ask-form').onsubmit=async e=>{e.preventDefault();if(chat.collapsed)setCollapsed(false);const question=chatInput.value.trim();if(!question||chat.pending)return;chat.pending=true;chat.messages.push({role:'user',text:question});chatInput.value='';chat.question='';renderChat();const send=$('.ask-send');send.disabled=true;try{const response=await api('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,scope:chat.scope,meeting_id:id})});chat.messages.push({role:'assistant',text:response.answer});}catch(err){chat.messages.push({role:'assistant',text:err.message});}finally{chat.pending=false;if(current===id){send.disabled=false;renderChat();}}};
+  $('#ask-form').onsubmit=async e=>{e.preventDefault();if(chat.collapsed)setCollapsed(false,true);const question=chatInput.value.trim();if(!question||chat.pending)return;chat.pending=true;chat.messages.push({role:'user',text:question});chatInput.value='';chat.question='';renderChat();const send=$('.ask-send');send.disabled=true;try{const response=await api('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,scope:chat.scope,meeting_id:id})});chat.messages.push({role:'assistant',text:response.answer});}catch(err){chat.messages.push({role:'assistant',text:err.message});}finally{chat.pending=false;if(current===id){send.disabled=false;renderChat();}}};
   const player=$('#player');if(player){if(position)player.currentTime=position;if(playing)player.play().catch(()=>{});let active=null;const updateWave=()=>{const progress=Number.isFinite(player.duration)&&player.duration>0?player.currentTime/player.duration:0;document.querySelectorAll('.waveform i').forEach((bar,i,all)=>bar.classList.toggle('played',(i+0.5)/all.length<=progress));};player.addEventListener('seeked',updateWave);player.addEventListener('loadedmetadata',updateWave);player.addEventListener('timeupdate',()=>{updateWave();if(player.paused||$('#transcript').hidden)return;const all=[...document.querySelectorAll('.segment')];let target=null;for(const item of all){if(Number(item.dataset.time)<=player.currentTime)target=item;else break;}if(target!==active){if(active)active.classList.remove('is-playing');active=target;if(active){active.classList.add('is-playing');if(!active.hidden){const scroller=$('#notes-scroll');const top=active.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-(scroller.clientHeight-active.offsetHeight)/2;scroller.scrollTo({top,behavior:'smooth'});}}}});document.querySelectorAll('.segment').forEach(b=>b.onclick=()=>{player.currentTime=Number(b.dataset.time);player.play().catch(()=>{});});}
   syncMediaPane();
   const mediaCollapseBtn = $('#media-collapse-btn');

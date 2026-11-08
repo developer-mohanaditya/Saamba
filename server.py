@@ -288,7 +288,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path=urlparse(self.path).path
         if path=='/api/meetings':
-            with connect() as db: rows=[dict(x) for x in db.execute("SELECT id,title,created_at,status,error,CASE WHEN summary IS NOT NULL AND summary != '' THEN 1 ELSE 0 END AS has_summary,CASE WHEN transcript IS NOT NULL AND transcript != '[]' THEN 1 ELSE 0 END AS has_transcript FROM meetings ORDER BY created_at DESC")]
+            with connect() as db: rows=[dict(x) for x in db.execute("SELECT id,title,created_at,status,error,mime,CASE WHEN summary IS NOT NULL AND summary != '' THEN 1 ELSE 0 END AS has_summary,CASE WHEN transcript IS NOT NULL AND transcript != '[]' THEN 1 ELSE 0 END AS has_transcript FROM meetings ORDER BY created_at DESC")]
             return self.send_json(rows)
         chat_parts=path.split('/')
         if len(chat_parts)==5 and chat_parts[1:3]==['api','meetings'] and chat_parts[4]=='chat':
