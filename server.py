@@ -79,12 +79,14 @@ def action_items(summary, checks=None):
             raw_text = item.group(1).strip()
             stamp = re.search(r'\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]', raw_text)
             seconds = (int(stamp.group(1))*60+int(stamp.group(2)) if stamp.group(1) else float(stamp.group(3))) if stamp else None
-            spk_match = re.search(r'\[(Speaker\s*\w+|[A-Za-z]+)\]|\((Speaker\s*\w+|[A-Za-z]+)\)', raw_text, re.IGNORECASE)
-            speaker_label = (spk_match.group(1) or spk_match.group(2)).strip() if spk_match else None
+            spk_match = re.search(r'(?:\[|\()\s*(Speaker\s*\w+|[A-Z][a-z]+)\s*(?:\]|\))', raw_text)
+            speaker_label = spk_match.group(1).strip() if spk_match else None
             text = re.sub(r'\s*\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]\s*', ' ', raw_text)
             if speaker_label:
-                text = re.sub(r'\s*\[\s*' + re.escape(speaker_label) + r'\s*\]\s*|\s*\(\s*' + re.escape(speaker_label) + r'\s*\)\s*', ' ', text, flags=re.IGNORECASE)
+                text = re.sub(r'\s*[\(\[]\s*' + re.escape(speaker_label) + r'\s*[\)\]]\s*', ' ', text)
             text = ' '.join(text.split()).strip()
+            if text.endswith(' .'): text = text[:-2] + '.'
+            text = re.sub(r'\s+\.\s*$', '.', text)
             counts[text] = counts.get(text, 0) + 1
             key = hashlib.sha256((text + '\0' + str(counts[text])).encode()).hexdigest()
             result.append({'key': key, 'text': text, 'checked': bool(checks.get(key)), 'start': seconds, 'speaker': speaker_label})
