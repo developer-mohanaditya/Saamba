@@ -19,6 +19,43 @@ def duration(path):
     except Exception:
         return 0.0
 
+def calculate_timeout(duration_seconds):
+    """Dynamically scale API timeout based on media length:
+    - Under 10 mins: 180s (3m)
+    - 10-30 mins: 300s (5m)
+    - 30-60 mins: 480s (8m)
+    - Over 60 mins: scaled proportionally up to 900s (15m)
+    """
+    if duration_seconds <= 600:
+        return 180
+    elif duration_seconds <= 1800:
+        return 300
+    elif duration_seconds <= 3600:
+        return 480
+    else:
+        return min(900, max(600, int(duration_seconds * 0.12) + 180))
+
+def extract_candidate_text(data, context="operation"):
+    """Safely extract generated text from Gemini response payload."""
+    candidates = data.get("candidates")
+    if not candidates:
+        block_reason = data.get("promptFeedback", {}).get("blockReason", "No candidates returned")
+        raise ProcessingError(f"Gemini {context} returned no candidates ({block_reason})")
+    cand = candidates[0]
+    parts = cand.get("content", {}).get("parts", [])
+    if not parts or not parts[0].get("text"):
+        finish_reason = cand.get("finishReason", "EMPTY_PARTS")
+        raise ProcessingError(f"Gemini {context} returned empty parts ({finish_reason})")
+    return parts[0]["text"]
+
+SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_CIVIC_INTEGRITY", "threshold": "BLOCK_NONE"},
+]
+
 def detect_mime_type(path):
     """Detect MIME type using file command or extension fallback."""
     try:
@@ -190,14 +227,16 @@ Never translate or rewrite words to make them more fluent."""
                 {"text": "Transcribe the supplied meeting audio faithfully with timestamps and speaker labels."}
             ]
         }],
+        "safetySettings": SAFETY_SETTINGS,
         "generationConfig": {"temperature": 0.2}
     }
     
+    timeout_sec = calculate_timeout(duration(path))
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=600) as resp:
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            raw_text = extract_candidate_text(data, "transcription")
             segments = parse_timestamps(raw_text)
             if not segments:
                 segments = [{"start": 0.0, "speaker": None, "text": raw_text}]
@@ -290,13 +329,14 @@ Transcript:
     url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:generateContent?key={key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
+        "safetySettings": SAFETY_SETTINGS,
         "generationConfig": {"temperature": 0.2}
     }
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=300) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            raw = data["candidates"][0]["content"]["parts"][0]["text"]
+            raw = extract_candidate_text(data, "summarization")
             return clean_summary_text(raw)
     except urllib.error.HTTPError as e:
         raise ProcessingError(f"Gemini summarization failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
