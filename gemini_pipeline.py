@@ -1,7 +1,7 @@
 """Gemini 3.8 Flash pipeline for Saamba meeting transcription, translation, and chat.
 Single-pass ingestion: uploads the full audio to Google File API, avoiding artificial chunking.
 """
-import os, json, time, uuid, subprocess, urllib.request, urllib.error, re, concurrent.futures
+import os, json, time, uuid, subprocess, urllib.request, urllib.error, re, concurrent.futures, base64
 from pathlib import Path
 
 MODEL_TRANSCRIPTION = os.environ.get('SAAMBA_GEMINI_MODEL', 'gemini-3.8-flash')
@@ -176,6 +176,29 @@ Never translate or rewrite words to make them more fluent."""
             return segments, raw_text
     except urllib.error.HTTPError as e:
         raise ProcessingError(f"Gemini transcription failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+
+def transcribe_chunk(path, key):
+    """Transcribe a short live audio chunk using inline audio with Gemini Flash."""
+    try:
+        audio_bytes = Path(path).read_bytes()
+        b64 = base64.b64encode(audio_bytes).decode('utf-8')
+        prompt = "Transcribe the supplied audio chunk faithfully in the language spoken (Telugu/English). Output only the transcribed text, nothing else. If there is no speech, output an empty string."
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"inlineData": {"mimeType": "audio/wav", "data": b64}},
+                    {"text": prompt}
+                ]
+            }],
+            "generationConfig": {"temperature": 0.1}
+        }
+        url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:generateContent?key={key}"
+        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            res = json.loads(resp.read().decode('utf-8'))
+            return res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+    except Exception:
+        return ""
 
 def clean_summary_text(text):
     """Strip introductory conversational preamble and clean section headings."""
