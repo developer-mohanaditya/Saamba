@@ -875,7 +875,7 @@ async function openMeeting(id,rerender=true,targetTab=null){
     translationPanesHtml = `<div id="${esc(tabId)}" class="tab-content" ${isTabActive ? '' : 'hidden'}>${paneContent}</div>`;
   }
 
-  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${busyStatus(m.status)?`<button type="button" class="subtle-button stop-btn" id="stop-processing-btn" title="Stop processing and revert to saved notes"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right:4px"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`:''}${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button type="button" id="share-email-btn">${icon('mail')}Send to email</button><button type="button" id="share-link-btn">${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap"><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button><button type="button" id="menu-download-transcript"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>Download transcript</button></div></div></div>${translationTabsHtml}<div id="search-wrap" class="search-wrap" ${activeTab==='transcript'||activeTab.startsWith('trans-')?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div>${translationPanesHtml}</div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player"><svg class="media-chevron-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
+  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${busyStatus(m.status)?`<button type="button" class="subtle-button stop-btn" id="stop-processing-btn" title="Stop processing and revert to saved notes"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right:4px"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`:''}${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button type="button" id="share-email-btn">${icon('mail')}Send to email</button><button type="button" id="share-link-btn">${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap"><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button><div class="transcript-dropdown-divider"></div><div class="transcript-dropdown-label">Export transcript</div><button type="button" id="menu-download-txt"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Text (.txt)</button><button type="button" id="menu-download-md"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M7 15V9l3 3 3-3v6"/><path d="m18 12-2 3-2-3"/></svg>Markdown (.md)</button><button type="button" id="menu-download-pdf"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF (.pdf)</button></div></div></div>${translationTabsHtml}<div id="search-wrap" class="search-wrap" ${activeTab==='transcript'||activeTab.startsWith('trans-')?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div>${translationPanesHtml}</div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player"><svg class="media-chevron-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
   const title=$('#meeting-title');title.onclick=()=>{
     editing=true;const input=document.createElement('input');input.className='title-input';input.value=m.title;input.maxLength=200;input.setAttribute('aria-label','Meeting name');title.replaceWith(input);input.focus();input.setSelectionRange(input.value.length,input.value.length);let done=false;
     const save=async()=>{if(done)return;done=true;const value=input.value.trim();try{if(value&&value!==m.title)await api(`/api/meetings/${id}/rename`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:value})});}catch(e){showToast(e.message||String(e));}finally{editing=false;current=null;refresh();}};
@@ -915,7 +915,8 @@ async function openMeeting(id,rerender=true,targetTab=null){
     try{
       const response=await fetch(`/api/meetings/${encodeURIComponent(id)}/download?format=${encodeURIComponent(format)}`);
       if(!response.ok){let message='Could not prepare the download.';try{message=(await response.json()).error||message;}catch(_){}throw Error(message);}
-      const total=parseInt(response.headers.get('content-length')||'0',10);
+      const totalHeader=response.headers.get('content-length')||response.headers.get('x-total-bytes');
+      const total=parseInt(totalHeader||'0',10);
       let loaded=0;
       const reader=response.body.getReader();
       const chunks=[];
@@ -924,11 +925,13 @@ async function openMeeting(id,rerender=true,targetTab=null){
         if(done)break;
         chunks.push(value);
         loaded+=value.length;
+        const mbLoaded=(loaded/(1024*1024)).toFixed(1);
         if(total>0){
           const pct=Math.min(100,Math.round((loaded/total)*100));
-          label.innerHTML=spinner()+` Downloading ${pct}%`;
+          const mbTotal=(total/(1024*1024)).toFixed(1);
+          label.innerHTML=spinner()+` Downloading ${pct}% (${mbLoaded}/${mbTotal}MB)`;
         } else {
-          label.innerHTML=spinner()+' Downloading…';
+          label.innerHTML=spinner()+` Downloading ${mbLoaded}MB`;
         }
       }
       const blob=new Blob(chunks,{type:response.headers.get('content-type')||'application/octet-stream'});
@@ -1096,62 +1099,137 @@ async function openMeeting(id,rerender=true,targetTab=null){
       openTranslateModal(id);
     };
   }
-  const menuDownloadTrans=$('#menu-download-transcript');
-  if(menuDownloadTrans){
-    menuDownloadTrans.onclick=e=>{
-      e.stopPropagation();
-      if(moreDrop)moreDrop.hidden=true;
-      if(moreWrap)moreWrap.classList.remove('is-open');
+  const handleTranscriptExport = (format) => {
+    if(moreDrop) moreDrop.hidden = true;
+    if(moreWrap) moreWrap.classList.remove('is-open');
 
-      let exportSegments=m.transcript||[];
-      let langSuffix='';
+    let exportSegments = m.transcript || [];
+    let langSuffix = '';
 
-      if(activeTab&&activeTab.startsWith('trans-')){
-        const langCode=activeTab.slice(6);
-        const transData=translationsCache[`${id}:${langCode}`]?.transcript;
-        if(transData&&transData.length>0){
-          exportSegments=transData;
-          const langName=activeTranslationByMeeting[id]?.name||langCode;
-          langSuffix=` (${langName})`;
-        }
+    if(activeTab && activeTab.startsWith('trans-')){
+      const langCode = activeTab.slice(6);
+      const transData = translationsCache[`${id}:${langCode}`]?.transcript;
+      if(transData && transData.length > 0){
+        exportSegments = transData;
+        const langName = activeTranslationByMeeting[id]?.name || langCode;
+        langSuffix = ` (${langName})`;
       }
+    }
 
-      if(!exportSegments||exportSegments.length===0){
-        showToast('No transcript available to download.');
+    if(!exportSegments || exportSegments.length === 0){
+      showToast('No transcript available to export.');
+      return;
+    }
+
+    const cleanTitle = (m.title || 'Meeting').replace(/[\\/\x00-\x1f\x7f]+/g, ' ').trim().slice(0, 120);
+
+    if(format === 'pdf'){
+      const printWindow = window.open('', '_blank');
+      if(!printWindow){
+        showToast('Please allow popups to export PDF');
         return;
       }
+      const rowsHtml = exportSegments.map(s => {
+        const timestamp = time(Number(s.start) || 0);
+        const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
+        return `<div class="transcript-row"><div class="row-meta"><span class="timestamp">[${esc(timestamp)}]</span> <strong class="speaker">${esc(spk)}:</strong></div><p class="text">${esc(s.text || '')}</p></div>`;
+      }).join('');
 
-      const cleanTitle=(m.title||'Meeting').replace(/[\\/\x00-\x1f\x7f]+/g,' ').trim().slice(0,120);
-      const textLines=[
-        `Meeting: ${m.title||'Meeting'}`,
-        `Date: ${date(m.created_at)}`,
-        langSuffix?`Translation: ${langSuffix.trim()}`:null,
-        `Segments: ${exportSegments.length}`,
-        '------------------------------------------------------------',
+      printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${esc(cleanTitle)} - Transcript</title>
+  <style>
+    @page { margin: 20mm 15mm; size: A4; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; line-height: 1.5; padding: 24px; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 4px; color: #1a382b; font-family: Georgia, serif; }
+    .meta { font-size: 13px; color: #666; margin-bottom: 24px; border-bottom: 1px solid #e5e5e5; padding-bottom: 12px; }
+    .transcript-row { margin-bottom: 16px; page-break-inside: avoid; }
+    .row-meta { font-size: 13px; margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; }
+    .timestamp { font-family: ui-monospace, monospace; font-size: 12px; color: #888; background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+    .speaker { color: #1a382b; font-weight: 600; }
+    .text { margin: 0; font-size: 14.5px; color: #222; white-space: pre-wrap; line-height: 1.6; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>${esc(cleanTitle)}</h1>
+  <div class="meta">Date: ${esc(date(m.created_at))} ${langSuffix ? `· Translation: ${esc(langSuffix.trim())}` : ''} · ${exportSegments.length} segments</div>
+  <div class="transcript-body">${rowsHtml}</div>
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 200); };<\/script>
+</body>
+</html>`);
+      printWindow.document.close();
+      showToast('Opening PDF print preview…');
+      return;
+    }
+
+    if(format === 'md'){
+      const mdLines = [
+        `# ${m.title || 'Meeting'}`,
+        `*Date: ${date(m.created_at)}*${langSuffix ? ` · *Translation: ${langSuffix.trim()}*` : ''}`,
+        `*Segments: ${exportSegments.length}*`,
+        '',
+        '---',
         ''
-      ].filter(Boolean);
-
+      ];
       for(const s of exportSegments){
-        const timestamp=time(Number(s.start)||0);
-        const spk=s.speaker!=null?speakerDisplayName(s.speaker):'Speaker';
-        textLines.push(`[${timestamp}] ${spk}:`);
-        textLines.push(s.text||'');
-        textLines.push('');
+        const timestamp = time(Number(s.start) || 0);
+        const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
+        mdLines.push(`**[${timestamp}] ${spk}:**`);
+        mdLines.push(s.text || '');
+        mdLines.push('');
       }
-
-      const fileContent=textLines.join('\n');
-      const blob=new Blob([fileContent],{type:'text/plain;charset=utf-8'});
-      const url=URL.createObjectURL(blob);
-      const link=document.createElement('a');
-      link.href=url;
-      link.download=`${cleanTitle} - Transcript${langSuffix}.txt`;
+      const fileContent = mdLines.join('\n');
+      const blob = new Blob([fileContent], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${cleanTitle} - Transcript${langSuffix}.md`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),10000);
-      showToast('Transcript downloaded');
-    };
-  }
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      showToast('Markdown transcript downloaded');
+      return;
+    }
+
+    // Default TXT
+    const textLines = [
+      `Meeting: ${m.title || 'Meeting'}`,
+      `Date: ${date(m.created_at)}`,
+      langSuffix ? `Translation: ${langSuffix.trim()}` : null,
+      `Segments: ${exportSegments.length}`,
+      '------------------------------------------------------------',
+      ''
+    ].filter(Boolean);
+    for(const s of exportSegments){
+      const timestamp = time(Number(s.start) || 0);
+      const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
+      textLines.push(`[${timestamp}] ${spk}:`);
+      textLines.push(s.text || '');
+      textLines.push('');
+    }
+    const fileContent = textLines.join('\n');
+    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${cleanTitle} - Transcript${langSuffix}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast('Text transcript downloaded');
+  };
+
+  const btnTxt = $('#menu-download-txt');
+  if(btnTxt) btnTxt.onclick = e => { e.stopPropagation(); handleTranscriptExport('txt'); };
+  const btnMd = $('#menu-download-md');
+  if(btnMd) btnMd.onclick = e => { e.stopPropagation(); handleTranscriptExport('md'); };
+  const btnPdf = $('#menu-download-pdf');
+  if(btnPdf) btnPdf.onclick = e => { e.stopPropagation(); handleTranscriptExport('pdf'); };
   if(speakerForm)speakerForm.onsubmit=async e=>{
     e.preventDefault();if(!activeSpeakerTarget)return;
     let payload;

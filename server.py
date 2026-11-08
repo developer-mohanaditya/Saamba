@@ -598,23 +598,84 @@ class Handler(BaseHTTPRequestHandler):
                 segments = json.loads(row['transcript'] or '[]')
                 if not segments:
                     return self.send_json({'error': 'No transcript available.'}, 404)
-                lines = [f"Meeting: {row['title']}", f"Date: {row['created_at'][:10]}", "------------------------------------------------------------", ""]
-                for s in segments:
-                    m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
-                    spk = s.get('speaker')
-                    spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
-                    lines.append(f"[{m_val:02d}:{s_val:02d}] {spk_str}:")
-                    lines.append(s.get('text', ''))
-                    lines.append("")
-                body = "\n".join(lines).encode('utf-8')
+                fmt = parse_qs(urlparse(self.path).query).get('format', ['txt'])[0].lower()
                 title = re.sub(r'[\\/\x00-\x1f\x7f]+', ' ', row['title']).strip()[:120] or 'Meeting'
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/plain; charset=utf-8')
-                self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quote(title + ' - Transcript.txt')}")
-                self.send_header('Content-Length', str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-                return
+                if fmt == 'md':
+                    lines = [f"# {row['title']}", f"*Date: {row['created_at'][:10]}*", "", "---", ""]
+                    for s in segments:
+                        m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
+                        spk = s.get('speaker')
+                        spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
+                        lines.append(f"**[{m_val:02d}:{s_val:02d}] {spk_str}:**")
+                        lines.append(s.get('text', ''))
+                        lines.append("")
+                    body = "\n".join(lines).encode('utf-8')
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/markdown; charset=utf-8')
+                    self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quote(title + ' - Transcript.md')}")
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition')
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                elif fmt in ('pdf', 'print'):
+                    rows_html = []
+                    for s in segments:
+                        m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
+                        spk = s.get('speaker')
+                        spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
+                        text_escaped = s.get('text', '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                        rows_html.append(f'<div class="row"><div class="meta"><span class="time">[{m_val:02d}:{s_val:02d}]</span> <strong class="speaker">{spk_str}:</strong></div><p class="text">{text_escaped}</p></div>')
+                    html = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{title} - Transcript</title>
+  <style>
+    @page {{ margin: 20mm 15mm; size: A4; }}
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; line-height: 1.5; padding: 24px; max-width: 800px; margin: 0 auto; }}
+    h1 {{ font-size: 22px; margin-bottom: 4px; color: #1a382b; font-family: Georgia, serif; }}
+    .subhead {{ font-size: 13px; color: #666; margin-bottom: 24px; border-bottom: 1px solid #e5e5e5; padding-bottom: 12px; }}
+    .row {{ margin-bottom: 16px; page-break-inside: avoid; }}
+    .meta {{ font-size: 13px; margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; }}
+    .time {{ font-family: ui-monospace, monospace; font-size: 12px; color: #888; background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }}
+    .speaker {{ color: #1a382b; font-weight: 600; }}
+    .text {{ margin: 0; font-size: 14.5px; color: #222; white-space: pre-wrap; line-height: 1.6; }}
+    @media print {{ body {{ padding: 0; }} }}
+  </style>
+</head>
+<body>
+  <h1>{title}</h1>
+  <div class="subhead">Date: {row['created_at'][:10]} · {len(segments)} segments</div>
+  <div class="transcript-body">{''.join(rows_html)}</div>
+  <script>window.onload = function() {{ setTimeout(function() {{ window.print(); }}, 200); }};</script>
+</body>
+</html>"""
+                    body = html.encode('utf-8')
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/html; charset=utf-8')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                else:
+                    lines = [f"Meeting: {row['title']}", f"Date: {row['created_at'][:10]}", "------------------------------------------------------------", ""]
+                    for s in segments:
+                        m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
+                        spk = s.get('speaker')
+                        spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
+                        lines.append(f"[{m_val:02d}:{s_val:02d}] {spk_str}:")
+                        lines.append(s.get('text', ''))
+                        lines.append("")
+                    body = "\n".join(lines).encode('utf-8')
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                    self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quote(title + ' - Transcript.txt')}")
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition')
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
             if len(parts)==5 and parts[4]=='download':
                 if row['status'] == 'recording': return self.send_json({'error':'Stop recording before downloading.'},409)
                 is_video = row['mime'].startswith('video/')
@@ -629,16 +690,35 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_json({'error':'This format is not available for this recording.'},400)
                 suffix, mime, options = formats[requested]
                 try:
+                    # If requested is webm and file is already webm, avoid re-encoding
+                    if requested == 'webm' and row['filename'].endswith('.webm'):
+                        target = DATA / row['filename']
+                        title = re.sub(r'[\\/\x00-\x1f\x7f]+', ' ', row['title']).strip()[:120] or 'Meeting'
+                        file_size = target.stat().st_size
+                        self.send_response(200); self.send_header('Content-Type',mime)
+                        self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(title + suffix, safe=''))
+                        self.send_header('Content-Length', str(file_size))
+                        self.send_header('X-Total-Bytes', str(file_size))
+                        self.send_header('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition, X-Total-Bytes')
+                        self.end_headers()
+                        with target.open('rb') as source:
+                            shutil.copyfileobj(source, self.wfile, 256*1024)
+                        return
+
                     with tempfile.TemporaryDirectory(prefix='saamba-download-', dir=DATA) as temp:
                         target = Path(temp) / ('download' + suffix)
                         cmd = ['ffmpeg','-nostdin','-v','error','-y','-i',str(DATA / row['filename'])]
                         subprocess.run(cmd+options+[str(target)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3600)
                         title = re.sub(r'[\\/\x00-\x1f\x7f]+', ' ', row['title']).strip()[:120] or 'Meeting'
+                        file_size = target.stat().st_size
                         self.send_response(200); self.send_header('Content-Type',mime)
                         self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(title + suffix, safe=''))
-                        self.send_header('Content-Length',str(target.stat().st_size)); self.end_headers()
+                        self.send_header('Content-Length', str(file_size))
+                        self.send_header('X-Total-Bytes', str(file_size))
+                        self.send_header('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition, X-Total-Bytes')
+                        self.end_headers()
                         with target.open('rb') as source:
-                            shutil.copyfileobj(source,self.wfile,1024*1024)
+                            shutil.copyfileobj(source, self.wfile, 256*1024)
                     return
                 except (OSError,subprocess.SubprocessError):
                     return self.send_json({'error':'Could not prepare the download.'},500)

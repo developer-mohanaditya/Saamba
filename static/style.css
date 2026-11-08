@@ -941,7 +941,7 @@ html.init-sidebar-collapsed .icon-expand {
   top: calc(100% + 8px);
   left: 0;
   z-index: 25;
-  min-width: 170px;
+  min-width: 200px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -965,7 +965,21 @@ html.init-sidebar-collapsed .icon-expand {
   font-size: .85rem;
   text-align: left;
   cursor: pointer;
+  white-space: nowrap;
   transition: background .12s ease, color .12s ease;
+}
+.transcript-dropdown-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 6px;
+}
+.transcript-dropdown-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  padding: 6px 12px 2px;
 }
 .transcript-dropdown button:hover:not(:disabled) {
   background: var(--soft);
