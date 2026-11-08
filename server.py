@@ -681,19 +681,19 @@ class Handler(BaseHTTPRequestHandler):
                 is_video = row['mime'].startswith('video/')
                 requested = parse_qs(urlparse(self.path).query).get('format', ['mp4' if is_video else 'mp3'])[0]
                 formats = {
-                    'mp4': ('.mp4', 'video/mp4', ['-map','0:v:0','-map','0:a:0?','-c:v','libx264','-preset','veryfast','-crf','23','-c:a','aac','-movflags','+faststart']),
+                    'mp4': ('.mp4', 'video/mp4', ['-map','0:v:0','-map','0:a:0?','-c:v','libx264','-preset','ultrafast','-crf','23','-c:a','aac','-movflags','+faststart']),
                     'webm': ('.webm', 'video/webm', ['-map','0:v:0','-map','0:a:0?','-c:v','libvpx-vp9','-deadline','realtime','-cpu-used','5','-c:a','libopus']),
                     'mp3': ('.mp3', 'audio/mpeg', ['-vn','-map','0:a:0','-c:a','libmp3lame','-q:a','2']),
-                    'audio-webm': ('.webm', 'audio/webm', ['-vn','-map','0:a:0','-c:a','libopus']),
+                    'audio-webm': ('.webm', 'audio/webm', ['-vn','-map','0:a:0','-c:a','copy' if row['filename'].endswith('.webm') else 'libopus']),
                 }
                 if requested not in formats or (requested in ('mp4', 'webm') and not is_video):
                     return self.send_json({'error':'This format is not available for this recording.'},400)
                 suffix, mime, options = formats[requested]
                 try:
-                    # If requested is webm and file is already webm, avoid re-encoding
+                    title = re.sub(r'[\\/\x00-\x1f\x7f]+', ' ', row['title']).strip()[:120] or 'Meeting'
+                    # 1. If requested is webm and file is already webm, avoid re-encoding
                     if requested == 'webm' and row['filename'].endswith('.webm'):
                         target = DATA / row['filename']
-                        title = re.sub(r'[\\/\x00-\x1f\x7f]+', ' ', row['title']).strip()[:120] or 'Meeting'
                         file_size = target.stat().st_size
                         self.send_response(200); self.send_header('Content-Type',mime)
                         self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(title + suffix, safe=''))
@@ -705,20 +705,44 @@ class Handler(BaseHTTPRequestHandler):
                             shutil.copyfileobj(source, self.wfile, 256*1024)
                         return
 
-                    with tempfile.TemporaryDirectory(prefix='saamba-download-', dir=DATA) as temp:
-                        target = Path(temp) / ('download' + suffix)
-                        cmd = ['ffmpeg','-nostdin','-v','error','-y','-i',str(DATA / row['filename'])]
-                        subprocess.run(cmd+options+[str(target)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3600)
-                        title = re.sub(r'[\\/\x00-\x1f\x7f]+', ' ', row['title']).strip()[:120] or 'Meeting'
-                        file_size = target.stat().st_size
+                    # 2. Check if cached export exists
+                    cache_target = DATA / f"{row['filename']}.export{suffix}"
+                    if cache_target.exists() and cache_target.stat().st_size > 0:
+                        file_size = cache_target.stat().st_size
                         self.send_response(200); self.send_header('Content-Type',mime)
                         self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(title + suffix, safe=''))
                         self.send_header('Content-Length', str(file_size))
                         self.send_header('X-Total-Bytes', str(file_size))
                         self.send_header('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition, X-Total-Bytes')
                         self.end_headers()
-                        with target.open('rb') as source:
+                        with cache_target.open('rb') as source:
                             shutil.copyfileobj(source, self.wfile, 256*1024)
+                        return
+
+                    # 3. Transcode with fast encoder, saving to cache
+                    temp_cache = DATA / f"tmp-{uuid.uuid4().hex}{suffix}"
+                    cmd = ['ffmpeg','-nostdin','-v','error','-y','-i',str(DATA / row['filename'])]
+                    try:
+                        subprocess.run(cmd+options+[str(temp_cache)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3600)
+                        temp_cache.replace(cache_target)
+                        target = cache_target
+                    except (OSError, subprocess.SubprocessError):
+                        if temp_cache.exists():
+                            try: temp_cache.unlink()
+                            except OSError: pass
+                        raise
+
+                    file_size = target.stat().st_size
+                    self.send_response(200); self.send_header('Content-Type',mime)
+                    self.send_header('Content-Disposition', "attachment; filename*=UTF-8''" + quote(title + suffix, safe=''))
+                    self.send_header('Content-Length', str(file_size))
+                    self.send_header('X-Total-Bytes', str(file_size))
+                    self.send_header('Access-Control-Expose-Headers', 'Content-Length, Content-Disposition, X-Total-Bytes')
+                    self.end_headers()
+                    with target.open('rb') as source:
+                        shutil.copyfileobj(source, self.wfile, 256*1024)
+                    return
+                except (BrokenPipeError, ConnectionResetError):
                     return
                 except (OSError,subprocess.SubprocessError):
                     return self.send_json({'error':'Could not prepare the download.'},500)
