@@ -55,19 +55,172 @@ libraryToggle.addEventListener('click', (e) => {
   try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
   syncLibrary();
 });
-if (workspaceSidebar) {
-  workspaceSidebar.addEventListener('click', (e) => {
-    if (!sidebarCollapsed) return;
-    if (workspaceToggle && workspaceToggle.contains(e.target)) return;
-    if (sidebarCollapseBtn && sidebarCollapseBtn.contains(e.target)) return;
-    setSidebarCollapsed(false);
-    if (!libraryExpanded) {
-      libraryExpanded = true;
-      try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
-      syncLibrary();
-    }
+
+const WORKSPACE_ICONS = {
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  briefcase: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>',
+  code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  rocket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>',
+  palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  lightning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="22.01"/><line x1="15" y1="22" x2="15" y2="22.01"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="9" y2="18.01"/><line x1="15" y1="18" x2="15" y2="18.01"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+  checkCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>',
+  terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  cpu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+  messageSquare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+};
+
+let workspaces = [
+  { id: 'default', name: 'My meetings', icon: 'users' }
+];
+try {
+  const savedWs = JSON.parse(localStorage.getItem('saamba-workspaces') || 'null');
+  if (Array.isArray(savedWs) && savedWs.length > 0) workspaces = savedWs;
+} catch (_) {}
+
+let activeWorkspaceId = 'default';
+try {
+  activeWorkspaceId = localStorage.getItem('saamba-active-workspace') || 'default';
+} catch (_) {}
+if (!workspaces.some(w => w.id === activeWorkspaceId)) activeWorkspaceId = workspaces[0].id;
+
+let workspaceMeetings = {};
+try {
+  workspaceMeetings = JSON.parse(localStorage.getItem('saamba-workspace-meetings') || '{}');
+} catch (_) {}
+
+function updateActiveWorkspaceUI() {
+  const currentWs = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
+  const h1 = document.querySelector('header h1');
+  const eyebrow = document.querySelector('header .eyebrow');
+  if (h1) h1.innerHTML = `${esc(currentWs.name)}<span>.</span>`;
+  if (eyebrow) eyebrow.textContent = currentWs.id === 'default' ? 'Your workspace' : `Workspace · ${currentWs.name}`;
+  document.querySelectorAll('.workspace-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.workspaceId === activeWorkspaceId);
   });
 }
+
+function renderWorkspaces(allMeetings = []) {
+  const list = document.querySelector('#workspace-list');
+  if (!list) return;
+
+  list.innerHTML = workspaces.map(ws => {
+    const iconSvg = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
+    let count = 0;
+    if (ws.id === 'default') {
+      count = allMeetings.length;
+    } else {
+      const ids = workspaceMeetings[ws.id] || [];
+      count = allMeetings.filter(m => ids.includes(m.id)).length;
+    }
+    const isActive = ws.id === activeWorkspaceId;
+    return `<button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" title="${esc(ws.name)}" aria-label="${esc(ws.name)}">
+      <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
+      <span class="workspace-title">${esc(ws.name)}</span>
+      <span class="workspace-count">${count}</span>
+    </button>`;
+  }).join('');
+
+  list.querySelectorAll('.workspace-nav-item').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const wsId = btn.dataset.workspaceId;
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+      }
+      activeWorkspaceId = wsId;
+      try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
+      if (!libraryExpanded) {
+        libraryExpanded = true;
+        try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+        syncLibrary();
+      }
+      updateActiveWorkspaceUI();
+      refresh();
+    };
+  });
+}
+
+function initWorkspaceDialog() {
+  const workspaceDialog = document.querySelector('#workspace-dialog');
+  const createWorkspaceBtn = document.querySelector('#create-workspace-btn');
+  const closeWorkspaceDialog = document.querySelector('#close-workspace-dialog');
+  const workspaceCancel = document.querySelector('#workspace-cancel');
+  const workspaceForm = document.querySelector('#workspace-form');
+  const iconPickerGrid = document.querySelector('#icon-picker-grid');
+  const workspaceIconInput = document.querySelector('#workspace-icon-input');
+  const workspaceNameInput = document.querySelector('#workspace-name-input');
+  const workspaceError = document.querySelector('#workspace-error');
+
+  if (iconPickerGrid) {
+    iconPickerGrid.innerHTML = Object.entries(WORKSPACE_ICONS).map(([key, svg]) => {
+      return `<button type="button" class="icon-picker-tile ${key === 'briefcase' ? 'is-selected' : ''}" data-icon="${key}" aria-label="${key}" title="${key}">${svg}</button>`;
+    }).join('');
+
+    iconPickerGrid.querySelectorAll('.icon-picker-tile').forEach(tile => {
+      tile.onclick = () => {
+        iconPickerGrid.querySelectorAll('.icon-picker-tile').forEach(t => t.classList.remove('is-selected'));
+        tile.classList.add('is-selected');
+        workspaceIconInput.value = tile.dataset.icon;
+      };
+    });
+  }
+
+  if (createWorkspaceBtn && workspaceDialog) {
+    createWorkspaceBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (sidebarCollapsed) setSidebarCollapsed(false);
+      if (workspaceError) workspaceError.textContent = '';
+      if (workspaceNameInput) workspaceNameInput.value = '';
+      if (workspaceIconInput) workspaceIconInput.value = 'briefcase';
+      if (iconPickerGrid) {
+        iconPickerGrid.querySelectorAll('.icon-picker-tile').forEach(t => t.classList.toggle('is-selected', t.dataset.icon === 'briefcase'));
+      }
+      workspaceDialog.showModal();
+    };
+  }
+
+  if (closeWorkspaceDialog && workspaceDialog) closeWorkspaceDialog.onclick = () => workspaceDialog.close();
+  if (workspaceCancel && workspaceDialog) workspaceCancel.onclick = () => workspaceDialog.close();
+
+  if (workspaceForm && workspaceDialog) {
+    workspaceForm.onsubmit = (e) => {
+      e.preventDefault();
+      const name = workspaceNameInput ? workspaceNameInput.value.trim() : '';
+      if (!name) {
+        if (workspaceError) workspaceError.textContent = 'Please enter a workspace name.';
+        return;
+      }
+      const iconKey = (workspaceIconInput && workspaceIconInput.value) || 'briefcase';
+      const newWs = {
+        id: 'ws_' + Date.now(),
+        name,
+        icon: iconKey
+      };
+      workspaces.push(newWs);
+      try { localStorage.setItem('saamba-workspaces', JSON.stringify(workspaces)); } catch (_) {}
+      activeWorkspaceId = newWs.id;
+      try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
+      workspaceDialog.close();
+      showToast(`Workspace "${name}" created.`);
+      refresh();
+    };
+  }
+}
+initWorkspaceDialog();
 const $ = s => document.querySelector(s);
 let selected = null, current = null, lastVersion = null, editing = false;
 const chats = {};
@@ -199,10 +352,10 @@ function summaryContent(m) {
 function getMeetingSuggestions(m) {
   if (!m || !m.summary) {
     return [
-      'What were the key takeaways from this meeting?',
+      'Draft a follow-up email',
       'What action items were assigned?',
-      'Draft a follow-up email based on this meeting.'
-    ];
+      'What were the key takeaways from this meeting?'
+    ].sort((a, b) => a.length - b.length);
   }
   const suggestions = [];
   const summary = m.summary;
@@ -244,7 +397,7 @@ function getMeetingSuggestions(m) {
     suggestions.push('Draft a follow-up email to attendees');
   }
 
-  return suggestions.slice(0, 3);
+  return suggestions.slice(0, 3).sort((a, b) => a.length - b.length);
 }
 
 function renderCustomSelect(containerId, options, initialValue, onSelect) {
@@ -299,10 +452,26 @@ function renderCustomSelect(containerId, options, initialValue, onSelect) {
 
 async function api(url,options){const r=await fetch(url,options),v=await r.json();if(!r.ok)throw Error(v.error||'Something went wrong');return v;}
 async function refresh(){
-  const meetings=await api('/api/meetings');$('#count').textContent=String(meetings.length);$('#count').setAttribute('aria-label',`${meetings.length} ${meetings.length===1?'meeting':'meetings'}`);
+  const allMeetings=await api('/api/meetings');
+  renderWorkspaces(allMeetings);
+  updateActiveWorkspaceUI();
+  let meetings = allMeetings;
+  if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+    const ids = workspaceMeetings[activeWorkspaceId] || [];
+    meetings = allMeetings.filter(m => ids.includes(m.id));
+  }
+  $('#count').textContent=String(meetings.length);
+  $('#count').setAttribute('aria-label',`${meetings.length} ${meetings.length===1?'meeting':'meetings'}`);
   if(!selected&&meetings.length)selected=meetings[0].id;
-  if(!meetings.length){$('#detail').innerHTML='<div class="empty"><div class="empty-icon">♫</div><h2>Make room for the conversation.</h2><p>Import a recording to bring your notes, transcript, and audio together.</p><button class="primary" id="empty-import">Import your first meeting</button></div>';$('#empty-import').onclick=()=>$('#import-dialog').showModal();}
-  $('#meetings').innerHTML=meetings.length?meetings.map(m=>`<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">♫</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`).join(''):'<div class="list-empty">No meetings yet.<br>Start with a recording.</div>';
+  if(selected&&!meetings.some(m=>m.id===selected)){
+    selected=meetings.length?meetings[0].id:null;
+  }
+  if(!meetings.length){
+    const wsName = (workspaces.find(w => w.id === activeWorkspaceId) || {}).name || 'workspace';
+    $('#detail').innerHTML=`<div class="empty"><div class="empty-icon">♫</div><h2>${activeWorkspaceId==='default'?'Make room for the conversation.':`No meetings in ${esc(wsName)} yet.`}</h2><p>${activeWorkspaceId==='default'?'Import a recording to bring your notes, transcript, and audio together.':'Import a new recording while this workspace is selected to add meetings here.'}</p><button class="primary" id="empty-import">Import a meeting</button></div>`;
+    $('#empty-import').onclick=()=>$('#import-dialog').showModal();
+  }
+  $('#meetings').innerHTML=meetings.length?meetings.map(m=>`<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">♫</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`).join(''):`<div class="list-empty">No meetings in this workspace.<br>Start with a recording.</div>`;
   document.querySelectorAll('.meeting').forEach(b=>b.onclick=()=>openMeeting(b.dataset.id));
   if(selected&&!editing)await openMeeting(selected,false);
 }
@@ -332,7 +501,7 @@ async function openMeeting(id,rerender=true){
   const speakerBar='';
   const editIcon = `<svg class="speaker-edit-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`;
   const segments=m.transcript.map((s,idx)=>`<button class="segment" data-time="${Number(s.start)||0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker==null?'':`<span class="speaker-tag" data-speaker="${esc(s.speaker)}" data-index="${idx}" title="Click to rename or reassign speaker"><strong>${esc(speakerDisplayName(s.speaker))}</strong><span class="speaker-edit-btn" aria-hidden="true">${editIcon}</span></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
-  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button disabled>${icon('mail')}Send to email</button><button disabled>${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap" ${activeTab==='transcript'?'':'hidden'}><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options">⋮</button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate" disabled title="Coming soon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button></div></div></div><div id="search-wrap" class="search-wrap" ${activeTab==='transcript'?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div></div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player">${icon('chevron')}</button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
+  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button disabled>${icon('mail')}Send to email</button><button disabled>${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap" ${activeTab==='transcript'?'':'hidden'}><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options">⋮</button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate" disabled title="Coming soon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button></div></div></div><div id="search-wrap" class="search-wrap" ${activeTab==='transcript'?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div></div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player"><svg class="media-chevron-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
   const title=$('#meeting-title');title.onclick=()=>{
     editing=true;const input=document.createElement('input');input.className='title-input';input.value=m.title;input.maxLength=200;input.setAttribute('aria-label','Meeting name');title.replaceWith(input);input.focus();input.setSelectionRange(input.value.length,input.value.length);let done=false;
     const save=async()=>{if(done)return;done=true;const value=input.value.trim();try{if(value&&value!==m.title)await api(`/api/meetings/${id}/rename`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:value})});}catch(e){alert(e.message);}finally{editing=false;current=null;refresh();}};
@@ -573,6 +742,13 @@ $('#upload-form').onsubmit=async e=>{
     if(audioInput)delete audioInput.dataset.autoTitle;
     updateFileSelection();
     selected=m.id;
+    if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+      if (!workspaceMeetings[activeWorkspaceId]) workspaceMeetings[activeWorkspaceId] = [];
+      if (!workspaceMeetings[activeWorkspaceId].includes(m.id)) {
+        workspaceMeetings[activeWorkspaceId].push(m.id);
+        try { localStorage.setItem('saamba-workspace-meetings', JSON.stringify(workspaceMeetings)); } catch (_) {}
+      }
+    }
     current=null;
     await refresh();
   }catch(err){
