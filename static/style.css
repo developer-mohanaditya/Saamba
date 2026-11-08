@@ -1435,6 +1435,23 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   outline-offset: 2px !important;
 }
 
+.meeting-title,
+.meeting-title:focus,
+.meeting-title:focus-visible,
+.meeting-title:active,
+.title-input,
+.title-input:focus,
+.title-input:focus-visible,
+.title-input:active {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
 @keyframes dropdownFadeSlide {
   from {
     opacity: 0;
