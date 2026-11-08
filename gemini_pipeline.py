@@ -1,7 +1,7 @@
 """Gemini 3.8 Flash pipeline for Saamba meeting transcription, translation, and chat.
 Single-pass ingestion: uploads the full audio to Google File API, avoiding artificial chunking.
 """
-import os, json, time, uuid, subprocess, urllib.request, urllib.error
+import os, json, time, uuid, subprocess, urllib.request, urllib.error, re
 from pathlib import Path
 
 MODEL_TRANSCRIPTION = os.environ.get('SAAMBA_GEMINI_MODEL', 'gemini-3.8-flash')
@@ -275,3 +275,84 @@ def chat(messages, transcript_text, key):
             return data["candidates"][0]["content"]["parts"][0]["text"]
     except urllib.error.HTTPError as e:
         raise ProcessingError(f"Gemini chat failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+
+def translate_transcript(segments, target_language, key):
+    """Translate transcript segments into target_language preserving start timestamps and speakers."""
+    if not segments:
+        return []
+    
+    batch_size = 40
+    translated_all = []
+    
+    for i in range(0, len(segments), batch_size):
+        chunk = segments[i:i + batch_size]
+        lines = [f"[{idx}] {seg.get('text', '')}" for idx, seg in enumerate(chunk)]
+        input_text = "\n".join(lines)
+        
+        system_prompt = f"""You are an expert multilingual translator.
+Translate the following transcript lines faithfully into {target_language}.
+RULES:
+1. Translate accurately while preserving the natural conversational tone.
+2. Maintain the exact line format '[index] translated text'.
+3. Do not omit any lines, do not merge lines, and do not add any preamble or commentary.
+4. Output only the numbered lines."""
+
+        url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:generateContent?key={key}"
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"parts": [{"text": input_text}]}],
+            "generationConfig": {"temperature": 0.1}
+        }
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                output_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                trans_map = {}
+                for line in output_text.split("\n"):
+                    line = line.strip()
+                    m = re.match(r"^\[(\d+)\]\s*(.*)", line)
+                    if m:
+                        trans_map[int(m.group(1))] = m.group(2).strip()
+                for idx, seg in enumerate(chunk):
+                    translated_text = trans_map.get(idx, seg.get("text", ""))
+                    translated_all.append({
+                        "start": seg.get("start", 0),
+                        "speaker": seg.get("speaker"),
+                        "text": translated_text
+                    })
+        except urllib.error.HTTPError as e:
+            raise ProcessingError(f"Transcript translation failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+        except Exception as e:
+            raise ProcessingError(f"Transcript translation failed: {e}")
+            
+    return translated_all
+
+def translate_summary(summary_text, target_language, key):
+    """Translate meeting summary and action items into target_language preserving markdown hierarchy."""
+    if not summary_text or not summary_text.strip():
+        return ""
+        
+    system_prompt = f"""You are an expert multilingual meeting analyst.
+Translate the following meeting summary and action items into {target_language}.
+CRITICAL RULES:
+1. Preserve all markdown structure, headings (###), bold styling, and bullet points.
+2. Preserve exact timestamps like [01:23] or [12.4s] and speaker attributions like [Speaker 1] or [Mohan].
+3. Translate the actual narrative, key takeaways, and action items faithfully into {target_language}.
+4. Output ONLY the translated markdown with NO introductory or concluding remarks."""
+
+    url = f"{API_BASE}/v1beta/models/{MODEL_TRANSCRIPTION}:generateContent?key={key}"
+    payload = {
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"parts": [{"text": summary_text}]}],
+        "generationConfig": {"temperature": 0.2}
+    }
+    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except urllib.error.HTTPError as e:
+        raise ProcessingError(f"Summary translation failed ({e.code}): {e.read().decode('utf-8', errors='ignore')}")
+    except Exception as e:
+        raise ProcessingError(f"Summary translation failed: {e}")

@@ -52,6 +52,7 @@ with connect() as db:
     db.execute('CREATE TABLE IF NOT EXISTS summary_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL, completed INTEGER NOT NULL, total INTEGER NOT NULL)')
     db.execute('CREATE TABLE IF NOT EXISTS action_checks (meeting_id TEXT NOT NULL, item_key TEXT NOT NULL, checked INTEGER NOT NULL, PRIMARY KEY (meeting_id,item_key))')
     db.execute('CREATE TABLE IF NOT EXISTS chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, scope TEXT NOT NULL, created_at TEXT NOT NULL)')
+    db.execute('CREATE TABLE IF NOT EXISTS meeting_translations (meeting_id TEXT NOT NULL, language_code TEXT NOT NULL, language_name TEXT NOT NULL, transcript TEXT NOT NULL, summary TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (meeting_id, language_code))')
     live_capture.initialize(db)
 
 if os.name == 'posix':
@@ -268,7 +269,7 @@ def delete_meeting(mid):
             for source,target in [(DATA / row['filename'],trash/'recording'),(DATA / (mid+'.wav'),trash/'original-audio') if row['filename'] != mid+'.wav' else (DATA / '__absent__',trash/'original-audio'),(DATA/'live'/mid,trash/'live')]:
                 if source.exists():
                     os.replace(source,target);moved.append((source,target))
-            for table in ('transcript_chunks','summary_chunks','summary_requests','summary_preview','live_chunks','action_checks','chat_messages'):
+            for table in ('transcript_chunks','summary_chunks','summary_requests','summary_preview','live_chunks','action_checks','chat_messages','meeting_translations'):
                 db.execute(f'DELETE FROM {table} WHERE meeting_id=?',(mid,))
             db.execute('DELETE FROM meetings WHERE id=?',(mid,))
             db.commit()
@@ -301,6 +302,18 @@ class Handler(BaseHTTPRequestHandler):
             with connect() as db: row=db.execute('SELECT * FROM meetings WHERE id=?',(mid,)).fetchone()
             if not row: return self.send_json({'error':'Meeting not found'},404)
             row=dict(row)
+            if len(parts)==5 and parts[4]=='translations':
+                with connect() as db:
+                    rows=[dict(r) for r in db.execute('SELECT language_code, language_name, created_at FROM meeting_translations WHERE meeting_id=? ORDER BY created_at ASC',(mid,))]
+                return self.send_json(rows)
+            if len(parts)==6 and parts[4]=='translations':
+                lang = parts[5].lower()
+                with connect() as db:
+                    trans_row = db.execute('SELECT language_code, language_name, transcript, summary, created_at FROM meeting_translations WHERE meeting_id=? AND language_code=?',(mid, lang)).fetchone()
+                if not trans_row: return self.send_json({'error':'Translation not found'},404)
+                trans_dict = dict(trans_row)
+                trans_dict['transcript'] = json.loads(trans_dict['transcript'] or '[]')
+                return self.send_json(trans_dict)
             if len(parts)==5 and parts[4]=='download':
                 if row['status'] == 'recording': return self.send_json({'error':'Stop recording before downloading.'},409)
                 is_video = row['mime'].startswith('video/')
@@ -518,6 +531,55 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_json({'error': 'Unknown speaker action'}, 400)
                 db.execute('UPDATE meetings SET transcript=? WHERE id=?', (json.dumps(segments), mid))
             return self.send_json({'ok': True})
+        if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4]=='translate':
+            mid = parts[3]
+            try:
+                size = int(self.headers.get('Content-Length','0'))
+                if not 0 < size <= 4096: raise ValueError()
+                payload = json.loads(self.rfile.read(size))
+                if not isinstance(payload, dict): raise ValueError()
+                lang_code = str(payload.get('language_code', '')).strip().lower()
+                lang_name = str(payload.get('language_name', '')).strip()
+                if not lang_code or not lang_name:
+                    return self.send_json({'error': 'Language code and name required.'}, 400)
+            except Exception:
+                return self.send_json({'error': 'Invalid request payload.'}, 400)
+            with connect() as db:
+                meeting = db.execute('SELECT id, status, transcript, summary FROM meetings WHERE id=?', (mid,)).fetchone()
+                if not meeting:
+                    return self.send_json({'error': 'Meeting not found'}, 404)
+                if meeting['status'] in ('recording', 'transcribing', 'summarizing'):
+                    return self.send_json({'error': 'Wait until processing finishes before translating.'}, 409)
+                cached = db.execute('SELECT language_code, language_name, transcript, summary, created_at FROM meeting_translations WHERE meeting_id=? AND language_code=?', (mid, lang_code)).fetchone()
+                if cached:
+                    res = dict(cached)
+                    res['transcript'] = json.loads(res['transcript'] or '[]')
+                    return self.send_json(res)
+            gemini_key = os.environ.get('GEMINI_API_KEY')
+            if not gemini_key:
+                return self.send_json({'error': 'GEMINI_API_KEY is not configured.'}, 500)
+            segments = json.loads(meeting['transcript'] or '[]')
+            summary_text = meeting['summary'] or ''
+            if not segments and not summary_text:
+                return self.send_json({'error': 'No transcript or summary to translate.'}, 400)
+            try:
+                translated_segments = gemini_pipeline.translate_transcript(segments, lang_name, gemini_key) if segments else []
+                translated_summary = gemini_pipeline.translate_summary(summary_text, lang_name, gemini_key) if summary_text else ''
+                now = datetime.now(timezone.utc).isoformat()
+                with connect() as db:
+                    db.execute('INSERT OR REPLACE INTO meeting_translations (meeting_id, language_code, language_name, transcript, summary, created_at) VALUES (?,?,?,?,?,?)',
+                               (mid, lang_code, lang_name, json.dumps(translated_segments), translated_summary, now))
+                return self.send_json({
+                    'language_code': lang_code,
+                    'language_name': lang_name,
+                    'transcript': translated_segments,
+                    'summary': translated_summary,
+                    'created_at': now
+                })
+            except gemini_pipeline.ProcessingError as exc:
+                return self.send_json({'error': str(exc)}, 500)
+            except Exception as exc:
+                return self.send_json({'error': f'Translation failed: {exc}'}, 500)
         if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4] in ('transcript','summary','both'):
             mid, mode=parts[3],parts[4]
             with connect() as db:
