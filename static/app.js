@@ -35,9 +35,17 @@ workspaceToggle.addEventListener('click', (e) => {
 let libraryExpanded = true;
 try { libraryExpanded = localStorage.getItem('saamba-library-expanded') !== 'false'; } catch (_) {}
 function syncLibrary() {
-  libraryPane.classList.toggle('is-collapsed', !libraryExpanded);
-  libraryPane.setAttribute('aria-hidden', String(!libraryExpanded));
-  libraryToggle.setAttribute('aria-expanded', String(libraryExpanded));
+  if (libraryPane) {
+    libraryPane.classList.toggle('is-collapsed', !libraryExpanded);
+    libraryPane.setAttribute('aria-hidden', String(!libraryExpanded));
+  }
+  if (libraryToggle) {
+    libraryToggle.setAttribute('aria-expanded', String(libraryExpanded));
+  }
+  const activeNavItem = document.querySelector('.workspace-nav-item.active');
+  if (activeNavItem) {
+    activeNavItem.setAttribute('aria-expanded', String(libraryExpanded));
+  }
 }
 syncLibrary();
 libraryToggle.addEventListener('click', (e) => {
@@ -113,7 +121,9 @@ function updateActiveWorkspaceUI() {
   });
 }
 
-function renderWorkspaces(allMeetings = []) {
+let allMeetingsCache = [];
+function renderWorkspaces(allMeetings = allMeetingsCache) {
+  if (Array.isArray(allMeetings) && allMeetings.length > 0) allMeetingsCache = allMeetings;
   const list = document.querySelector('#workspace-list');
   if (!list) return;
 
@@ -121,16 +131,20 @@ function renderWorkspaces(allMeetings = []) {
     const iconSvg = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
     let count = 0;
     if (ws.id === 'default') {
-      count = allMeetings.length;
+      count = allMeetingsCache.length;
     } else {
       const ids = workspaceMeetings[ws.id] || [];
-      count = allMeetings.filter(m => ids.includes(m.id)).length;
+      count = allMeetingsCache.filter(m => ids.includes(m.id)).length;
     }
     const isActive = ws.id === activeWorkspaceId;
-    return `<button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" title="${esc(ws.name)}" aria-label="${esc(ws.name)}">
+    const chevronSvg = isActive
+      ? `<svg class="nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>`
+      : '';
+    return `<button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" title="${esc(ws.name)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
       <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
       <span class="workspace-title">${esc(ws.name)}</span>
       <span class="workspace-count">${count}</span>
+      ${chevronSvg}
     </button>`;
   }).join('');
 
@@ -140,14 +154,27 @@ function renderWorkspaces(allMeetings = []) {
       const wsId = btn.dataset.workspaceId;
       if (sidebarCollapsed) {
         setSidebarCollapsed(false);
+        activeWorkspaceId = wsId;
+        libraryExpanded = true;
+        try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
+        try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+        syncLibrary();
+        updateActiveWorkspaceUI();
+        refresh();
+        return;
+      }
+      if (wsId === activeWorkspaceId) {
+        libraryExpanded = !libraryExpanded;
+        try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
+        syncLibrary();
+        btn.setAttribute('aria-expanded', String(libraryExpanded));
+        return;
       }
       activeWorkspaceId = wsId;
       try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
-      if (!libraryExpanded) {
-        libraryExpanded = true;
-        try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
-        syncLibrary();
-      }
+      libraryExpanded = true;
+      try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+      syncLibrary();
       updateActiveWorkspaceUI();
       refresh();
     };
@@ -460,8 +487,11 @@ async function refresh(){
     const ids = workspaceMeetings[activeWorkspaceId] || [];
     meetings = allMeetings.filter(m => ids.includes(m.id));
   }
-  $('#count').textContent=String(meetings.length);
-  $('#count').setAttribute('aria-label',`${meetings.length} ${meetings.length===1?'meeting':'meetings'}`);
+  const countEl = $('#count');
+  if (countEl) {
+    countEl.textContent=String(meetings.length);
+    countEl.setAttribute('aria-label',`${meetings.length} ${meetings.length===1?'meeting':'meetings'}`);
+  }
   if(!selected&&meetings.length)selected=meetings[0].id;
   if(selected&&!meetings.some(m=>m.id===selected)){
     selected=meetings.length?meetings[0].id:null;
