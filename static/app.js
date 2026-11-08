@@ -157,7 +157,8 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
         ${chevronSvg}
       </button>`;
     if (isActive) {
-      html += `<section class="library ${!libraryExpanded ? 'is-collapsed' : ''}" id="meeting-library"><div id="meetings" class="meeting-list"></div></section>`;
+      const hasMeetings = count > 0;
+      html += `<section class="library ${!libraryExpanded ? 'is-collapsed' : ''} ${!hasMeetings ? 'is-empty' : ''}" id="meeting-library"><div id="meetings" class="meeting-list ${!hasMeetings ? 'is-empty' : ''}"></div></section>`;
     }
     html += `</div>`;
   });
@@ -697,13 +698,19 @@ async function refresh(){
     $('#detail').innerHTML=`<div class="empty"><div class="empty-icon">♫</div><h2>${activeWorkspaceId==='default'?'Make room for the conversation.':`No meetings in ${esc(wsName)} yet.`}</h2><p>${activeWorkspaceId==='default'?'Import a recording to bring your notes, transcript, and audio together.':'Import a new recording while this workspace is selected to add meetings here.'}</p><button class="primary" id="empty-import">Import a meeting</button></div>`;
     $('#empty-import').onclick=()=>$('#import-dialog').showModal();
   }
-  $('#meetings').innerHTML=meetings.length?meetings.map(m=>{
-    const isVideo = m.mime && m.mime.startsWith('video/');
-    const meetingIconHtml = isVideo
-      ? `<svg class="meeting-media-icon video-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>`
-      : `<span class="meeting-audio-symbol">♫</span>`;
-    return `<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">${meetingIconHtml}</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`;
-  }).join(''):`<div class="list-empty">No meetings in this workspace.<br>Start with a recording.</div>`;
+  const meetingsEl = $('#meetings');
+  const libEl = document.querySelector('.library');
+  if (libEl) libEl.classList.toggle('is-empty', meetings.length === 0);
+  if (meetingsEl) {
+    meetingsEl.classList.toggle('is-empty', meetings.length === 0);
+    meetingsEl.innerHTML = meetings.length ? meetings.map(m => {
+      const isVideo = m.mime && m.mime.startsWith('video/');
+      const meetingIconHtml = isVideo
+        ? `<svg class="meeting-media-icon video-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>`
+        : `<span class="meeting-audio-symbol">♫</span>`;
+      return `<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">${meetingIconHtml}</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`;
+    }).join('') : `<div class="list-empty">Nothing in this workspace.<br>Start with something.</div>`;
+  }
   document.querySelectorAll('.meeting').forEach(b=>b.onclick=()=>openMeeting(b.dataset.id));
   if(selected&&!editing)await openMeeting(selected,false);
 }

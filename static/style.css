@@ -1617,6 +1617,23 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   padding-left: 6px;
   border-left: 2px solid rgba(255, 255, 255, 0.18);
 }
+.layout-sidebar .workspace-sidebar .library.is-empty,
+.layout-sidebar .workspace-sidebar .library:has(.list-empty) {
+  border-left: none !important;
+  margin-left: 0;
+  padding-left: 0;
+}
+.layout-sidebar .workspace-sidebar .meeting-list.is-empty,
+.layout-sidebar .workspace-sidebar .meeting-list:has(.list-empty) {
+  border-top: none !important;
+}
+.layout-sidebar .workspace-sidebar .list-empty {
+  border: none !important;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c5d1c6;
+}
 .workspace-nav-item {
   display: flex;
   align-items: center;
