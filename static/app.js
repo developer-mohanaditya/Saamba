@@ -32,7 +32,8 @@ workspaceToggle.addEventListener('click', () => {
 let libraryExpanded = true;
 try { libraryExpanded = localStorage.getItem('saamba-library-expanded') !== 'false'; } catch (_) {}
 function syncLibrary() {
-  libraryPane.hidden = !libraryExpanded;
+  libraryPane.classList.toggle('is-collapsed', !libraryExpanded);
+  libraryPane.setAttribute('aria-hidden', String(!libraryExpanded));
   libraryToggle.setAttribute('aria-expanded', String(libraryExpanded));
 }
 syncLibrary();
@@ -65,28 +66,56 @@ const speakerDisplayName = spk => {
 };
 // Render a small, safe subset of Markdown; all model content is escaped first.
 function markdown(text) {
-  const lines=String(text||'').split(/\r?\n/);
-  const cells=line=>line.trim().replace(/^\||\|$/g,'').split('|').map(x=>x.trim());
-  const separator=line=>/^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line||'');
-  let list=false,html='';
-  for(let i=0;i<lines.length;i++) {
-    const line=lines[i];
-    if(line.includes('|')&&separator(lines[i+1])){
-      if(list){html+='</ul>';list=false;}
-      const header=cells(line);i+=2;let rows='';
-      while(i<lines.length&&lines[i].includes('|')&&lines[i].trim()){
-        const row=cells(lines[i]);rows+='<tr>'+header.map((_,n)=>`<td>${inline(row[n]||'')}</td>`).join('')+'</tr>';i++;
-      }
-      i--;html+='<div class="markdown-table"><table><thead><tr>'+header.map(c=>`<th>${inline(c)}</th>`).join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>';continue;
+  const lines = String(text || '').split(/\r?\n/);
+  const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(x => x.trim());
+  const separator = line => /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line || '');
+  let listStack = [], html = '';
+  const closeListsTo = targetLevel => {
+    while (listStack.length > targetLevel) {
+      listStack.pop();
+      html += '</li></ul>';
     }
-    const item=line.match(/^\s*[-*]\s+(.+)/);
-    if(item){if(!list){html+='<ul>';list=true;}html+=`<li>${inline(item[1])}</li>`;continue;}
-    if(list){html+='</ul>';list=false;}
-    if(!line.trim()||/^\s*[-*_]{3,}\s*$/.test(line))continue;
-    const heading=line.match(/^\s*#{1,4}\s+(.+)/)||line.match(/^\s*\*\*(.+?)\*\*\s*$/);
-    html+=heading?`<h3>${inline(heading[1])}</h3>`:`<p>${inline(line)}</p>`;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.includes('|') && separator(lines[i + 1])) {
+      closeListsTo(0);
+      const header = cells(line); i += 2; let rows = '';
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim()) {
+        const row = cells(lines[i]); rows += '<tr>' + header.map((_, n) => `<td>${inline(row[n] || '')}</td>`).join('') + '</tr>'; i++;
+      }
+      i--; html += '<div class="markdown-table"><table><thead><tr>' + header.map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>'; continue;
+    }
+    const item = line.match(/^(\s*)[-*]\s+(.+)/);
+    if (item) {
+      const indent = item[1].length;
+      if (listStack.length === 0) {
+        listStack.push(indent);
+        html += '<ul><li>' + inline(item[2]);
+      } else {
+        const topIndent = listStack[listStack.length - 1];
+        if (indent > topIndent) {
+          listStack.push(indent);
+          html += '<ul><li>' + inline(item[2]);
+        } else if (indent < topIndent) {
+          while (listStack.length > 1 && listStack[listStack.length - 1] > indent) {
+            listStack.pop();
+            html += '</li></ul>';
+          }
+          html += '</li><li>' + inline(item[2]);
+        } else {
+          html += '</li><li>' + inline(item[2]);
+        }
+      }
+      continue;
+    }
+    closeListsTo(0);
+    if (!line.trim() || /^\s*[-*_]{3,}\s*$/.test(line)) continue;
+    const heading = line.match(/^\s*#{1,4}\s+(.+)/) || line.match(/^\s*\*\*(.+?)\*\*\s*$/);
+    html += heading ? `<h3>${inline(heading[1])}</h3>` : `<p>${inline(line)}</p>`;
   }
-  return html+(list?'</ul>':'');
+  closeListsTo(0);
+  return html;
 }
 function summarySections(m) {
   const sections=[]; let section={title:'',lines:[]};

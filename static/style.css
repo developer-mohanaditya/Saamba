@@ -577,7 +577,26 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .nav-icon { flex:none; font-size:.85rem; }
 .nav-chevron { width:.9rem; height:.9rem; fill:none; stroke:currentColor; stroke-width:1.8; transition:transform .18s ease; }
 #library-toggle[aria-expanded="false"] .nav-chevron { transform:rotate(-90deg); }
-.layout-sidebar .workspace-sidebar .library { margin-top:14px; margin-left:10px; min-width:0; }
+.layout-sidebar .workspace-sidebar .library {
+  margin-top: 14px;
+  margin-left: 10px;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease, margin 0.28s ease;
+  overflow: hidden;
+  max-height: 1400px;
+  opacity: 1;
+}
+.layout-sidebar .workspace-sidebar .library.is-collapsed {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  pointer-events: none;
+}
 .layout-sidebar .workspace-sidebar .section-heading { padding:0 8px 10px; }
 .layout-sidebar .workspace-sidebar .library-heading h2 { font-size:.9rem; }
 .layout-sidebar .workspace-sidebar .meeting { gap:9px; padding:7px 8px; }
@@ -1129,4 +1148,82 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 #speaker-name-input:focus {
   border-color: var(--green) !important;
   box-shadow: 0 0 0 3px var(--soft) !important;
+}
+
+/* Nested list hierarchy in summaries */
+.summary-text ul {
+  padding-left: 1.35rem;
+  margin: .55rem 0 .75rem;
+}
+.summary-text ul ul {
+  margin: .35rem 0 .4rem .3rem;
+  padding-left: 1.3rem;
+  list-style-type: circle;
+}
+.summary-text li {
+  margin-bottom: .45rem;
+  line-height: 1.5;
+}
+.summary-text li > ul {
+  margin-top: .35rem;
+}
+
+/* Smooth micro-interactions & transitions */
+button:not(:disabled), .subtle-button, .meeting, .segment, .suggestion-pill, .tab, .share-menu button {
+  transition: transform .15s cubic-bezier(0.4, 0, 0.2, 1), background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestion-pill:active {
+  transform: scale(0.97);
+}
+
+.tab:active {
+  transform: scale(0.96);
+}
+
+:focus-visible {
+  outline: 2px solid var(--green) !important;
+  outline-offset: 2px !important;
+}
+
+@keyframes dropdownFadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.share-options:not([hidden]),
+.delete-popover:not([hidden]),
+.test-menu-content,
+.transcript-dropdown:not([hidden]),
+.custom-select-options:not([hidden]) {
+  transform-origin: top right;
+  animation: dropdownFadeSlide 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes tabSlideFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-content:not([hidden]) {
+  animation: tabSlideFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toggle-slider {
+  transition: background-color 0.22s ease !important;
+}
+.toggle-slider::before {
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
