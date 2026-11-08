@@ -1609,11 +1609,6 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   display: flex;
   flex-direction: column;
 }
-.workspace-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.16);
-  margin: 10px 8px;
-}
 .workspace-block.is-active .workspace-nav-item {
   margin-bottom: 4px;
 }

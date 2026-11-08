@@ -135,10 +135,7 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
   if (!list) return;
 
   let html = '';
-  workspaces.forEach((ws, idx) => {
-    if (idx > 0) {
-      html += `<div class="workspace-divider" role="separator" aria-hidden="true"></div>`;
-    }
+  workspaces.forEach((ws) => {
     const iconSvg = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
     let count = 0;
     if (ws.id === 'default') {
@@ -151,11 +148,12 @@ function renderWorkspaces(allMeetings = allMeetingsCache) {
     const chevronSvg = isActive
       ? `<svg class="nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>`
       : '';
+    const countBadgeHtml = count > 0 ? `<span class="workspace-count">${count}</span>` : '';
     html += `<div class="workspace-block ${isActive ? 'is-active' : ''}" data-workspace-id="${esc(ws.id)}">
       <button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
         <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
         <span class="workspace-title">${esc(ws.name)}</span>
-        <span class="workspace-count">${count}</span>
+        ${countBadgeHtml}
         ${chevronSvg}
       </button>`;
     if (isActive) {
