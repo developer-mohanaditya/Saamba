@@ -525,9 +525,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self.send_json({'error': 'Invalid speaker payload'}, 400)
             with connect() as db:
-                row = db.execute('SELECT transcript FROM meetings WHERE id=?', (mid,)).fetchone()
+                row = db.execute('SELECT transcript, summary FROM meetings WHERE id=?', (mid,)).fetchone()
                 if not row: return self.send_json({'error': 'Meeting not found'}, 404)
                 segments = json.loads(row['transcript'] or '[]')
+                summary = row['summary']
                 action = payload.get('action')
                 if action == 'reassign':
                     index = int(payload.get('index', -1))
@@ -552,9 +553,22 @@ class Handler(BaseHTTPRequestHandler):
                                     matches = True
                         if matches:
                             s['speaker'] = new_name
+                    if summary and isinstance(summary, str):
+                        patterns = set()
+                        if old_name is not None:
+                            patterns.add(str(old_name).strip())
+                        if isinstance(old_name, str) and old_name.lower().startswith('speaker '):
+                            num_part = old_name.lower().replace('speaker ', '').strip()
+                            if num_part.isdigit():
+                                patterns.add(f"Speaker {num_part}")
+                        elif isinstance(old_name, (int, str)) and str(old_name).isdigit():
+                            patterns.add(f"Speaker {int(old_name) + 1}")
+                        for pat in patterns:
+                            if pat:
+                                summary = re.sub(rf'\b{re.escape(pat)}\b', new_name, summary, flags=re.IGNORECASE)
                 else:
                     return self.send_json({'error': 'Unknown speaker action'}, 400)
-                db.execute('UPDATE meetings SET transcript=? WHERE id=?', (json.dumps(segments), mid))
+                db.execute('UPDATE meetings SET transcript=?, summary=? WHERE id=?', (json.dumps(segments), summary, mid))
             return self.send_json({'ok': True})
         if len(parts)==5 and parts[1:3]==['api','meetings'] and parts[4]=='translate':
             mid = parts[3]
