@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../lib/store';
 import { supabase } from '../lib/supabaseClient';
 
@@ -15,6 +15,17 @@ export function AuthModal() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!authModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setAuthModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [authModalOpen, setAuthModalOpen]);
+
   if (!authModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,7 +37,7 @@ export function AuthModal() {
     try {
       if (mode === 'signin') {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
         if (signInError) throw signInError;
@@ -36,7 +47,7 @@ export function AuthModal() {
         }
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
         });
         if (signUpError) throw signUpError;
@@ -65,18 +76,29 @@ export function AuthModal() {
         }
       }}
     >
-      <div className="auth-modal-card">
-        <div className="auth-header">
-          <div className="eyebrow">Saamba Accounts</div>
-          <h2>
-            {mode === 'signin' ? 'Sign in to your account' : 'Create your workspace'}
-            <span style={{ color: 'var(--brand-gold, #DEB569)' }}>.</span>
-          </h2>
-          <p className="auth-sub">
-            {mode === 'signin'
-              ? 'Enter your credentials to access your meetings and summaries.'
-              : 'Sign up to get your own isolated workspace and cloud-synced recordings.'}
-          </p>
+      <form id="auth-form" onSubmit={handleSubmit}>
+        <div className="dialog-top">
+          <div>
+            <div className="eyebrow">Saamba Cloud</div>
+            <h2>
+              {mode === 'signin' ? 'Sign in to account' : 'Create your workspace'}
+              <span className="brand-period">.</span>
+            </h2>
+            <p>
+              {mode === 'signin'
+                ? 'Enter your credentials to access your meetings, notes, and transcripts.'
+                : 'Sign up to create an isolated workspace with cloud-synced recordings.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="close"
+            id="close-auth-dialog"
+            aria-label="Close"
+            onClick={() => setAuthModalOpen(false)}
+          >
+            ×
+          </button>
         </div>
 
         <div className="auth-tabs">
@@ -104,53 +126,59 @@ export function AuthModal() {
           </button>
         </div>
 
-        {error && <div className="auth-alert error">{error}</div>}
-        {message && <div className="auth-alert success">{message}</div>}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <label>
-            <span>Email</span>
-            <input
-              type="email"
-              required
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@profeshare.ai"
-              className="auth-input"
-            />
-          </label>
-
-          <label>
-            <span>Password</span>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="auth-input"
-            />
-          </label>
-
-          <div className="auth-actions">
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setAuthModalOpen(false)}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="primary" disabled={loading}>
-              {loading
-                ? 'Processing...'
-                : mode === 'signin'
-                ? 'Sign In'
-                : 'Create Account'}
-            </button>
+        {error && (
+          <div className="error" role="alert" style={{ margin: '12px 0' }}>
+            {error}
           </div>
-        </form>
-      </div>
+        )}
+        {message && (
+          <div className="notice" role="status" style={{ margin: '12px 0' }}>
+            {message}
+          </div>
+        )}
+
+        <label htmlFor="auth-email-input">
+          Email
+          <input
+            id="auth-email-input"
+            type="email"
+            required
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="mohan.founder@profeshare.ai"
+          />
+        </label>
+
+        <label htmlFor="auth-password-input">
+          Password
+          <input
+            id="auth-password-input"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••••••"
+          />
+        </label>
+
+        <div className="dialog-actions">
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => setAuthModalOpen(false)}
+          >
+            Cancel
+          </button>
+          <button type="submit" className="primary" disabled={loading}>
+            {loading
+              ? 'Processing…'
+              : mode === 'signin'
+              ? 'Sign In'
+              : 'Create Account'}
+          </button>
+        </div>
+      </form>
     </dialog>
   );
 }

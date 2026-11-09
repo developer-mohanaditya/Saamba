@@ -1,8 +1,8 @@
-// frontend/components/Sidebar.tsx - Google AI Studio-inspired sidebar hierarchy with fixed container and scrollable inner lists
+// frontend/components/Sidebar.tsx - Redesigned sidebar matching Saamba design system, rearranged hierarchy, and strict scroll isolation
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../lib/store';
 import { WORKSPACE_ICONS } from './Icons';
 import { date } from '../lib/markdown';
@@ -38,10 +38,24 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
   } = useAppStore();
 
   const [soundAlerts, setSoundAlerts] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSoundAlerts(isSoundAlertsEnabled());
   }, []);
+
+  // Close settings popover when clicking outside
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [settingsOpen]);
 
   const handleToggleSoundAlerts = () => {
     const next = !soundAlerts;
@@ -63,8 +77,12 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
   const userDomain = user?.email && user.email.includes('@') ? '@' + user.email.split('@')[1] : '';
 
   return (
-    <aside className="workspace-sidebar" role="complementary" aria-label="Sidebar navigation">
-      {/* Top Header: Brand & Collapse Toggle (Fixed) */}
+    <aside
+      className={`workspace-sidebar ${sidebarCollapsed ? 'is-collapsed' : ''}`}
+      role="complementary"
+      aria-label="Sidebar navigation"
+    >
+      {/* Top Header: Brand & Original Collapse Toggle (Fixed) */}
       <div className="sidebar-top">
         <button
           className="brand"
@@ -101,9 +119,7 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
             strokeLinejoin="round"
             style={{ display: sidebarCollapsed ? 'none' : 'block' }}
           >
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <path d="M9 3v18" />
-            <path d="m14 9-3 3 3 3" />
+            <path d="m15 18-6-6 6-6" />
           </svg>
           <svg
             className="icon-expand"
@@ -117,171 +133,15 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
             strokeLinejoin="round"
             style={{ display: sidebarCollapsed ? 'block' : 'none' }}
           >
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <path d="M9 3v18" />
-            <path d="m12 9 3 3-3 3" />
+            <path d="m9 18 6-6-6-6" />
           </svg>
         </button>
       </div>
 
       {/* Inner Scrollable Region (CRITICAL: Only this inner element scrolls!) */}
       <div className="sidebar-scrollable-content">
-        {/* Section 1: Workspaces (AI Studio EXPLORE hierarchy) */}
-        <div className="sidebar-section">
-          <div className="sidebar-section-header">
-            <span className="sidebar-section-title">Workspaces</span>
-            <button
-              type="button"
-              className="create-workspace-btn"
-              id="create-workspace-btn"
-              aria-label="Create workspace"
-              title="Create workspace"
-              onClick={onCreateWorkspace}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="workspace-nav-list" role="navigation" aria-label="Workspaces">
-            {workspaces.map((ws) => {
-              const isActive = ws.id === activeWorkspaceId;
-              const count = (workspaceMeetings[ws.id]?.length) || (isActive ? meetings.length : 0);
-              const wsIcon = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
-
-              return (
-                <div
-                  key={ws.id}
-                  className={`workspace-group ${isActive ? 'active' : ''}`}
-                  data-id={ws.id}
-                >
-                  <div className={`workspace-row ${isActive ? 'is-active' : ''}`}>
-                    <button
-                      type="button"
-                      className="nav workspace-item-btn"
-                      data-id={ws.id}
-                      onClick={() => {
-                        setActiveWorkspaceId(ws.id);
-                        if (sidebarCollapsed) setSidebarCollapsed(false);
-                      }}
-                    >
-                      <span
-                        className="workspace-icon"
-                        aria-hidden="true"
-                        dangerouslySetInnerHTML={{ __html: wsIcon }}
-                      />
-                      <span className="workspace-title">{ws.name}</span>
-                      <span className="workspace-count" title={`${count} meetings`}>
-                        {count}
-                      </span>
-                    </button>
-
-                    {isActive && (
-                      <button
-                        type="button"
-                        className="nav-chevron"
-                        aria-label={libraryExpanded ? 'Collapse library' : 'Expand library'}
-                        title={libraryExpanded ? 'Collapse library' : 'Expand library'}
-                        aria-expanded={libraryExpanded}
-                        onClick={toggleLibrary}
-                      >
-                        <svg
-                          className="chevron-icon"
-                          viewBox="0 0 24 24"
-                          width="14"
-                          height="14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          style={{
-                            transform: libraryExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                          }}
-                        >
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-
-                  {isActive && libraryExpanded && (
-                    <section
-                      className="library active"
-                      aria-label={`${ws.name} library`}
-                    >
-                      <div className="library-header">
-                        <h3>Meetings</h3>
-                        <span className="library-count-badge">{meetings.length}</span>
-                      </div>
-
-                      <div className="meeting-list">
-                        {meetings.length > 0 ? (
-                          meetings.map((m) => {
-                            const isVideo = m.mime && m.mime.startsWith('video/');
-                            return (
-                              <button
-                                key={m.id}
-                                type="button"
-                                className={`meeting ${
-                                  selectedMeetingId === m.id ? 'selected' : ''
-                                }`}
-                                data-id={m.id}
-                                title={m.title}
-                                onClick={() => setSelectedMeetingId(m.id)}
-                              >
-                                <span className="meeting-icon">
-                                  {isVideo ? (
-                                    <svg
-                                      className="meeting-media-icon video-icon"
-                                      viewBox="0 0 24 24"
-                                      width="14"
-                                      height="14"
-                                      fill="currentColor"
-                                    >
-                                      <path d="m22 8-6 4 6 4V8Z" />
-                                      <rect x="2" y="6" width="14" height="12" rx="2" />
-                                    </svg>
-                                  ) : (
-                                    <span className="meeting-audio-symbol">♫</span>
-                                  )}
-                                </span>
-                                <span className="meeting-copy">
-                                  <strong>{m.title}</strong>
-                                  <small>{date(m.created_at)}</small>
-                                </span>
-                              </button>
-                            );
-                          })
-                        ) : (
-                          <div className="list-empty">
-                            Nothing in this workspace.
-                            <br />
-                            Start with something.
-                          </div>
-                        )}
-                      </div>
-                    </section>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Section 2: Quick Actions (AI Studio BUILD hierarchy) */}
-        <div className="sidebar-section">
+        {/* SECTION 1: QUICK ACTIONS (Rearranged to Top) */}
+        <div className="sidebar-section sidebar-section-quick-actions">
           <div className="sidebar-section-header">
             <span className="sidebar-section-title">Quick Actions</span>
           </div>
@@ -346,71 +206,207 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
           </div>
         </div>
 
-        {/* Section 3: Manage (AI Studio MANAGE hierarchy) */}
-        <div className="sidebar-section">
+        {/* SECTION 2: WORKSPACES (Without sub-meetings header chip, direct listing) */}
+        <div className="sidebar-section sidebar-section-workspaces">
           <div className="sidebar-section-header">
-            <span className="sidebar-section-title">Manage</span>
+            <span className="sidebar-section-title">Workspaces</span>
+            <button
+              type="button"
+              className="create-workspace-btn"
+              id="create-workspace-btn"
+              aria-label="Create workspace"
+              title="Create workspace"
+              onClick={onCreateWorkspace}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
           </div>
-          <div className="sidebar-nav-actions">
-            <button
-              type="button"
-              className="sidebar-action-item has-arrow"
-              onClick={() => {
-                const testMenu = document.getElementById('test-menu') as HTMLDetailsElement;
-                if (testMenu) {
-                  testMenu.open = !testMenu.open;
-                }
-              }}
-              title="Workspace Options & Preferences"
-            >
-              <span className="sidebar-action-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="4" y1="21" x2="4" y2="14" />
-                  <line x1="4" y1="10" x2="4" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12" y2="3" />
-                  <line x1="20" y1="21" x2="20" y2="16" />
-                  <line x1="20" y1="12" x2="20" y2="3" />
-                  <line x1="1" y1="14" x2="7" y2="14" />
-                  <line x1="9" y1="8" x2="15" y2="8" />
-                  <line x1="17" y1="16" x2="23" y2="16" />
-                </svg>
-              </span>
-              <span className="sidebar-action-label">Preferences</span>
-              <svg className="action-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
 
-            <button
-              type="button"
-              className="sidebar-action-item has-arrow"
-              onClick={() => {
-                alert('Cloud Database: Connected to Supabase (swapfqsivtuqbrczrmns). Authenticated RLS active.');
-              }}
-              title="Supabase Cloud Database Status"
-            >
-              <span className="sidebar-action-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <ellipse cx="12" cy="5" rx="9" ry="3" />
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                </svg>
-              </span>
-              <span className="sidebar-action-label">Supabase Cloud</span>
-              <span className="cloud-status-dot" title="Active & Connected" />
-              <svg className="action-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
+          <div className="workspace-nav-list" role="navigation" aria-label="Workspaces">
+            {workspaces.map((ws) => {
+              const isActive = ws.id === activeWorkspaceId;
+              const count = (workspaceMeetings[ws.id]?.length) || (isActive ? meetings.length : 0);
+              const wsIcon = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
+
+              return (
+                <div
+                  key={ws.id}
+                  className={`workspace-group ${isActive ? 'active' : ''}`}
+                  data-id={ws.id}
+                >
+                  <div className={`workspace-row ${isActive ? 'is-active' : ''}`}>
+                    <button
+                      type="button"
+                      className="nav workspace-item-btn"
+                      data-id={ws.id}
+                      onClick={() => {
+                        setActiveWorkspaceId(ws.id);
+                        if (sidebarCollapsed) setSidebarCollapsed(false);
+                      }}
+                    >
+                      <span
+                        className="workspace-icon"
+                        aria-hidden="true"
+                        dangerouslySetInnerHTML={{ __html: wsIcon }}
+                      />
+                      <span className="workspace-title">{ws.name}</span>
+                      <span className="workspace-count" title={`${count} meetings`}>
+                        {count}
+                      </span>
+                    </button>
+
+                    {isActive && (
+                      <button
+                        type="button"
+                        className="nav-chevron"
+                        aria-label={libraryExpanded ? 'Collapse meetings' : 'Expand meetings'}
+                        title={libraryExpanded ? 'Collapse meetings' : 'Expand meetings'}
+                        aria-expanded={libraryExpanded}
+                        onClick={toggleLibrary}
+                      >
+                        <svg
+                          className="chevron-icon"
+                          viewBox="0 0 24 24"
+                          width="14"
+                          height="14"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{
+                            transform: libraryExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                          }}
+                        >
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Direct Meetings Listing without nested header layout */}
+                  {isActive && libraryExpanded && (
+                    <div className="meeting-list" role="region" aria-label={`${ws.name} meetings`}>
+                      {meetings.length > 0 ? (
+                        meetings.map((m) => {
+                          const isVideo = m.mime && m.mime.startsWith('video/');
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              className={`meeting ${
+                                selectedMeetingId === m.id ? 'selected' : ''
+                              }`}
+                              data-id={m.id}
+                              title={m.title}
+                              onClick={() => setSelectedMeetingId(m.id)}
+                            >
+                              <span className="meeting-icon">
+                                {isVideo ? (
+                                  <svg
+                                    className="meeting-media-icon video-icon"
+                                    viewBox="0 0 24 24"
+                                    width="14"
+                                    height="14"
+                                    fill="currentColor"
+                                  >
+                                    <path d="m22 8-6 4 6 4V8Z" />
+                                    <rect x="2" y="6" width="14" height="12" rx="2" />
+                                  </svg>
+                                ) : (
+                                  <span className="meeting-audio-symbol">♫</span>
+                                )}
+                              </span>
+                              <span className="meeting-copy">
+                                <strong>{m.title}</strong>
+                                <small>{date(m.created_at)}</small>
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="list-empty">
+                          Nothing in this workspace.
+                          <br />
+                          Start with something.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* Fixed Bottom Section: Utility Bar + User Account Card (Fixed) */}
       <div className="sidebar-footer">
-        {/* Row of 4 utility icon buttons matching Google AI Studio */}
-        <div className="sidebar-utility-bar">
+        {/* Row of 4 utility icon buttons (Hidden on collapse) */}
+        <div className="sidebar-utility-bar" ref={settingsRef}>
+          {/* Settings Popover (Manage relocated inside settings) */}
+          {settingsOpen && (
+            <div className="sidebar-settings-popover" role="dialog" aria-label="Settings and Preferences">
+              <div className="settings-popover-header">
+                <span>Preferences & Cloud</span>
+                <button
+                  type="button"
+                  className="settings-popover-close"
+                  onClick={() => setSettingsOpen(false)}
+                  aria-label="Close settings"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="settings-popover-body">
+                <label className="settings-row" htmlFor="settings-sound-toggle">
+                  <div className="settings-row-text">
+                    <strong>Sound alerts</strong>
+                    <small>Audio chime on meeting detections</small>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="settings-sound-toggle"
+                    checked={soundAlerts}
+                    onChange={handleToggleSoundAlerts}
+                  />
+                </label>
+
+                <div className="settings-row-cloud">
+                  <div className="settings-row-text">
+                    <strong>Supabase Cloud</strong>
+                    <small>swapfqsivtuqbrczrmns · Online</small>
+                  </div>
+                  <span className="cloud-status-dot" title="Active & Connected" />
+                </div>
+
+                <button
+                  type="button"
+                  className="settings-action-btn"
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    onCreateWorkspace();
+                  }}
+                >
+                  + Create new workspace
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 1: Alerts / Bell */}
           <button
             type="button"
@@ -423,21 +419,15 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
-            {soundAlerts && <span className="utility-active-dot" />}
           </button>
 
-          {/* 2: Settings / Options */}
+          {/* 2: Settings / Options (Opens Manage / Preferences popover) */}
           <button
             type="button"
-            className="utility-icon-btn"
-            title="Workspace Options"
-            aria-label="Workspace Options"
-            onClick={() => {
-              const testMenu = document.getElementById('test-menu') as HTMLDetailsElement;
-              if (testMenu) {
-                testMenu.open = !testMenu.open;
-              }
-            }}
+            className={`utility-icon-btn ${settingsOpen ? 'is-active' : ''}`}
+            title="Workspace Options & Preferences"
+            aria-label="Workspace Options & Preferences"
+            onClick={() => setSettingsOpen(!settingsOpen)}
           >
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -470,9 +460,7 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
             className="utility-icon-btn"
             title="Supabase Cloud Credentials & Status"
             aria-label="Supabase Cloud API"
-            onClick={() => {
-              alert('Supabase Auth & Database: Connected\nEndpoint: swapfqsivtuqbrczrmns.supabase.co\nStatus: Online');
-            }}
+            onClick={() => setSettingsOpen(true)}
           >
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="7.5" cy="15.5" r="5.5" />
@@ -482,7 +470,7 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
           </button>
         </div>
 
-        {/* User Account Card: Rounded Capsule matching AI Studio */}
+        {/* User Account Card (Shows avatar centered on collapse) */}
         {user ? (
           <details className="sidebar-user-details">
             <summary className="sidebar-user-card" title={user.email}>

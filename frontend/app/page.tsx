@@ -16,6 +16,7 @@ import { startRecording, stopRecording, isRecording } from '../lib/capture';
 
 export default function Home() {
   const {
+    user,
     sidebarCollapsed,
     meetings,
     setMeetings,
@@ -44,7 +45,6 @@ export default function Home() {
   const [recordStatus, setRecordStatus] = useState('');
 
   const mediaPaneRef = useRef<MediaPaneHandle>(null);
-  const initialSelectedRef = useRef(false);
 
   // Initial load and periodic refresh of meeting list
   useEffect(() => {
@@ -62,11 +62,14 @@ export default function Home() {
         }
         if (Array.isArray(meetingList)) {
           setMeetings(meetingList);
-          // Only select the first meeting once on startup if nothing is selected
-          const curSelected = useAppStore.getState().selectedMeetingId;
-          if (meetingList.length > 0 && !curSelected && !initialSelectedRef.current) {
-            initialSelectedRef.current = true;
-            setSelectedMeetingId(meetingList[0].id);
+          if (meetingList.length > 0) {
+            const curSelected = useAppStore.getState().selectedMeetingId;
+            if (!curSelected || !meetingList.some((m) => m.id === curSelected)) {
+              setSelectedMeetingId(meetingList[0].id);
+            }
+          } else {
+            setSelectedMeetingId(null);
+            setCurrentMeeting(null);
           }
         }
       } catch (err) {
@@ -79,7 +82,7 @@ export default function Home() {
       mounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [user]);
 
   // Fetch full meeting details when selectedMeetingId changes
   useEffect(() => {

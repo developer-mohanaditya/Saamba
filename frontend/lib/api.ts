@@ -30,15 +30,14 @@ export async function getWorkspaces(): Promise<{
     const { data: wsRows, error: wsErr } = await supabase
       .from('workspaces')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('is_default', { ascending: false });
 
     if (!wsErr && wsRows && wsRows.length > 0) {
-      const { data: mRows } = await supabase.from('meetings').select('id, workspace_id');
+      const { data: wmRows } = await supabase.from('workspace_meetings').select('workspace_id, meeting_id');
       const wmMap: Record<string, string[]> = {};
-      (mRows || []).forEach((row: any) => {
-        const wid = row.workspace_id || 'default';
-        if (!wmMap[wid]) wmMap[wid] = [];
-        wmMap[wid].push(row.id);
+      (wmRows || []).forEach((row: any) => {
+        if (!wmMap[row.workspace_id]) wmMap[row.workspace_id] = [];
+        wmMap[row.workspace_id].push(row.meeting_id);
       });
 
       return {
@@ -53,8 +52,11 @@ export async function getWorkspaces(): Promise<{
     }
   }
 
-  // Fallback to local API / SQLite
-  return fetchJson('/api/workspaces');
+  // Guest / Unauthenticated: clean empty workspace, no mock data
+  return {
+    workspaces: [{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }],
+    workspaceMeetings: { default: [] },
+  };
 }
 
 export async function createWorkspace(ws: { name: string; icon: string }): Promise<Workspace> {
@@ -115,7 +117,8 @@ export async function getMeetings(): Promise<Meeting[]> {
     }
   }
 
-  return fetchJson('/api/meetings');
+  // Guest / Unauthenticated: return empty list, no mock data injected
+  return [];
 }
 
 export async function getMeeting(id: string): Promise<Meeting> {
@@ -171,7 +174,7 @@ export async function getMeeting(id: string): Promise<Meeting> {
     }
   }
 
-  return fetchJson(`/api/meetings/${id}`);
+  throw new Error('Please sign in to view this meeting.');
 }
 
 export async function renameMeeting(id: string, title: string): Promise<{ title: string }> {
