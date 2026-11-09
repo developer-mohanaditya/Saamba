@@ -1,69 +1,138 @@
-import Image from "next/image";
+// frontend/app/page.tsx - Main Saamba v2 Next.js Application Page
+
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useAppStore } from '../lib/store';
+import { Sidebar } from '../components/Sidebar';
+import { Header } from '../components/Header';
+import { MeetingDetail } from '../components/MeetingDetail';
+import { AskPanel } from '../components/AskPanel';
+import { getMeetings, getMeeting, getWorkspaces } from '../lib/api';
 
 export default function Home() {
+  const {
+    meetings,
+    setMeetings,
+    selectedMeetingId,
+    setSelectedMeetingId,
+    setCurrentMeeting,
+    setIsLoadingMeeting,
+    setWorkspaces,
+    setWorkspaceMeetings,
+  } = useAppStore();
+
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+  // Initial data load: workspaces and meetings from SQLite backend
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadInitialData() {
+      try {
+        const [wsData, meetingList] = await Promise.all([
+          getWorkspaces().catch(() => ({ workspaces: [], workspaceMeetings: {} })),
+          getMeetings().catch(() => []),
+        ]);
+
+        if (!mounted) return;
+
+        if (wsData.workspaces && wsData.workspaces.length > 0) {
+          setWorkspaces(wsData.workspaces);
+          setWorkspaceMeetings(wsData.workspaceMeetings || {});
+        }
+
+        if (Array.isArray(meetingList)) {
+          setMeetings(meetingList);
+          if (meetingList.length > 0 && !selectedMeetingId) {
+            setSelectedMeetingId(meetingList[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Initial data load error:', err);
+      }
+    }
+
+    loadInitialData();
+    const interval = setInterval(loadInitialData, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Fetch full details whenever the selected meeting changes
+  useEffect(() => {
+    if (!selectedMeetingId) {
+      setCurrentMeeting(null);
+      return;
+    }
+
+    let mounted = true;
+    setIsLoadingMeeting(true);
+
+    getMeeting(selectedMeetingId)
+      .then((m) => {
+        if (mounted) setCurrentMeeting(m);
+      })
+      .catch((err) => {
+        console.error('Failed to load meeting details:', err);
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingMeeting(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedMeetingId]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="flex h-screen w-screen overflow-hidden bg-[#FBF9F5] text-[#1A1A1A] font-sans antialiased">
+      {/* 1. Left Workspace Sidebar */}
+      <Sidebar />
+
+      {/* 2. Main Work Area */}
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Header
+          onRecordClick={() => {
+            alert('Live audio capture will start via the browser media stream.');
+          }}
+          onImportClick={() => setImportDialogOpen(true)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="flex-1 flex overflow-hidden relative">
+          <MeetingDetail />
+          <AskPanel />
         </div>
       </main>
+
+      {/* Import Modal Placeholder */}
+      {importDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[#FBF9F5] w-full max-w-lg rounded-2xl shadow-2xl border border-[#E8E4DC] p-6 space-y-4">
+            <h2 className="font-serif font-bold text-xl text-[#1A382B]">Import a meeting</h2>
+            <p className="text-xs text-[#767676]">Upload an audio or video recording to transcribe and summarize.</p>
+            <div className="p-8 border-2 border-dashed border-[#D5D0C6] rounded-xl text-center bg-white cursor-pointer hover:border-[#1A382B] transition-colors">
+              <input type="file" accept="audio/*,video/*" className="hidden" id="modal-file-upload" />
+              <label htmlFor="modal-file-upload" className="cursor-pointer block">
+                <span className="text-3xl block mb-2">📁</span>
+                <span className="text-sm font-semibold text-[#1A382B]">Click to browse</span>
+                <span className="text-xs text-[#767676] block mt-1">Audio or video files up to 2 GB</span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setImportDialogOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm text-[#767676] hover:bg-[#EFECE4]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
