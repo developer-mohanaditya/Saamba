@@ -241,7 +241,12 @@ export default function Home() {
         sidebarCollapsed ? 'sidebar-collapsed' : ''
       }`}
     >
-      <Sidebar onCreateWorkspace={() => setWorkspaceModalOpen(true)} />
+      <Sidebar
+        onCreateWorkspace={() => setWorkspaceModalOpen(true)}
+        onRecord={handleToggleRecord}
+        onImport={() => setImportModalOpen(true)}
+        isRecording={recordingActive}
+      />
 
       <main>
         <Header

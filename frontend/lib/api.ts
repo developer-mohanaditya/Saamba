@@ -33,11 +33,12 @@ export async function getWorkspaces(): Promise<{
       .order('created_at', { ascending: true });
 
     if (!wsErr && wsRows && wsRows.length > 0) {
-      const { data: wmRows } = await supabase.from('workspace_meetings').select('*');
+      const { data: mRows } = await supabase.from('meetings').select('id, workspace_id');
       const wmMap: Record<string, string[]> = {};
-      (wmRows || []).forEach((row: any) => {
-        if (!wmMap[row.workspace_id]) wmMap[row.workspace_id] = [];
-        wmMap[row.workspace_id].push(row.meeting_id);
+      (mRows || []).forEach((row: any) => {
+        const wid = row.workspace_id || 'default';
+        if (!wmMap[wid]) wmMap[wid] = [];
+        wmMap[wid].push(row.id);
       });
 
       return {
