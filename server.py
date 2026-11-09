@@ -1153,6 +1153,12 @@ async def serve_classic():
     path = ROOT / 'static' / 'classic.html'
     return HTMLResponse(path.read_text(encoding='utf-8'), headers={'Cache-Control': 'no-cache, no-store, must-revalidate'})
 
+@app.get('/design-system', response_class=HTMLResponse)
+@app.get('/design-system.html', response_class=HTMLResponse)
+async def serve_design_system():
+    path = ROOT / 'static' / 'design-system.html'
+    return HTMLResponse(path.read_text(encoding='utf-8'), headers={'Cache-Control': 'no-cache, no-store, must-revalidate'})
+
 @app.get('/app.js')
 async def serve_app_js():
     path = ROOT / 'static' / 'app.js'

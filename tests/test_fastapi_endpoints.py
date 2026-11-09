@@ -76,6 +76,7 @@ class FastAPIExtensiveEndpointTests(unittest.IsolatedAsyncioTestCase):
 
         for path, mime in [
             ('/classic', 'text/html'),
+            ('/design-system', 'text/html'),
             ('/app.js', 'javascript'),
             ('/style.css', 'text/css'),
             ('/classic-app.js', 'javascript'),
