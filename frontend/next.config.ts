@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   basePath: '/v2',
+  experimental: {
+    proxyClientMaxBodySize: '2gb',
+    proxyTimeout: 300_000,
+  },
   async redirects() {
     return [
       {
