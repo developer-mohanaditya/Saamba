@@ -11,6 +11,7 @@ import { MediaPane, MediaPaneHandle } from '../components/MediaPane';
 import { AskPanel } from '../components/AskPanel';
 import { Modals } from '../components/Modals';
 import { getMeetings, getMeeting, getWorkspaces } from '../lib/api';
+import { startRecording, stopRecording, isRecording } from '../lib/capture';
 
 export default function Home() {
   const {
@@ -38,6 +39,8 @@ export default function Home() {
   const [speakerToEdit, setSpeakerToEdit] = useState('');
   const [speakerIndex, setSpeakerIndex] = useState<number | null>(null);
   const [translateModalOpen, setTranslateModalOpen] = useState(false);
+  const [recordingActive, setRecordingActive] = useState(false);
+  const [recordStatus, setRecordStatus] = useState('');
 
   const mediaPaneRef = useRef<MediaPaneHandle>(null);
   const initialSelectedRef = useRef(false);
@@ -194,6 +197,43 @@ export default function Home() {
     setActiveTab('transcript');
   };
 
+  const handleToggleRecord = async () => {
+    if (recordingActive) {
+      try {
+        const res = await stopRecording({
+          onStatus: (status) => setRecordStatus(status),
+        });
+        setRecordingActive(false);
+        const list = await getMeetings();
+        setMeetings(list);
+        setSelectedMeetingId(res.id);
+      } catch (err: any) {
+        setRecordStatus(`Error: ${err.message}`);
+        setRecordingActive(false);
+      }
+    } else {
+      try {
+        setRecordingActive(true);
+        setRecordStatus('Starting meeting capture…');
+        await startRecording({
+          workspaceId: useAppStore.getState().activeWorkspaceId,
+          onStatus: (status) => setRecordStatus(status),
+          onCreated: async (id) => {
+            const list = await getMeetings();
+            setMeetings(list);
+            setSelectedMeetingId(id);
+          },
+        });
+      } catch (err: any) {
+        setRecordingActive(false);
+        setRecordStatus('');
+        if (err.name !== 'NotAllowedError') {
+          alert(err.message || 'Could not start recording.');
+        }
+      }
+    }
+  };
+
   return (
     <div
       className={`app layout-sidebar ${
@@ -204,13 +244,14 @@ export default function Home() {
 
       <main>
         <Header
-          onRecord={() =>
-            alert('Live recording is available from the desktop application.')
-          }
+          isRecording={recordingActive}
+          onRecord={handleToggleRecord}
           onImport={() => setImportModalOpen(true)}
         />
 
-        <p id="record-status" role="status" />
+        <p id="record-status" role="status">
+          {recordStatus}
+        </p>
 
         <div className="content">
           <section id="detail" className="detail">

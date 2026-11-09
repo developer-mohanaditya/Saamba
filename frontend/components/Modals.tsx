@@ -70,6 +70,7 @@ export function Modals({
 
   const [importTitle, setImportTitle] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState('');
 
@@ -103,16 +104,18 @@ export function Modals({
     setImportError('');
 
     try {
-      const formData = new FormData();
-      formData.append('title', importTitle.trim());
-      formData.append('audio', importFile);
+      const headers: Record<string, string> = {
+        'Content-Type': importFile.type || 'application/octet-stream',
+        'X-Meeting-Title': encodeURIComponent(importTitle.trim()),
+      };
+      if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+        headers['X-Workspace-Id'] = activeWorkspaceId;
+      }
 
       const res = await fetch('/api/meetings', {
         method: 'POST',
-        headers: {
-          'X-Workspace-Id': activeWorkspaceId,
-        },
-        body: formData,
+        headers,
+        body: importFile,
       });
 
       if (!res.ok) {
@@ -127,6 +130,7 @@ export function Modals({
 
       setImportTitle('');
       setImportFile(null);
+      setTitleManuallyEdited(false);
       onCloseImportModal();
     } catch (err: any) {
       setImportError(err.message || 'Import failed');
@@ -294,7 +298,10 @@ export function Modals({
                 required
                 maxLength={200}
                 value={importTitle}
-                onChange={(e) => setImportTitle(e.target.value)}
+                onChange={(e) => {
+                  setImportTitle(e.target.value);
+                  setTitleManuallyEdited(true);
+                }}
                 autoFocus
               />
             </label>
@@ -308,12 +315,46 @@ export function Modals({
                 accept="audio/*,video/mp4,video/webm,video/quicktime"
                 required
                 onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setImportFile(e.target.files[0]);
+                  const file = e.target.files && e.target.files[0];
+                  if (file) {
+                    setImportFile(file);
+                    if (!titleManuallyEdited || !importTitle.trim()) {
+                      const rawBase = file.name.replace(/\.[^.]+$/, '').trim();
+                      const cleaned = rawBase.replace(/[_-]+/g, ' ').trim();
+                      const isGeneric = /^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
+                      let newTitle = '';
+                      if (isGeneric || !cleaned) {
+                        const today = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                        newTitle = 'Meeting · ' + today;
+                      } else {
+                        newTitle = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+                      }
+                      setImportTitle(newTitle);
+                    }
                   }
                 }}
               />
             </label>
+
+            {importFile && (
+              <div className="file-clear-row" id="file-clear-row">
+                <span className="file-chosen-text" id="file-chosen-name">{importFile.name}</span>
+                <button
+                  type="button"
+                  className="file-remove-btn"
+                  id="file-remove-btn"
+                  aria-label="Remove uploaded file"
+                  title="Remove file"
+                  onClick={() => {
+                    setImportFile(null);
+                    setImportTitle('');
+                    setTitleManuallyEdited(false);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
 
             <p className="hint">Up to 2 GB.</p>
 

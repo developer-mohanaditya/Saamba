@@ -65,19 +65,19 @@ export async function getChatMessages(id: string): Promise<ChatMessage[]> {
   return fetchJson(`/api/meetings/${id}/chat`);
 }
 
-export async function sendChatMessage(mid: string, prompt: string, scope: 'current' | 'all' = 'current'): Promise<{ answer: string }> {
+export async function sendChatMessage(mid: string, question: string, scope: 'this' | 'mine' = 'this'): Promise<{ answer: string }> {
   return fetchJson('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ meeting_id: mid, prompt, scope }),
+    body: JSON.stringify({ meeting_id: mid, question, scope }),
   });
 }
 
-export async function toggleActionItem(mid: string, itemKey: string, checked: boolean): Promise<{ checked: boolean }> {
+export async function toggleActionItem(mid: string, key: string, checked: boolean): Promise<{ ok: boolean }> {
   return fetchJson(`/api/meetings/${mid}/action-check`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ item_key: itemKey, checked }),
+    body: JSON.stringify({ key, checked }),
   });
 }
 

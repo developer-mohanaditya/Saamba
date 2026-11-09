@@ -59,7 +59,7 @@ export function AskPanel() {
       const res = await sendChatMessage(
         currentMeeting.id,
         q,
-        activeScope === 'this' ? 'current' : 'all'
+        activeScope === 'this' ? 'this' : 'mine'
       );
       addChatMessage({ role: 'assistant', content: res.answer });
     } catch (err: any) {
@@ -260,6 +260,7 @@ export function AskPanel() {
             </div>
             <button
               className="ask-send"
+              id="ask-submit"
               type="submit"
               aria-label="Send question"
               disabled={isAsking}

@@ -8,9 +8,10 @@ import { useAppStore } from '../lib/store';
 interface HeaderProps {
   onRecord: () => void;
   onImport: () => void;
+  isRecording?: boolean;
 }
 
-export function Header({ onRecord, onImport }: HeaderProps) {
+export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
   const { workspaces, activeWorkspaceId } = useAppStore();
   const currentWs =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
@@ -32,8 +33,13 @@ export function Header({ onRecord, onImport }: HeaderProps) {
 
       <div className="header-actions">
         <div id="meeting-prompt" className="meeting-prompt" hidden />
-        <button className="primary" id="record-button" type="button" onClick={onRecord}>
-          Record a meeting
+        <button
+          className={`primary ${isRecording ? 'is-recording' : ''}`}
+          id="record-button"
+          type="button"
+          onClick={onRecord}
+        >
+          {isRecording ? 'Stop recording' : 'Record a meeting'}
         </button>
         <button
           className="secondary"
