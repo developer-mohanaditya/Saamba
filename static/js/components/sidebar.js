@@ -1,6 +1,7 @@
 // static/js/components/sidebar.js - Workspace navigation & sidebar controller
 import { state } from '../state.js';
 import { $, $$, esc, showToast } from '../utils.js';
+import { api } from '../api.js';
 
 export const WORKSPACE_ICONS = {
   users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -181,7 +182,7 @@ export function initWorkspaceDialog(onWorkspaceCreated = null) {
   if (workspaceCancel && workspaceDialog) workspaceCancel.onclick = () => workspaceDialog.close();
 
   if (workspaceForm && workspaceDialog) {
-    workspaceForm.onsubmit = (e) => {
+    workspaceForm.onsubmit = async (e) => {
       e.preventDefault();
       const name = workspaceNameInput ? workspaceNameInput.value.trim() : '';
       if (!name) {
@@ -192,7 +193,8 @@ export function initWorkspaceDialog(onWorkspaceCreated = null) {
       const newWs = {
         id: 'ws_' + Date.now(),
         name,
-        icon: iconKey
+        icon: iconKey,
+        isDefault: false
       };
       state.workspaces.push(newWs);
       try { localStorage.setItem('saamba-workspaces', JSON.stringify(state.workspaces)); } catch (_) {}
@@ -201,7 +203,46 @@ export function initWorkspaceDialog(onWorkspaceCreated = null) {
       workspaceDialog.close();
       showToast(`Workspace "${name}" created.`);
       if (onWorkspaceCreated) onWorkspaceCreated();
+
+      // Persist to SQLite backend
+      try {
+        await api('/api/workspaces', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newWs)
+        });
+      } catch (err) {
+        console.warn('Could not save workspace to backend:', err);
+      }
     };
+  }
+}
+
+export async function syncWorkspacesWithServer(onWorkspaceChange = null) {
+  try {
+    const res = await api('/api/workspaces/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspaces: state.workspaces,
+        workspaceMeetings: state.workspaceMeetings
+      })
+    });
+    if (res && Array.isArray(res.workspaces) && res.workspaces.length > 0) {
+      state.workspaces = res.workspaces;
+      state.workspaceMeetings = res.workspaceMeetings || res.workspace_meetings || {};
+      try { localStorage.setItem('saamba-workspaces', JSON.stringify(state.workspaces)); } catch (_) {}
+      try { localStorage.setItem('saamba-workspace-meetings', JSON.stringify(state.workspaceMeetings)); } catch (_) {}
+      if (!state.workspaces.some(w => w.id === state.activeWorkspaceId)) {
+        state.activeWorkspaceId = state.workspaces[0].id;
+        try { localStorage.setItem('saamba-active-workspace', state.activeWorkspaceId); } catch (_) {}
+      }
+      renderWorkspaces(state.allMeetingsCache, onWorkspaceChange);
+      updateActiveWorkspaceUI();
+      if (onWorkspaceChange) onWorkspaceChange();
+    }
+  } catch (err) {
+    console.warn('Workspace sync failed; staying on local state:', err);
   }
 }
 
@@ -242,5 +283,10 @@ export function initSidebar(onWorkspaceChange = null) {
   syncLibrary();
 
   initWorkspaceDialog(onWorkspaceChange);
+  updateActiveWorkspaceUI();
+
+  // Async sync with SQLite database
+  syncWorkspacesWithServer(onWorkspaceChange);
+}
   updateActiveWorkspaceUI();
 }

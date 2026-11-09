@@ -51,17 +51,32 @@ def connect():
     db = sqlite3.connect(DB, timeout=30, factory=ClosingConnection)
     db.row_factory = sqlite3.Row
     return db
-with connect() as db:
-    db.execute('CREATE TABLE IF NOT EXISTS meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, filename TEXT NOT NULL, mime TEXT NOT NULL, status TEXT NOT NULL, error TEXT, transcript TEXT, summary TEXT)')
-    db.execute('CREATE TABLE IF NOT EXISTS transcript_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, segments TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
-    db.execute('CREATE TABLE IF NOT EXISTS summary_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, summary TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
-    db.execute('CREATE TABLE IF NOT EXISTS summary_requests (meeting_id TEXT NOT NULL, request_hash TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY (meeting_id, request_hash))')
-    db.execute('CREATE TABLE IF NOT EXISTS summary_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL, completed INTEGER NOT NULL, total INTEGER NOT NULL)')
-    db.execute('CREATE TABLE IF NOT EXISTS transcript_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL)')
-    db.execute('CREATE TABLE IF NOT EXISTS action_checks (meeting_id TEXT NOT NULL, item_key TEXT NOT NULL, checked INTEGER NOT NULL, PRIMARY KEY (meeting_id,item_key))')
-    db.execute('CREATE TABLE IF NOT EXISTS chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, scope TEXT NOT NULL, created_at TEXT NOT NULL)')
-    db.execute('CREATE TABLE IF NOT EXISTS meeting_translations (meeting_id TEXT NOT NULL, language_code TEXT NOT NULL, language_name TEXT NOT NULL, transcript TEXT NOT NULL, summary TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (meeting_id, language_code))')
-    live_capture.initialize(db)
+def init_db(db=None):
+    close_after = False
+    if db is None:
+        db = connect()
+        close_after = True
+    try:
+        db.execute('CREATE TABLE IF NOT EXISTS meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, filename TEXT NOT NULL, mime TEXT NOT NULL, status TEXT NOT NULL, error TEXT, transcript TEXT, summary TEXT)')
+        db.execute('CREATE TABLE IF NOT EXISTS transcript_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, segments TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
+        db.execute('CREATE TABLE IF NOT EXISTS summary_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, summary TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
+        db.execute('CREATE TABLE IF NOT EXISTS summary_requests (meeting_id TEXT NOT NULL, request_hash TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY (meeting_id, request_hash))')
+        db.execute('CREATE TABLE IF NOT EXISTS summary_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL, completed INTEGER NOT NULL, total INTEGER NOT NULL)')
+        db.execute('CREATE TABLE IF NOT EXISTS transcript_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL)')
+        db.execute('CREATE TABLE IF NOT EXISTS action_checks (meeting_id TEXT NOT NULL, item_key TEXT NOT NULL, checked INTEGER NOT NULL, PRIMARY KEY (meeting_id,item_key))')
+        db.execute('CREATE TABLE IF NOT EXISTS chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, scope TEXT NOT NULL, created_at TEXT NOT NULL)')
+        db.execute('CREATE TABLE IF NOT EXISTS meeting_translations (meeting_id TEXT NOT NULL, language_code TEXT NOT NULL, language_name TEXT NOT NULL, transcript TEXT NOT NULL, summary TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (meeting_id, language_code))')
+        db.execute('CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, icon TEXT NOT NULL, is_default INTEGER DEFAULT 0, created_at TEXT NOT NULL)')
+        db.execute('CREATE TABLE IF NOT EXISTS workspace_meetings (workspace_id TEXT NOT NULL, meeting_id TEXT NOT NULL, PRIMARY KEY (workspace_id, meeting_id))')
+        db.execute("INSERT OR IGNORE INTO workspaces (id, name, icon, is_default, created_at) VALUES ('default', 'My meetings', 'users', 1, datetime('now'))")
+        db.execute("INSERT OR IGNORE INTO workspaces (id, name, icon, is_default, created_at) VALUES ('ws-class', 'Class', 'book', 0, datetime('now'))")
+        live_capture.initialize(db)
+        db.commit()
+    finally:
+        if close_after:
+            db.close()
+
+init_db()
 
 if os.name == 'posix':
     DB.chmod(0o600)
@@ -399,7 +414,7 @@ def delete_meeting(mid):
                 if source.exists():
                     os.replace(source,target);moved.append((source,target))
             existing_tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
-            for table in ('transcript_chunks','summary_chunks','summary_requests','summary_preview','live_chunks','action_checks','chat_messages','meeting_translations'):
+            for table in ('transcript_chunks','summary_chunks','summary_requests','summary_preview','live_chunks','action_checks','chat_messages','meeting_translations','workspace_meetings'):
                 if table in existing_tables:
                     db.execute(f'DELETE FROM {table} WHERE meeting_id=?',(mid,))
             db.execute('DELETE FROM meetings WHERE id=?',(mid,))
@@ -1196,6 +1211,199 @@ async def get_share(mid: str):
     html = render_snapshot_html(dict(row))
     return HTMLResponse(html, media_type='text/html; charset=utf-8')
 
+# --- Workspaces Endpoints ---
+
+@app.get('/api/workspaces')
+async def list_workspaces():
+    with connect() as db:
+        rows = db.execute('SELECT id, name, icon, is_default, created_at FROM workspaces ORDER BY is_default DESC, created_at ASC').fetchall()
+        wm_rows = db.execute('SELECT workspace_id, meeting_id FROM workspace_meetings').fetchall()
+    
+    wm_map = {}
+    for r in wm_rows:
+        wm_map.setdefault(r['workspace_id'], []).append(r['meeting_id'])
+        
+    workspaces = []
+    for r in rows:
+        m_ids = wm_map.get(r['id'], [])
+        workspaces.append({
+            'id': r['id'],
+            'name': r['name'],
+            'icon': r['icon'],
+            'isDefault': bool(r['is_default']),
+            'is_default': bool(r['is_default']),
+            'created_at': r['created_at'],
+            'meeting_ids': m_ids,
+            'meeting_count': len(m_ids)
+        })
+        
+    return {
+        'workspaces': workspaces,
+        'workspaceMeetings': wm_map,
+        'workspace_meetings': wm_map
+    }
+
+@app.post('/api/workspaces', status_code=201)
+async def create_workspace(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({'error': 'Invalid JSON body'}, status_code=400)
+    
+    name = (body.get('name') or '').strip()
+    if not name:
+        return JSONResponse({'error': 'Workspace name is required'}, status_code=400)
+    if len(name) > 100:
+        return JSONResponse({'error': 'Workspace name too long'}, status_code=400)
+        
+    icon = (body.get('icon') or 'briefcase').strip()
+    ws_id = (body.get('id') or '').strip()
+    if not ws_id or ws_id == 'default':
+        ws_id = f"ws-{uuid.uuid4().hex[:8]}"
+        
+    now_str = datetime.now(timezone.utc).isoformat()
+    with connect() as db:
+        existing = db.execute('SELECT id FROM workspaces WHERE id=?', (ws_id,)).fetchone()
+        if existing:
+            return JSONResponse({'error': 'Workspace ID already exists'}, status_code=409)
+        db.execute(
+            'INSERT INTO workspaces (id, name, icon, is_default, created_at) VALUES (?, ?, ?, 0, ?)',
+            (ws_id, name, icon, now_str)
+        )
+        db.commit()
+        
+    return {
+        'id': ws_id,
+        'name': name,
+        'icon': icon,
+        'isDefault': False,
+        'is_default': False,
+        'created_at': now_str,
+        'meeting_ids': [],
+        'meeting_count': 0
+    }
+
+@app.delete('/api/workspaces/{ws_id}')
+@app.post('/api/workspaces/{ws_id}/delete')
+async def delete_workspace(ws_id: str):
+    if ws_id == 'default':
+        return JSONResponse({'error': 'Cannot delete default workspace'}, status_code=400)
+    with connect() as db:
+        row = db.execute('SELECT id FROM workspaces WHERE id=?', (ws_id,)).fetchone()
+        if not row:
+            return JSONResponse({'error': 'Workspace not found'}, status_code=404)
+        db.execute('DELETE FROM workspace_meetings WHERE workspace_id=?', (ws_id,))
+        db.execute('DELETE FROM workspaces WHERE id=?', (ws_id,))
+        db.commit()
+    return {'status': 'ok', 'deleted': ws_id}
+
+@app.post('/api/workspaces/{ws_id}/meetings')
+async def update_workspace_meetings(ws_id: str, request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({'error': 'Invalid JSON body'}, status_code=400)
+        
+    with connect() as db:
+        ws = db.execute('SELECT id FROM workspaces WHERE id=?', (ws_id,)).fetchone()
+        if not ws:
+            return JSONResponse({'error': 'Workspace not found'}, status_code=404)
+            
+        action = body.get('action', 'add')
+        mid = body.get('meeting_id')
+        mids = body.get('meeting_ids')
+        
+        if mids is not None and isinstance(mids, list):
+            db.execute('DELETE FROM workspace_meetings WHERE workspace_id=?', (ws_id,))
+            for m in mids:
+                if m and isinstance(m, str):
+                    db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, m))
+        elif mid:
+            if action == 'remove':
+                db.execute('DELETE FROM workspace_meetings WHERE workspace_id=? AND meeting_id=?', (ws_id, mid))
+            else:
+                db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
+        else:
+            return JSONResponse({'error': 'meeting_id or meeting_ids required'}, status_code=400)
+            
+        db.commit()
+        assigned = [r[0] for r in db.execute('SELECT meeting_id FROM workspace_meetings WHERE workspace_id=?', (ws_id,)).fetchall()]
+        
+    return {'status': 'ok', 'workspace_id': ws_id, 'meeting_ids': assigned}
+
+@app.post('/api/workspaces/sync')
+async def sync_workspaces(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    
+    incoming_workspaces = body.get('workspaces', [])
+    incoming_meetings = body.get('workspace_meetings') or body.get('workspaceMeetings') or {}
+    
+    with connect() as db:
+        # 1. Sync incoming workspaces into DB
+        for ws in incoming_workspaces:
+            ws_id = (ws.get('id') or '').strip()
+            ws_name = (ws.get('name') or '').strip()
+            ws_icon = (ws.get('icon') or 'briefcase').strip()
+            if not ws_id or ws_id == 'default' or not ws_name:
+                continue
+            existing = db.execute('SELECT id, name, icon FROM workspaces WHERE id=?', (ws_id,)).fetchone()
+            if existing:
+                db.execute('UPDATE workspaces SET name=?, icon=? WHERE id=? AND is_default=0', (ws_name, ws_icon, ws_id))
+            else:
+                existing_by_name = db.execute('SELECT id FROM workspaces WHERE LOWER(name)=LOWER(?) AND is_default=0', (ws_name,)).fetchone()
+                if existing_by_name:
+                    target_id = existing_by_name['id']
+                    if ws_id in incoming_meetings:
+                        incoming_meetings.setdefault(target_id, []).extend(incoming_meetings.pop(ws_id))
+                else:
+                    db.execute(
+                        'INSERT INTO workspaces (id, name, icon, is_default, created_at) VALUES (?, ?, ?, 0, datetime(\'now\'))',
+                        (ws_id, ws_name, ws_icon)
+                    )
+        
+        # 2. Sync incoming meeting associations
+        for ws_id, m_ids in incoming_meetings.items():
+            if not ws_id or ws_id == 'default':
+                continue
+            if not db.execute('SELECT 1 FROM workspaces WHERE id=?', (ws_id,)).fetchone():
+                continue
+            for mid in m_ids:
+                if mid and isinstance(mid, str):
+                    db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
+        
+        db.commit()
+        
+        rows = db.execute('SELECT id, name, icon, is_default, created_at FROM workspaces ORDER BY is_default DESC, created_at ASC').fetchall()
+        wm_rows = db.execute('SELECT workspace_id, meeting_id FROM workspace_meetings').fetchall()
+        
+    wm_map = {}
+    for r in wm_rows:
+        wm_map.setdefault(r['workspace_id'], []).append(r['meeting_id'])
+        
+    workspaces = []
+    for r in rows:
+        m_ids = wm_map.get(r['id'], [])
+        workspaces.append({
+            'id': r['id'],
+            'name': r['name'],
+            'icon': r['icon'],
+            'isDefault': bool(r['is_default']),
+            'is_default': bool(r['is_default']),
+            'created_at': r['created_at'],
+            'meeting_ids': m_ids,
+            'meeting_count': len(m_ids)
+        })
+        
+    return {
+        'status': 'ok',
+        'workspaces': workspaces,
+        'workspaceMeetings': wm_map,
+        'workspace_meetings': wm_map
+    }
+
 # --- Meetings Queries ---
 
 @app.get('/api/meetings')
@@ -1533,6 +1741,10 @@ async def upload_meeting(request: Request):
                 'INSERT INTO meetings (id,title,created_at,filename,mime,status) VALUES (?,?,?,?,?,?)',
                 (mid, title, datetime.now(timezone.utc).isoformat(), name, mime, 'queued')
             )
+            ws_id = request.headers.get('x-workspace-id')
+            if ws_id and ws_id != 'default':
+                db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
+            db.commit()
     except Exception:
         target_path.unlink(missing_ok=True)
         return JSONResponse({'error': 'Upload failed'}, status_code=400)
@@ -1544,6 +1756,11 @@ async def upload_meeting(request: Request):
 async def live_start(request: Request):
     title = unquote(request.headers.get('x-meeting-title', ''))
     mid = live_capture.create(sys.modules[__name__], title)
+    ws_id = request.headers.get('x-workspace-id')
+    if ws_id and ws_id != 'default':
+        with connect() as db:
+            db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
+            db.commit()
     return {'id': mid}
 
 @app.post('/api/live/{mid}/chunk')

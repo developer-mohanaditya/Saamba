@@ -30,16 +30,7 @@ class FastAPIExtensiveEndpointTests(unittest.IsolatedAsyncioTestCase):
         server.DB = server.DATA / 'test.sqlite3'
         
         with server.connect() as db:
-            db.execute('CREATE TABLE meetings (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, filename TEXT NOT NULL, mime TEXT NOT NULL, status TEXT NOT NULL, error TEXT, transcript TEXT, summary TEXT)')
-            db.execute('CREATE TABLE transcript_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, segments TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
-            db.execute('CREATE TABLE summary_chunks (meeting_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, summary TEXT NOT NULL, PRIMARY KEY (meeting_id, chunk_index))')
-            db.execute('CREATE TABLE summary_requests (meeting_id TEXT NOT NULL, request_hash TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY (meeting_id, request_hash))')
-            db.execute('CREATE TABLE summary_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL, completed INTEGER NOT NULL, total INTEGER NOT NULL)')
-            db.execute('CREATE TABLE transcript_preview (meeting_id TEXT PRIMARY KEY, content TEXT NOT NULL)')
-            db.execute('CREATE TABLE action_checks (meeting_id TEXT NOT NULL, item_key TEXT NOT NULL, checked INTEGER NOT NULL, PRIMARY KEY (meeting_id,item_key))')
-            db.execute('CREATE TABLE chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, meeting_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, scope TEXT NOT NULL, created_at TEXT NOT NULL)')
-            db.execute('CREATE TABLE meeting_translations (meeting_id TEXT NOT NULL, language_code TEXT NOT NULL, language_name TEXT NOT NULL, transcript TEXT NOT NULL, summary TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (meeting_id, language_code))')
-            live_capture.initialize(db)
+            server.init_db(db)
 
             # Insert sample ready meeting
             self.mid = '11111111111111111111111111111111'
@@ -423,6 +414,65 @@ class FastAPIExtensiveEndpointTests(unittest.IsolatedAsyncioTestCase):
             row = db.execute('SELECT 1 FROM meetings WHERE id=?', (self.mid,)).fetchone()
             self.assertIsNone(row)
         self.assertFalse((server.DATA / f'{self.mid}.webm').exists())
+
+    # --- 20. Workspace Backend (SQLite Persistence & Sync) ---
+    async def test_workspace_crud_and_sync(self):
+        # 1. Initial list: should have default workspace ('My meetings' with 'users' icon)
+        res = await self.client.get('/api/workspaces')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        workspaces = data['workspaces']
+        self.assertTrue(any(w['id'] == 'default' and w['name'] == 'My meetings' and w['icon'] == 'users' for w in workspaces))
+
+        # 2. Create a new workspace
+        res_create = await self.client.post(
+            '/api/workspaces',
+            json={'name': 'Engineering Sync', 'icon': 'code'}
+        )
+        self.assertEqual(res_create.status_code, 201)
+        created = res_create.json()
+        self.assertEqual(created['name'], 'Engineering Sync')
+        self.assertEqual(created['icon'], 'code')
+        ws_id = created['id']
+
+        # 3. Assign meeting to the workspace
+        res_assign = await self.client.post(
+            f'/api/workspaces/{ws_id}/meetings',
+            json={'meeting_id': self.mid, 'action': 'add'}
+        )
+        self.assertEqual(res_assign.status_code, 200)
+        self.assertIn(self.mid, res_assign.json()['meeting_ids'])
+
+        # Verify listing shows updated meeting count
+        res_list = await self.client.get('/api/workspaces')
+        ws_entry = next(w for w in res_list.json()['workspaces'] if w['id'] == ws_id)
+        self.assertEqual(ws_entry['meeting_count'], 1)
+        self.assertIn(self.mid, ws_entry['meeting_ids'])
+
+        # 4. Sync from localStorage format
+        sync_payload = {
+            'workspaces': [
+                {'id': 'ws-local-test', 'name': 'Class', 'icon': 'book'}
+            ],
+            'workspace_meetings': {
+                'ws-local-test': [self.mid]
+            }
+        }
+        res_sync = await self.client.post('/api/workspaces/sync', json=sync_payload)
+        self.assertEqual(res_sync.status_code, 200)
+        sync_data = res_sync.json()
+        sync_workspaces = sync_data['workspaces']
+        self.assertTrue(any(w['name'] == 'Class' for w in sync_workspaces))
+
+        # 5. Prevent deleting default workspace
+        res_del_def = await self.client.post('/api/workspaces/default/delete')
+        self.assertEqual(res_del_def.status_code, 400)
+
+        # 6. Delete custom workspace
+        res_del = await self.client.post(f'/api/workspaces/{ws_id}/delete')
+        self.assertEqual(res_del.status_code, 200)
+        res_check = await self.client.get('/api/workspaces')
+        self.assertFalse(any(w['id'] == ws_id for w in res_check.json()['workspaces']))
 
 if __name__ == '__main__':
     unittest.main()
