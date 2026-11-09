@@ -15,7 +15,7 @@ export const state = {
   sidebarCollapsed: false,
   libraryExpanded: true,
   workspaces: [
-    { id: 'default', name: 'My meetings', icon: 'briefcase', isDefault: true }
+    { id: 'default', name: 'My meetings', icon: 'users', isDefault: true }
   ],
   activeWorkspaceId: 'default',
   workspaceMeetings: {},
