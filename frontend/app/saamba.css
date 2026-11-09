@@ -3100,8 +3100,8 @@ html.init-sidebar-collapsed .sidebar-user-avatar {
 
 
 /* ==========================================================================
-   Centered IDE-Style Settings Modal (Inspired by Modern Developer Tooling)
-   No background blur as requested.
+   Centered IDE-Style Settings Modal — Refined Editorial Light Theme
+   Matches Saamba paper & ink aesthetic. No background blur.
    ========================================================================== */
 
 dialog.settings-modal-dialog {
@@ -3113,17 +3113,17 @@ dialog.settings-modal-dialog {
   padding: 0 !important;
   width: min(860px, calc(100vw - 48px)) !important;
   height: min(620px, calc(100vh - 64px)) !important;
-  background: #1e3327 !important;
-  border: 1px solid #3d5846 !important;
-  border-radius: 14px !important;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35) !important;
-  color: #f2f7f2 !important;
+  background: #ffffff !important;
+  border: 1px solid #e2ded5 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 70px rgba(20, 36, 26, 0.22), 0 4px 16px rgba(20, 36, 26, 0.06) !important;
+  color: #1f2c23 !important;
   overflow: hidden !important;
   z-index: 1000 !important;
 }
 
 dialog.settings-modal-dialog::backdrop {
-  background: rgba(14, 25, 18, 0.72) !important;
+  background: rgba(22, 36, 27, 0.52) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -3135,11 +3135,11 @@ dialog.settings-modal-dialog::backdrop {
   overflow: hidden !important;
 }
 
-/* Left Sidebar */
+/* Left Sidebar — Soft warm cream tone */
 .settings-sidebar {
-  width: 230px !important;
-  background: #172a1f !important;
-  border-right: 1px solid #2d4536 !important;
+  width: 220px !important;
+  background: #fbfaf7 !important;
+  border-right: 1px solid #e8e5dc !important;
   display: flex !important;
   flex-direction: column !important;
   flex-shrink: 0 !important;
@@ -3151,16 +3151,16 @@ dialog.settings-modal-dialog::backdrop {
 
 .settings-brand-title {
   font-family: var(--font-serif, "Newsreader", Georgia, serif) !important;
-  font-size: 20px !important;
+  font-size: 22px !important;
   font-weight: 600 !important;
-  color: #f2f7f2 !important;
-  letter-spacing: -0.2px !important;
+  color: #172a1e !important;
+  letter-spacing: -0.3px !important;
 }
 
 .settings-nav-items {
   display: flex !important;
   flex-direction: column !important;
-  gap: 4px !important;
+  gap: 3px !important;
   padding: 0 12px !important;
   flex: 1 !important;
 }
@@ -3173,7 +3173,7 @@ dialog.settings-modal-dialog::backdrop {
   border: 0 !important;
   border-radius: 8px !important;
   background: transparent !important;
-  color: #b5c7ba !important;
+  color: #55675b !important;
   font-size: 13.5px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
@@ -3182,15 +3182,15 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-nav-item:hover {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #eef5ef !important;
+  background: #edeae1 !important;
+  color: #172a1e !important;
 }
 
 .settings-nav-item.is-active {
-  background: #233b2c !important;
-  color: #dfa552 !important;
-  font-weight: 600 !important;
-  box-shadow: inset 3px 0 #dfa552 !important;
+  background: #e7eee8 !important;
+  color: #1a422b !important;
+  font-weight: 650 !important;
+  box-shadow: inset 3px 0 #28543b !important;
 }
 
 .settings-nav-item svg {
@@ -3199,8 +3199,8 @@ dialog.settings-modal-dialog::backdrop {
 
 .settings-sidebar-footer {
   padding: 14px !important;
-  border-top: 1px solid #243a2c !important;
-  background: #14251b !important;
+  border-top: 1px solid #e8e5dc !important;
+  background: #f4f2ea !important;
 }
 
 .settings-user-preview {
@@ -3213,14 +3213,14 @@ dialog.settings-modal-dialog::backdrop {
   width: 32px !important;
   height: 32px !important;
   border-radius: 50% !important;
-  background: #355944 !important;
+  background: #28543b !important;
   color: #ffffff !important;
   font-weight: 700 !important;
   font-size: 14px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
 }
 
 .settings-user-meta {
@@ -3231,8 +3231,8 @@ dialog.settings-modal-dialog::backdrop {
 
 .settings-user-email {
   font-size: 12px !important;
-  font-weight: 500 !important;
-  color: #e2ece3 !important;
+  font-weight: 600 !important;
+  color: #172a1e !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
@@ -3241,16 +3241,16 @@ dialog.settings-modal-dialog::backdrop {
 .settings-user-plan {
   font-size: 10px !important;
   font-weight: 700 !important;
-  color: #dfa552 !important;
+  color: #92671b !important;
   letter-spacing: 0.5px !important;
 }
 
 .settings-signin-btn {
   width: 100% !important;
   padding: 8px 12px !important;
-  background: #2a4634 !important;
-  color: #e8efe9 !important;
-  border: 1px solid #3d5f48 !important;
+  background: #28543b !important;
+  color: #ffffff !important;
+  border: 0 !important;
   border-radius: 6px !important;
   font-size: 12.5px !important;
   font-weight: 600 !important;
@@ -3259,40 +3259,40 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-signin-btn:hover {
-  background: #345842 !important;
+  background: #1f422e !important;
 }
 
-/* Right Main Content Panel */
+/* Right Main Content Panel — Pure White */
 .settings-content-panel {
   flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
-  background: #1b2f23 !important;
+  background: #ffffff !important;
   min-width: 0 !important;
   overflow: hidden !important;
 }
 
 .settings-content-header {
-  padding: 24px 28px 18px !important;
-  border-bottom: 1px solid #2d4536 !important;
+  padding: 24px 30px 18px !important;
+  border-bottom: 1px solid #eeebe3 !important;
   display: flex !important;
   justify-content: space-between !important;
   align-items: flex-start !important;
-  background: #1b2f23 !important;
+  background: #ffffff !important;
 }
 
 .settings-content-title {
   font-family: var(--font-serif, "Newsreader", Georgia, serif) !important;
-  font-size: 22px !important;
+  font-size: 23px !important;
   font-weight: 600 !important;
-  color: #f2f7f2 !important;
+  color: #172a1e !important;
   margin: 0 !important;
-  letter-spacing: -0.2px !important;
+  letter-spacing: -0.3px !important;
 }
 
 .settings-content-desc {
   font-size: 13px !important;
-  color: #9bb0a0 !important;
+  color: #67786c !important;
   margin: 4px 0 0 !important;
   line-height: 1.4 !important;
 }
@@ -3303,28 +3303,29 @@ dialog.settings-modal-dialog::backdrop {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: 0 !important;
+  border: 1px solid #e5e1d7 !important;
   border-radius: 6px !important;
-  background: transparent !important;
-  color: #8fa595 !important;
-  font-size: 18px !important;
+  background: #f8f6f0 !important;
+  color: #55675b !important;
+  font-size: 16px !important;
   cursor: pointer !important;
   transition: all .15s ease !important;
   flex-shrink: 0 !important;
 }
 
 .settings-close-btn:hover {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
+  background: #ebe7dd !important;
+  color: #172a1e !important;
 }
 
 .settings-content-body {
   flex: 1 !important;
   overflow-y: auto !important;
-  padding: 22px 28px !important;
+  padding: 22px 30px !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 16px !important;
+  background: #ffffff !important;
 }
 
 .settings-section-group {
@@ -3337,22 +3338,23 @@ dialog.settings-modal-dialog::backdrop {
   font-size: 11px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.6px !important;
-  color: #8aa390 !important;
+  letter-spacing: 0.7px !important;
+  color: #6f7f73 !important;
   margin-top: 6px !important;
   margin-bottom: 2px !important;
 }
 
 .settings-card {
-  background: #233d2e !important;
-  border: 1px solid #33533e !important;
-  border-radius: 10px !important;
-  padding: 14px 16px !important;
-  transition: border-color .15s ease !important;
+  background: #faf9f5 !important;
+  border: 1px solid #e7e3da !important;
+  border-radius: 12px !important;
+  padding: 15px 18px !important;
+  transition: border-color .15s ease, box-shadow .15s ease !important;
 }
 
 .settings-card:hover {
-  border-color: #446850 !important;
+  border-color: #d3cdc2 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
 }
 
 .settings-card-row {
@@ -3367,7 +3369,7 @@ dialog.settings-modal-dialog::backdrop {
   flex-direction: column !important;
   gap: 4px !important;
   font-size: 12.5px !important;
-  color: #a4b8aa !important;
+  color: #5c6c60 !important;
   line-height: 1.35 !important;
   min-width: 0 !important;
 }
@@ -3375,7 +3377,7 @@ dialog.settings-modal-dialog::backdrop {
 .settings-card-info strong {
   font-size: 14px !important;
   font-weight: 600 !important;
-  color: #f0f5f0 !important;
+  color: #172a1e !important;
 }
 
 .settings-badge-row {
@@ -3385,27 +3387,30 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-select {
-  background: #172a1f !important;
-  border: 1px solid #385844 !important;
-  color: #e8efe9 !important;
+  background: #ffffff !important;
+  border: 1px solid #ccd6cc !important;
+  color: #172a1e !important;
   border-radius: 6px !important;
   padding: 7px 12px !important;
   font-size: 13px !important;
   font-family: inherit !important;
+  font-weight: 500 !important;
   cursor: pointer !important;
   outline: none !important;
   max-width: 270px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
 }
 
 .settings-select:focus {
-  border-color: #dfa552 !important;
+  border-color: #28543b !important;
+  box-shadow: 0 0 0 3px rgba(40, 84, 59, 0.12) !important;
 }
 
 .settings-switch {
   position: relative !important;
   display: inline-block !important;
-  width: 42px !important;
-  height: 24px !important;
+  width: 44px !important;
+  height: 25px !important;
   flex-shrink: 0 !important;
 }
 
@@ -3422,38 +3427,39 @@ dialog.settings-modal-dialog::backdrop {
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  background-color: #2e4a38 !important;
+  background-color: #dce3dc !important;
   transition: .2s ease !important;
   border-radius: 24px !important;
-  border: 1px solid #43634e !important;
+  border: 1px solid #ccd6cc !important;
 }
 
 .settings-slider:before {
   position: absolute !important;
   content: "" !important;
-  height: 18px !important;
-  width: 18px !important;
+  height: 19px !important;
+  width: 19px !important;
   left: 2px !important;
   bottom: 2px !important;
-  background-color: #e2ece3 !important;
+  background-color: #ffffff !important;
   transition: .2s ease !important;
   border-radius: 50% !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
 }
 
 .settings-switch input:checked + .settings-slider {
-  background-color: #dfa552 !important;
-  border-color: #e5b064 !important;
+  background-color: #28543b !important;
+  border-color: #234934 !important;
 }
 
 .settings-switch input:checked + .settings-slider:before {
-  transform: translateX(18px) !important;
-  background-color: #172a1f !important;
+  transform: translateX(19px) !important;
+  background-color: #ffffff !important;
 }
 
 .settings-btn-primary {
-  padding: 6px 14px !important;
-  background: #dfa552 !important;
-  color: #122218 !important;
+  padding: 7px 15px !important;
+  background: #28543b !important;
+  color: #ffffff !important;
   border: 0 !important;
   border-radius: 6px !important;
   font-size: 12.5px !important;
@@ -3463,14 +3469,14 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-btn-primary:hover {
-  background: #ecc07a !important;
+  background: #1f422e !important;
 }
 
 .settings-btn-secondary {
-  padding: 6px 14px !important;
-  background: #2a4634 !important;
-  color: #e8efe9 !important;
-  border: 1px solid #3d5f48 !important;
+  padding: 7px 14px !important;
+  background: #ffffff !important;
+  color: #1c442c !important;
+  border: 1px solid #ccd6cc !important;
   border-radius: 6px !important;
   font-size: 12.5px !important;
   font-weight: 600 !important;
@@ -3479,43 +3485,44 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-btn-secondary:hover {
-  background: #345842 !important;
-  border-color: #4b7358 !important;
+  background: #f1f6f2 !important;
+  border-color: #b5c4b6 !important;
 }
 
 .status-pill {
   display: inline-flex !important;
   align-items: center !important;
-  padding: 2px 7px !important;
+  padding: 2px 8px !important;
   border-radius: 10px !important;
-  font-size: 10.5px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   line-height: 1 !important;
 }
 
 .status-pill.status-online {
-  background: rgba(74, 222, 128, 0.15) !important;
-  color: #4ade80 !important;
-  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+  background: #eaf6ec !important;
+  color: #177a34 !important;
+  border: 1px solid #badfbf !important;
 }
 
 .status-pill.status-active {
-  background: rgba(223, 165, 82, 0.18) !important;
-  color: #dfa552 !important;
-  border: 1px solid rgba(223, 165, 82, 0.4) !important;
+  background: #fbf2e3 !important;
+  color: #9c6c1d !important;
+  border: 1px solid #eed2a7 !important;
 }
 
 .status-pill.status-default {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #cddcd1 !important;
+  background: #eeebe3 !important;
+  color: #5f6861 !important;
+  border: 1px solid #ded9cd !important;
 }
 
 .settings-shortcuts-table {
   display: flex !important;
   flex-direction: column !important;
-  background: #233d2e !important;
-  border: 1px solid #33533e !important;
-  border-radius: 10px !important;
+  background: #faf9f5 !important;
+  border: 1px solid #e7e3da !important;
+  border-radius: 12px !important;
   overflow: hidden !important;
 }
 
@@ -3523,10 +3530,10 @@ dialog.settings-modal-dialog::backdrop {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 10px 16px !important;
-  border-bottom: 1px solid #2a4835 !important;
+  padding: 10px 18px !important;
+  border-bottom: 1px solid #ede8de !important;
   font-size: 13px !important;
-  color: #cfdfd3 !important;
+  color: #1f2f24 !important;
 }
 
 .shortcut-row:last-child {
@@ -3535,13 +3542,13 @@ dialog.settings-modal-dialog::backdrop {
 
 .shortcut-row kbd {
   display: inline-block !important;
-  padding: 2px 6px !important;
-  font-size: 11px !important;
+  padding: 2.5px 7px !important;
+  font-size: 11.5px !important;
   font-family: inherit !important;
   font-weight: 600 !important;
-  background: #172a1f !important;
-  border: 1px solid #3d5f48 !important;
+  background: #ffffff !important;
+  border: 1px solid #d4cdc1 !important;
   border-radius: 4px !important;
-  color: #dfa552 !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
+  color: #1d3826 !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
 }
