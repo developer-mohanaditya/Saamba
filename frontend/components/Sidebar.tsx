@@ -127,6 +127,99 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
 
       {/* Inner Scrollable Region (CRITICAL: Only this inner element scrolls!) */}
       <div className="sidebar-scrollable-content">
+        {/* QUICK ACTIONS (Top Placement) */}
+        <div className="sidebar-section-quick-actions" role="region" aria-label="Quick Actions">
+          <div className="quick-actions-section-header">
+            <div className="side-label">Quick Actions</div>
+          </div>
+          <div className="sidebar-nav-actions">
+            <button
+              type="button"
+              className={`sidebar-action-item ${isRecording ? 'is-recording-action' : ''}`}
+              onClick={onRecord}
+              title={isRecording ? 'Stop recording' : 'Record a meeting'}
+            >
+              <span className="sidebar-action-icon">
+                {isRecording ? (
+                  <span className="recording-dot-pulse" />
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="22" />
+                  </svg>
+                )}
+              </span>
+              <span className="sidebar-action-label">
+                {isRecording ? 'Stop recording' : 'Record a meeting'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="sidebar-action-item"
+              onClick={onImport}
+              title="Import meeting"
+            >
+              <span className="sidebar-action-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </span>
+              <span className="sidebar-action-label">Import meeting</span>
+            </button>
+
+            <button
+              type="button"
+              className="sidebar-action-item is-disabled"
+              disabled
+              title="Create a note (Coming soon)"
+              aria-disabled="true"
+            >
+              <span className="sidebar-action-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </span>
+              <span className="sidebar-action-label">Create a note</span>
+              <span className="sidebar-action-badge">Soon</span>
+            </button>
+          </div>
+        </div>
+
         {/* WORKSPACES (Exact layout & behavior matching original HTML site) */}
         <div className="workspace-section-header">
           <div className="side-label">Workspaces</div>
