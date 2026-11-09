@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 
 from fastapi import FastAPI, Request, Response, HTTPException, status, Query
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, StreamingResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -1181,6 +1182,8 @@ async def serve_capture_js():
 async def serve_capture_worklet_js():
     path = ROOT / 'static' / 'capture-worklet.js'
     return Response(path.read_bytes(), media_type='application/javascript', headers={'Cache-Control': 'no-cache, no-store, must-revalidate'})
+
+app.mount('/js', StaticFiles(directory=str(ROOT / 'static' / 'js')), name='js')
 
 # --- Snapshot Route ---
 

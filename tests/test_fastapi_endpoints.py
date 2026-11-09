@@ -76,12 +76,14 @@ class FastAPIExtensiveEndpointTests(unittest.IsolatedAsyncioTestCase):
 
         for path, mime in [
             ('/classic', 'text/html'),
-            ('/app.js', 'application/javascript'),
+            ('/app.js', 'javascript'),
             ('/style.css', 'text/css'),
-            ('/classic-app.js', 'application/javascript'),
+            ('/classic-app.js', 'javascript'),
             ('/classic-style.css', 'text/css'),
-            ('/capture.js', 'application/javascript'),
-            ('/capture-worklet.js', 'application/javascript'),
+            ('/capture.js', 'javascript'),
+            ('/capture-worklet.js', 'javascript'),
+            ('/js/main.js', 'javascript'),
+            ('/js/utils.js', 'javascript'),
         ]:
             r = await self.client.get(path)
             self.assertEqual(r.status_code, 200, f'Failed on {path}')
