@@ -681,7 +681,7 @@ class Handler(BaseHTTPRequestHandler):
                 is_video = row['mime'].startswith('video/')
                 requested = parse_qs(urlparse(self.path).query).get('format', ['mp4' if is_video else 'mp3'])[0]
                 formats = {
-                    'mp4': ('.mp4', 'video/mp4', ['-map','0:v:0','-map','0:a:0?','-c:v','libx264','-preset','ultrafast','-crf','23','-c:a','aac','-movflags','+faststart']),
+                    'mp4': ('.mp4', 'video/mp4', ['-map','0:v:0','-map','0:a:0?','-vf',"scale='min(1920,iw)':-2",'-r','30','-c:v','h264_videotoolbox','-b:v','2500k','-c:a','aac','-movflags','+faststart']),
                     'webm': ('.webm', 'video/webm', ['-map','0:v:0','-map','0:a:0?','-c:v','libvpx-vp9','-deadline','realtime','-cpu-used','5','-c:a','libopus']),
                     'mp3': ('.mp3', 'audio/mpeg', ['-vn','-map','0:a:0','-c:a','libmp3lame','-q:a','2']),
                     'audio-webm': ('.webm', 'audio/webm', ['-vn','-map','0:a:0','-c:a','copy' if row['filename'].endswith('.webm') else 'libopus']),
@@ -727,10 +727,22 @@ class Handler(BaseHTTPRequestHandler):
                         temp_cache.replace(cache_target)
                         target = cache_target
                     except (OSError, subprocess.SubprocessError):
-                        if temp_cache.exists():
-                            try: temp_cache.unlink()
-                            except OSError: pass
-                        raise
+                        if requested == 'mp4':
+                            try:
+                                fallback_opts = ['-map','0:v:0','-map','0:a:0?','-vf',"scale='min(1920,iw)':-2",'-r','30','-c:v','libx264','-preset','ultrafast','-crf','24','-c:a','aac','-movflags','+faststart']
+                                subprocess.run(cmd+fallback_opts+[str(temp_cache)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3600)
+                                temp_cache.replace(cache_target)
+                                target = cache_target
+                            except Exception:
+                                if temp_cache.exists():
+                                    try: temp_cache.unlink()
+                                    except OSError: pass
+                                raise
+                        else:
+                            if temp_cache.exists():
+                                try: temp_cache.unlink()
+                                except OSError: pass
+                            raise
 
                     file_size = target.stat().st_size
                     self.send_response(200); self.send_header('Content-Type',mime)

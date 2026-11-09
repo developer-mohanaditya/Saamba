@@ -950,7 +950,6 @@ async function openMeeting(id,rerender=true,targetTab=null){
       }
       link.download=filename;
       document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-      showToast('Download complete');
     }catch(error){showToast(error.message);}finally{downloads.delete(id);delete downloadProgress[id];if(current===id){const t=$('#download-toggle');if(t){t.disabled=false;const l=t.querySelector('.download-label');if(l)l.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg> Download';}}}
   });
   const deleteToggle=$('#delete-toggle'),deletePopover=$('#delete-popover');
