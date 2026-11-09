@@ -60,9 +60,19 @@ async function startCapture(extensionStream = null) {
     await context.audioWorklet.addModule('/capture-worklet.js');
     const sharedTitle=(extensionStream?.title || screen.getVideoTracks()[0].label || '').replace(/^Meet\s*[-–]\s*/i,'').trim();
     const usableTitle=/^(google meet|meet|chrome tab|tab|screen|window)$/i.test(sharedTitle)?'':sharedTitle;
-    const start=await fetch('/api/live/start',{method:'POST',headers:{'X-Meeting-Title':encodeURIComponent(usableTitle)}});
+    const wsId = (window.state && window.state.activeWorkspaceId) || '';
+    const startHeaders = {'X-Meeting-Title':encodeURIComponent(usableTitle)};
+    if (wsId && wsId !== 'default') startHeaders['X-Workspace-Id'] = wsId;
+    const start=await fetch('/api/live/start',{method:'POST',headers:startHeaders});
     if(!start.ok) throw Error('Could not start recording.');
     const {id}=await start.json();
+    if (wsId && wsId !== 'default' && window.state) {
+      if (!window.state.workspaceMeetings[wsId]) window.state.workspaceMeetings[wsId] = [];
+      if (!window.state.workspaceMeetings[wsId].includes(id)) {
+        window.state.workspaceMeetings[wsId].push(id);
+        try { localStorage.setItem('saamba-workspace-meetings', JSON.stringify(window.state.workspaceMeetings)); } catch (_) {}
+      }
+    }
     const node=new AudioWorkletNode(context,'saamba-recorder');
     const meetingSource=context.createMediaStreamSource(new MediaStream(screen.getAudioTracks()));
     const micSource=context.createMediaStreamSource(mic);

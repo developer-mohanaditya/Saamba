@@ -242,6 +242,7 @@ function setupGlobalListeners() {
 
 export function initApp() {
   // Bind global references for capture.js compatibility
+  window.state = state;
   window.refresh = refresh;
   window.openMeeting = openMeeting;
   Object.defineProperty(window, 'selected', {

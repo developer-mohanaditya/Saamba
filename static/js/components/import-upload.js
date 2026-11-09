@@ -101,12 +101,16 @@ export function initImportDialog(onMeetingImported) {
       if (uploadError) uploadError.textContent = '';
       try {
         const titleVal = titleInput ? titleInput.value : '';
+        const uploadHeaders = {
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-Meeting-Title': encodeURIComponent(titleVal)
+        };
+        if (state.activeWorkspaceId && state.activeWorkspaceId !== 'default') {
+          uploadHeaders['X-Workspace-Id'] = state.activeWorkspaceId;
+        }
         const m = await api('/api/meetings', {
           method: 'POST',
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream',
-            'X-Meeting-Title': encodeURIComponent(titleVal)
-          },
+          headers: uploadHeaders,
           body: file
         });
         if (importDialog) importDialog.close();
@@ -120,6 +124,11 @@ export function initImportDialog(onMeetingImported) {
           if (!state.workspaceMeetings[state.activeWorkspaceId].includes(m.id)) {
             state.workspaceMeetings[state.activeWorkspaceId].push(m.id);
             try { localStorage.setItem('saamba-workspace-meetings', JSON.stringify(state.workspaceMeetings)); } catch (_) {}
+            api(`/api/workspaces/${state.activeWorkspaceId}/meetings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ meeting_id: m.id, action: 'add' })
+            }).catch(() => {});
           }
         }
         state.current = null;
