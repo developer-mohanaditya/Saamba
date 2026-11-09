@@ -52,9 +52,13 @@ export function AuthModal() {
           setAuthModalOpen(false);
         }
       } else {
+        const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/v2` : undefined;
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
         });
         if (signUpError) throw signUpError;
         if (data.session) {
