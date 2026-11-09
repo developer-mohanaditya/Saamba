@@ -59,6 +59,10 @@ interface AppState {
   soundAlerts: boolean;
   setSoundAlerts: (enabled: boolean) => void;
 
+  // Toast notification state
+  toastMessage: string | null;
+  setToastMessage: (msg: string | null) => void;
+
   // Actions
   setWorkspaces: (ws: Workspace[]) => void;
   setActiveWorkspaceId: (id: string) => void;
@@ -92,7 +96,6 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   workspaces: [
     { id: 'default', name: 'My meetings', icon: 'users', isDefault: true },
-    { id: 'ws-class', name: 'Class', icon: 'book', isDefault: false },
   ],
   activeWorkspaceId: 'default',
   workspaceMeetings: {},
@@ -136,6 +139,9 @@ export const useAppStore = create<AppState>((set) => ({
     try { localStorage.setItem('saamba-sound-alerts', String(soundAlerts)); } catch (_) {}
     set({ soundAlerts });
   },
+
+  toastMessage: null,
+  setToastMessage: (toastMessage) => set({ toastMessage }),
 
   setWorkspaces: (workspaces) => set({ workspaces }),
   setActiveWorkspaceId: (activeWorkspaceId) =>

@@ -33,6 +33,9 @@ export default function Home() {
     setActiveTranslation,
     activeTab,
     setActiveTab,
+    toastMessage,
+    setToastMessage,
+    setActiveWorkspaceId,
   } = useAppStore();
 
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
@@ -60,6 +63,12 @@ export default function Home() {
         if (wsData.workspaces && wsData.workspaces.length > 0) {
           setWorkspaces(wsData.workspaces);
           setWorkspaceMeetings(wsData.workspaceMeetings || {});
+          const curActive = useAppStore.getState().activeWorkspaceId;
+          const found = wsData.workspaces.find((w) => w.id === curActive);
+          if (!found) {
+            const def = wsData.workspaces.find((w) => w.isDefault) || wsData.workspaces[0];
+            if (def) setActiveWorkspaceId(def.id);
+          }
         }
         if (Array.isArray(meetingList)) {
           setMeetings(meetingList);
@@ -238,6 +247,15 @@ export default function Home() {
     }
   };
 
+  // Toast notification auto-dismiss timer
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [toastMessage, setToastMessage]);
+
   return (
     <div
       className={`app layout-sidebar ${
@@ -307,6 +325,19 @@ export default function Home() {
 
       <AuthModal />
       <SettingsModal />
+
+      {toastMessage && (
+        <div id="toast" className="toast" role="alert">
+          <span>{toastMessage}</span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setToastMessage(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

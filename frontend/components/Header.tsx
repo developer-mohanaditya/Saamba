@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../lib/store';
 import { isSoundAlertsEnabled, setSoundAlertsEnabled, unlockAlertAudio, playAlert } from '../lib/sound';
 import { supabase } from '../lib/supabaseClient';
@@ -14,24 +14,74 @@ interface HeaderProps {
 }
 
 export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
-  const { workspaces, activeWorkspaceId, setUser, soundAlerts, setSoundAlerts } = useAppStore();
+  const {
+    workspaces,
+    activeWorkspaceId,
+    setUser,
+    soundAlerts,
+    setSoundAlerts,
+    setToastMessage,
+    setAuthModalOpen,
+  } = useAppStore();
+
+  const menuRef = useRef<HTMLDetailsElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && menuRef.current.hasAttribute('open')) {
+        if (!menuRef.current.contains(e.target as Node)) {
+          menuRef.current.removeAttribute('open');
+        }
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   useEffect(() => {
+    // Check if the current URL contains a verification or auth token hash
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    const search = typeof window !== 'undefined' ? window.location.search : '';
+    const isVerificationRedirect =
+      hash.includes('access_token') ||
+      hash.includes('type=signup') ||
+      hash.includes('type=recovery') ||
+      search.includes('code=');
+
     // Listen to Supabase Auth state changes
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
         setUser(data.session.user);
+        if (isVerificationRedirect) {
+          setToastMessage('✓ Email verified successfully! Welcome to Saamba.');
+          setAuthModalOpen(false);
+          try {
+            window.history.replaceState(null, '', window.location.pathname);
+          } catch (_) {}
+          playAlert('detected');
+        }
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
+      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        if (isVerificationRedirect || event === 'USER_UPDATED') {
+          setToastMessage('✓ Email verified successfully! Welcome to Saamba.');
+          setAuthModalOpen(false);
+          try {
+            window.history.replaceState(null, '', window.location.pathname);
+          } catch (_) {}
+          playAlert('detected');
+        }
+      }
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [setUser]);
+  }, [setUser, setToastMessage, setAuthModalOpen]);
 
   const currentWs =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
@@ -70,7 +120,7 @@ export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
           Import meeting
         </button>
 
-        <details className="test-menu" id="test-menu">
+        <details ref={menuRef} className="test-menu" id="test-menu">
           <summary aria-label="Workspace options" title="Workspace options">
             ⋮
           </summary>
