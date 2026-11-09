@@ -3722,3 +3722,53 @@ dialog.settings-modal-dialog::backdrop {
   color: #1d3826 !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
 }
+
+/* Center empty state in the middle of the workspace screen */
+.layout-sidebar .detail.is-empty,
+.layout-sidebar .detail:has(.empty),
+.detail.is-empty,
+.detail:has(.empty) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  grid-template-columns: 1fr !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 480px !important;
+  padding: 40px 24px !important;
+  text-align: center !important;
+}
+
+.detail.is-empty .empty,
+.detail:has(.empty) .empty,
+.layout-sidebar .detail .empty,
+.empty {
+  grid-column: 1 / -1 !important;
+  max-width: 440px !important;
+  width: 100% !important;
+  margin: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.empty .empty-icon {
+  margin: 0 auto 16px auto !important;
+}
+
+.empty h2 {
+  text-align: center !important;
+  margin: 0 0 10px 0 !important;
+}
+
+.empty p {
+  text-align: center !important;
+  margin: 0 0 20px 0 !important;
+}
+
+.empty button {
+  margin: 0 auto !important;
+}

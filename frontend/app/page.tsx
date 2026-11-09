@@ -263,7 +263,7 @@ export default function Home() {
         </p>
 
         <div className="content">
-          <section id="detail" className="detail">
+          <section id="detail" className={`detail ${!currentMeeting ? 'is-empty' : ''}`}>
             <MeetingDetail
               onImport={() => setImportModalOpen(true)}
               onDeleteMeeting={() => setDeleteModalOpen(true)}
