@@ -23,6 +23,7 @@ export interface ActionItem {
   text: string;
   checked: boolean;
   speaker?: string | null;
+  start?: number | null;
   timestamp?: number | null;
 }
 

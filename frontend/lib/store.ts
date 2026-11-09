@@ -18,7 +18,8 @@ interface AppState {
   activeTab: 'summary' | 'actions' | 'transcript' | string;
   searchQuery: string;
   
-  // Audio state
+  // Media pane state
+  mediaCollapsed: boolean;
   currentTime: number;
   isPlaying: boolean;
   duration: number;
@@ -36,6 +37,7 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (v: boolean) => void;
   toggleLibrary: () => void;
+  setLibraryExpanded: (v: boolean) => void;
   
   setMeetings: (meetings: Meeting[]) => void;
   setSelectedMeetingId: (id: string | null) => void;
@@ -45,6 +47,7 @@ interface AppState {
   setActiveTab: (tab: string) => void;
   setSearchQuery: (query: string) => void;
   
+  toggleMediaCollapsed: () => void;
   setCurrentTime: (time: number) => void;
   setIsPlaying: (playing: boolean) => void;
   setDuration: (duration: number) => void;
@@ -54,11 +57,13 @@ interface AppState {
   setIsAsking: (asking: boolean) => void;
   setAskScope: (scope: 'current' | 'all') => void;
   toggleAskPanel: () => void;
+  setAskPanelOpen: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   workspaces: [
-    { id: 'default', name: 'My meetings', icon: 'users', isDefault: true }
+    { id: 'default', name: 'My meetings', icon: 'users', isDefault: true },
+    { id: 'ws-class', name: 'Class', icon: 'book', isDefault: false },
   ],
   activeWorkspaceId: 'default',
   workspaceMeetings: {},
@@ -73,6 +78,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeTab: 'summary',
   searchQuery: '',
 
+  mediaCollapsed: false,
   currentTime: 0,
   isPlaying: false,
   duration: 0,
@@ -80,14 +86,32 @@ export const useAppStore = create<AppState>((set) => ({
   chatMessages: [],
   isAsking: false,
   askScope: 'current',
-  askPanelOpen: false,
+  askPanelOpen: true,
 
   setWorkspaces: (workspaces) => set({ workspaces }),
-  setActiveWorkspaceId: (activeWorkspaceId) => set({ activeWorkspaceId }),
+  setActiveWorkspaceId: (activeWorkspaceId) =>
+    set({ activeWorkspaceId, libraryExpanded: true }),
   setWorkspaceMeetings: (workspaceMeetings) => set({ workspaceMeetings }),
-  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
-  toggleLibrary: () => set((s) => ({ libraryExpanded: !s.libraryExpanded })),
+  toggleSidebar: () =>
+    set((state) => {
+      const next = !state.sidebarCollapsed;
+      try { localStorage.setItem('saamba-sidebar-collapsed', String(next)); } catch (_) {}
+      return { sidebarCollapsed: next };
+    }),
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    try { localStorage.setItem('saamba-sidebar-collapsed', String(sidebarCollapsed)); } catch (_) {}
+    set({ sidebarCollapsed });
+  },
+  toggleLibrary: () =>
+    set((state) => {
+      const next = !state.libraryExpanded;
+      try { localStorage.setItem('saamba-library-expanded', String(next)); } catch (_) {}
+      return { libraryExpanded: next };
+    }),
+  setLibraryExpanded: (libraryExpanded) => {
+    try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
+    set({ libraryExpanded });
+  },
 
   setMeetings: (meetings) => set({ meetings }),
   setSelectedMeetingId: (selectedMeetingId) => set({ selectedMeetingId }),
@@ -97,13 +121,21 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveTab: (activeTab) => set({ activeTab }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
 
+  toggleMediaCollapsed: () =>
+    set((state) => {
+      const next = !state.mediaCollapsed;
+      try { localStorage.setItem('saamba-media-collapsed', String(next)); } catch (_) {}
+      return { mediaCollapsed: next };
+    }),
   setCurrentTime: (currentTime) => set({ currentTime }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setDuration: (duration) => set({ duration }),
 
   setChatMessages: (chatMessages) => set({ chatMessages }),
-  addChatMessage: (msg) => set((s) => ({ chatMessages: [...s.chatMessages, msg] })),
+  addChatMessage: (msg) =>
+    set((state) => ({ chatMessages: [...state.chatMessages, msg] })),
   setIsAsking: (isAsking) => set({ isAsking }),
   setAskScope: (askScope) => set({ askScope }),
-  toggleAskPanel: () => set((s) => ({ askPanelOpen: !s.askPanelOpen })),
+  toggleAskPanel: () => set((state) => ({ askPanelOpen: !state.askPanelOpen })),
+  setAskPanelOpen: (askPanelOpen) => set({ askPanelOpen }),
 }));

@@ -46,6 +46,21 @@ export async function getMeeting(id: string): Promise<Meeting> {
   return fetchJson(`/api/meetings/${id}`);
 }
 
+export async function renameMeeting(id: string, title: string): Promise<{ title: string }> {
+  return fetchJson(`/api/meetings/${id}/rename`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+}
+
+export async function deleteMeeting(id: string): Promise<{ ok: boolean }> {
+  return fetchJson(`/api/meetings/${id}/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 export async function getChatMessages(id: string): Promise<ChatMessage[]> {
   return fetchJson(`/api/meetings/${id}/chat`);
 }

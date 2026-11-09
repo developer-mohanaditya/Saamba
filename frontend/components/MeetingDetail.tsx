@@ -1,220 +1,399 @@
-// frontend/components/MeetingDetail.tsx - Meeting Notes & Transcript View
+// frontend/components/MeetingDetail.tsx - Exact Meeting Detail & Notes pane matching v1
 
 'use client';
 
 import React, { useState } from 'react';
 import { useAppStore } from '../lib/store';
-import { WaveformPlayer } from './WaveformPlayer';
-import { Search, Check, Globe } from './Icons';
-import { toggleActionItem } from '../lib/api';
+import { date, time, inline, esc, speakerDisplayName, summarySections } from '../lib/markdown';
+import { icon } from './Icons';
+import { toggleActionItem, renameMeeting } from '../lib/api';
 
-export function MeetingDetail() {
-  const { currentMeeting, activeTab, setActiveTab, searchQuery, setSearchQuery } = useAppStore();
-  const [localActionChecks, setLocalActionChecks] = useState<Record<string, boolean>>({});
+interface MeetingDetailProps {
+  onImport: () => void;
+  onDeleteMeeting: () => void;
+  onSeekAudio?: (seconds: number) => void;
+}
+
+export function MeetingDetail({ onImport, onDeleteMeeting, onSeekAudio }: MeetingDetailProps) {
+  const {
+    currentMeeting,
+    activeTab,
+    setActiveTab,
+    searchQuery,
+    setSearchQuery,
+    setCurrentMeeting,
+    setMeetings,
+    meetings,
+  } = useAppStore();
+
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState('');
+  const [shareOpen, setShareOpen] = useState(false);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [localChecks, setLocalChecks] = useState<Record<string, boolean>>({});
 
   if (!currentMeeting) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#FBF9F5]">
-        <div className="w-14 h-14 rounded-full bg-[#F5F2EB] flex items-center justify-center text-2xl text-[#1A382B] mb-4">
-          ♫
-        </div>
-        <h2 className="font-serif font-bold text-2xl text-[#1A1A1A] mb-2">
-          Make room for the conversation.
-        </h2>
-        <p className="text-sm text-[#767676] max-w-sm mb-6">
-          Import a recording to bring your notes, transcript, and audio together.
-        </p>
+      <div className="empty">
+        <div className="empty-icon">♫</div>
+        <h2>Make room for the conversation.</h2>
+        <p>Import a recording to bring your notes, transcript, and audio together.</p>
+        <button className="primary" id="empty-import" type="button" onClick={onImport}>
+          Import your first meeting
+        </button>
       </div>
     );
   }
 
   const actionItems = currentMeeting.action_items || [];
-  const actionCount = actionItems.filter((i) => !localActionChecks[i.key] && !i.checked).length;
+  const totalActions = actionItems.length;
+  const checkedActions = actionItems.filter(
+    (a) => (localChecks[a.key] !== undefined ? localChecks[a.key] : a.checked)
+  ).length;
+  const actionCounterText = totalActions > 0 ? `${checkedActions}/${totalActions}` : '0';
 
-  const handleToggleAction = async (key: string, currentVal: boolean) => {
-    const newVal = !currentVal;
-    setLocalActionChecks((prev) => ({ ...prev, [key]: newVal }));
+  const handleSaveTitle = async () => {
+    const trimmed = titleValue.trim();
+    setEditingTitle(false);
+    if (!trimmed || trimmed === currentMeeting.title) return;
     try {
-      await toggleActionItem(currentMeeting.id, key, newVal);
+      await renameMeeting(currentMeeting.id, trimmed);
+      const updated = { ...currentMeeting, title: trimmed };
+      setCurrentMeeting(updated);
+      setMeetings(meetings.map((m) => (m.id === currentMeeting.id ? updated : m)));
     } catch (e) {
-      console.error('Failed to toggle action item:', e);
+      console.error('Rename failed:', e);
+    }
+  };
+
+  const handleActionToggle = async (key: string, currentChecked: boolean) => {
+    const nextVal = !currentChecked;
+    setLocalChecks((prev) => ({ ...prev, [key]: nextVal }));
+    try {
+      await toggleActionItem(currentMeeting.id, key, nextVal);
+      // Update store meeting
+      const updatedActions = actionItems.map((a) =>
+        a.key === key ? { ...a, checked: nextVal } : a
+      );
+      setCurrentMeeting({ ...currentMeeting, action_items: updatedActions });
+    } catch (e) {
+      console.error('Action toggle failed:', e);
     }
   };
 
   const filteredSegments = (currentMeeting.transcript || []).filter((s) => {
     if (!searchQuery) return true;
-    return s.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.speaker && s.speaker.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    return (
+      (s.text && s.text.toLowerCase().includes(q)) ||
+      (s.speaker && s.speaker.toLowerCase().includes(q))
+    );
   });
 
+  const summaryHtml = currentMeeting.summary
+    ? summarySections(currentMeeting)
+    : '<p class="muted">Summary will appear once transcription finishes.</p>';
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[#FBF9F5]">
-      {/* Top Media Waveform Header */}
-      <div className="p-6 pb-4 sm:px-8 max-w-5xl mx-auto w-full">
-        <WaveformPlayer meetingId={currentMeeting.id} />
-      </div>
-
-      {/* Tabs Bar */}
-      <div className="border-b border-[#E8E4DC] px-6 sm:px-8 max-w-5xl mx-auto w-full flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('summary')}
-            className={`px-4 py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-              activeTab === 'summary'
-                ? 'border-[#1A382B] text-[#1A382B]'
-                : 'border-transparent text-[#767676] hover:text-[#1A1A1A]'
-            }`}
-          >
-            Summary
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('actions')}
-            className={`flex items-center gap-2 px-4 py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-              activeTab === 'actions'
-                ? 'border-[#1A382B] text-[#1A382B]'
-                : 'border-transparent text-[#767676] hover:text-[#1A1A1A]'
-            }`}
-          >
-            <span>Action items</span>
-            {actionCount > 0 && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1A382B] text-white">
-                {actionCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('transcript')}
-            className={`px-4 py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-              activeTab === 'transcript'
-                ? 'border-[#1A382B] text-[#1A382B]'
-                : 'border-transparent text-[#767676] hover:text-[#1A1A1A]'
-            }`}
-          >
-            Transcript
-          </button>
-
-          {(currentMeeting.translations || []).map((t) => (
-            <button
-              key={t.language_code}
-              type="button"
-              onClick={() => setActiveTab(`trans-${t.language_code}`)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold tracking-wide border-b-2 transition-all ${
-                activeTab === `trans-${t.language_code}`
-                  ? 'border-[#DEB569] text-[#1A382B]'
-                  : 'border-transparent text-[#767676] hover:text-[#1A1A1A]'
-              }`}
+    <div className="notes-card">
+      {/* Detail Header */}
+      <div className="detail-header">
+        <div className="detail-meta">
+          <span className="meeting-date">
+            <svg
+              className="date-icon"
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              style={{ marginRight: '3px' }}
             >
-              <Globe className="w-3.5 h-3.5 text-[#DEB569]" />
-              <span>{t.language_name}</span>
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+            {date(currentMeeting.created_at)}
+          </span>
+
+          {/* Rewrite Menu */}
+          <div className="share-menu">
+            <button
+              className="subtle-button"
+              type="button"
+              onClick={() => {
+                setRewriteOpen(!rewriteOpen);
+                setShareOpen(false);
+              }}
+              aria-expanded={rewriteOpen}
+            >
+              <span dangerouslySetInnerHTML={{ __html: icon('rewrite') }} /> Rewrite{' '}
+              <span dangerouslySetInnerHTML={{ __html: icon('chevron') }} />
             </button>
-          ))}
+            {rewriteOpen && (
+              <div className="share-options" id="rewrite-options">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRewriteOpen(false);
+                    // trigger summary rewrite
+                  }}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: icon('rewrite') }} />
+                  {currentMeeting.summary ? 'Rewrite' : 'Create'} summary
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRewriteOpen(false);
+                    // trigger transcript rewrite
+                  }}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: icon('file') }} />
+                  {(currentMeeting.transcript || []).length ? 'Rewrite' : 'Create'} transcript
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Share Menu */}
+          <div className="share-menu">
+            <button
+              className="subtle-button"
+              type="button"
+              onClick={() => {
+                setShareOpen(!shareOpen);
+                setRewriteOpen(false);
+              }}
+              aria-expanded={shareOpen}
+            >
+              <span dangerouslySetInnerHTML={{ __html: icon('share') }} /> Share{' '}
+              <span dangerouslySetInnerHTML={{ __html: icon('chevron') }} />
+            </button>
+            {shareOpen && (
+              <div className="share-options" id="share-options">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareOpen(false);
+                    const subject = encodeURIComponent(`Meeting Notes: ${currentMeeting.title}`);
+                    const body = encodeURIComponent(currentMeeting.summary || '');
+                    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                  }}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: icon('mail') }} />
+                  Send to email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareOpen(false);
+                    navigator.clipboard.writeText(window.location.href);
+                    alert('Meeting link copied to clipboard!');
+                  }}
+                >
+                  <span dangerouslySetInnerHTML={{ __html: icon('link') }} />
+                  Copy link
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Delete Button */}
+          <div className="delete-menu">
+            <button
+              className="subtle-button delete-button"
+              type="button"
+              aria-label="Delete meeting"
+              onClick={onDeleteMeeting}
+            >
+              <span dangerouslySetInnerHTML={{ __html: icon('delete') }} />
+            </button>
+          </div>
+
+          {/* Status chip */}
+          <span
+            className={`status-chip ${
+              currentMeeting.status === 'ready' ? '' : 'is-busy'
+            }`}
+          >
+            {currentMeeting.status === 'ready' ? 'Ready' : currentMeeting.status}
+          </span>
         </div>
 
-        {activeTab === 'transcript' && (
-          <div className="relative w-48 sm:w-64 my-2">
-            <Search className="w-3.5 h-3.5 text-[#767676] absolute left-3 top-1/2 -translate-y-1/2" />
+        {/* Editable Title Group */}
+        <div className="title-group">
+          {editingTitle ? (
             <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search transcript…"
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-[#D5D0C6] bg-white text-xs focus:outline-none focus:ring-1 focus:ring-[#1A382B]"
+              className="title-input"
+              value={titleValue}
+              maxLength={200}
+              autoFocus
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={handleSaveTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveTitle();
+                if (e.key === 'Escape') setEditingTitle(false);
+              }}
             />
-          </div>
-        )}
+          ) : (
+            <button
+              id="meeting-title"
+              className="meeting-title"
+              title="Click to edit meeting name"
+              aria-label="Edit meeting name"
+              onClick={() => {
+                setTitleValue(currentMeeting.title);
+                setEditingTitle(true);
+              }}
+            >
+              {currentMeeting.title}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tab Panels Content */}
-      <div className="flex-1 overflow-y-auto p-6 sm:px-8 max-w-5xl mx-auto w-full">
-        {activeTab === 'summary' && (
-          <div className="prose prose-stone max-w-none text-sm text-[#3D3D3D] leading-relaxed space-y-4">
-            {currentMeeting.summary ? (
+      {/* Tabs and Notes Workspace */}
+      <div className="meeting-workspace">
+        <section className="notes-pane">
+          <div className="tabs">
+            <button
+              type="button"
+              className={`tab ${activeTab === 'summary' ? 'active' : ''}`}
+              onClick={() => setActiveTab('summary')}
+            >
+              Summary
+            </button>
+            <button
+              type="button"
+              className={`tab action-tab ${activeTab === 'actions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('actions')}
+            >
+              Action items <span className="action-count">{actionCounterText}</span>
+            </button>
+            <div className="transcript-tab-wrapper">
+              <button
+                type="button"
+                className={`tab ${activeTab === 'transcript' ? 'active' : ''}`}
+                onClick={() => setActiveTab('transcript')}
+              >
+                Transcript
+              </button>
+            </div>
+          </div>
+
+          <div className="notes-scroll" id="notes-scroll">
+            {/* SUMMARY TAB */}
+            {activeTab === 'summary' && (
               <div
-                dangerouslySetInnerHTML={{
-                  __html: currentMeeting.summary
-                    .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-serif font-bold text-[#1A382B] mt-4 mb-2">$1</h1>')
-                    .replace(/^## (.*$)/gim, '<h2 class="text-xl font-serif font-semibold text-[#1A382B] mt-4 mb-2">$1</h2>')
-                    .replace(/^### (.*$)/gim, '<h3 class="text-base font-semibold text-[#1A382B] mt-3 mb-1">$1</h3>')
-                    .replace(/\n\n/gim, '<br/><br/>'),
-                }}
+                className="summary-text"
+                dangerouslySetInnerHTML={{ __html: summaryHtml }}
               />
-            ) : (
-              <p className="italic text-[#767676]">Summary will appear once transcription finishes.</p>
             )}
-          </div>
-        )}
 
-        {activeTab === 'actions' && (
-          <div className="space-y-3">
-            {actionItems.length === 0 ? (
-              <p className="text-xs text-[#767676] italic">No action items detected in this conversation.</p>
-            ) : (
-              actionItems.map((item) => {
-                const isChecked = localActionChecks[item.key] ?? item.checked;
-                return (
-                  <div
-                    key={item.key}
-                    onClick={() => handleToggleAction(item.key, isChecked)}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
-                      isChecked
-                        ? 'bg-[#F5F2EB]/50 border-[#E8E4DC] text-[#767676]'
-                        : 'bg-white border-[#E8E4DC] shadow-2xs hover:border-[#D5D0C6] text-[#1A1A1A]'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center border transition-colors ${
-                        isChecked
-                          ? 'bg-[#1A382B] border-[#1A382B] text-white'
-                          : 'border-[#D5D0C6] bg-white'
-                      }`}
-                    >
-                      {isChecked && <Check className="w-3 h-3" />}
-                    </div>
-                    <div className="flex-1 text-xs">
-                      <p className={isChecked ? 'line-through text-[#767676]' : 'font-medium'}>
-                        {item.text}
-                      </p>
-                      {item.speaker && (
-                        <span className="inline-block mt-1 text-[11px] font-semibold text-[#DEB569] uppercase tracking-wider">
-                          {item.speaker}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+            {/* ACTION ITEMS TAB */}
+            {activeTab === 'actions' && (
+              <div className="action-list">
+                {actionItems.length === 0 ? (
+                  <p className="muted">No action items detected in this conversation.</p>
+                ) : (
+                  actionItems.map((a) => {
+                    const isChecked =
+                      localChecks[a.key] !== undefined
+                        ? localChecks[a.key]
+                        : a.checked;
+                    return (
+                      <div
+                        key={a.key}
+                        className={`action-row ${isChecked ? 'is-checked' : ''}`}
+                      >
+                        <div className="action-item-content">
+                          <input
+                            type="checkbox"
+                            className="action-checkbox"
+                            checked={!!isChecked}
+                            onChange={() => handleActionToggle(a.key, !!isChecked)}
+                            aria-label="Mark action item complete"
+                          />
+                          <span
+                            className="action-text"
+                            dangerouslySetInnerHTML={{ __html: inline(a.text) }}
+                          />
+                        </div>
+                        <div className="action-meta">
+                          {a.speaker && (
+                            <>
+                              <span className="action-speaker">{a.speaker}</span>
+                              <span className="action-meta-dot" aria-hidden="true">
+                                ·
+                              </span>
+                            </>
+                          )}
+                          {a.start != null ? (
+                            <button
+                              type="button"
+                              className="action-citation"
+                              onClick={() => onSeekAudio && onSeekAudio(Number(a.start))}
+                            >
+                              Listen at {time(a.start)}
+                            </button>
+                          ) : (
+                            <span className="action-citation-unavailable">
+                              Source timestamp unavailable
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        {activeTab === 'transcript' && (
-          <div className="space-y-4">
-            {filteredSegments.length === 0 ? (
-              <p className="text-xs text-[#767676] italic">No transcript segments found.</p>
-            ) : (
-              filteredSegments.map((s, idx) => (
-                <div key={idx} className="flex items-start gap-4 p-2 rounded-lg hover:bg-white/60 transition-colors">
-                  <span className="text-[11px] font-mono text-[#767676] mt-0.5 shrink-0">
-                    {Math.floor(s.start / 60)}:{(Math.floor(s.start % 60) < 10 ? '0' : '') + Math.floor(s.start % 60)}
-                  </span>
-                  <div className="flex-1 text-xs leading-relaxed">
-                    {s.speaker && (
-                      <span className="font-semibold text-[#1A382B] mr-2">
-                        {s.speaker}:
-                      </span>
-                    )}
-                    <span className="text-[#3D3D3D]">{s.text}</span>
-                  </div>
+            {/* TRANSCRIPT TAB */}
+            {activeTab === 'transcript' && (
+              <div className="transcript-pane">
+                <div className="transcript-head">
+                  <h3>Transcript</h3>
+                  <input
+                    id="search"
+                    type="search"
+                    placeholder="Search transcript…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-              ))
+                <div className="segments">
+                  {filteredSegments.length === 0 ? (
+                    <p className="muted">No matching transcript segments found.</p>
+                  ) : (
+                    filteredSegments.map((s, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="segment"
+                        onClick={() => onSeekAudio && onSeekAudio(Number(s.start))}
+                      >
+                        <span className="segment-time">{time(s.start)}</span>
+                        <span className="segment-body">
+                          {s.speaker && (
+                            <span className="speaker-tag">
+                              <strong>{speakerDisplayName(s.speaker)}</strong>
+                            </span>
+                          )}
+                          <span>{s.text}</span>
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             )}
           </div>
-        )}
+        </section>
       </div>
     </div>
   );
