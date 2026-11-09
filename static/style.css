@@ -990,6 +990,57 @@ html.init-sidebar-collapsed .icon-expand {
   cursor: not-allowed;
 }
 
+/* Transcript Submenu (Side Flyout Dropdown) */
+.transcript-submenu-wrap {
+  position: relative;
+  width: 100%;
+}
+.transcript-submenu-wrap .menu-item-with-submenu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.transcript-submenu-wrap .submenu-arrow {
+  margin-left: auto;
+  opacity: 0.6;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.transcript-submenu-wrap:hover .submenu-arrow,
+.transcript-submenu-wrap.is-open .submenu-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+.transcript-side-dropdown {
+  position: absolute;
+  top: -6px;
+  left: calc(100% + 4px);
+  z-index: 35;
+  min-width: 215px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 6px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+}
+.transcript-side-dropdown::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 8px;
+  height: 100%;
+}
+.transcript-submenu-wrap:hover .transcript-side-dropdown,
+.transcript-submenu-wrap:focus-within .transcript-side-dropdown,
+.transcript-submenu-wrap.is-open .transcript-side-dropdown {
+  display: flex;
+  animation: dropdownFadeSlide 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Speaker Dialog & Inline Editing */
 .segment {
   display: flex !important;
