@@ -6,6 +6,7 @@ import React from 'react';
 import { useAppStore } from '../lib/store';
 import { WORKSPACE_ICONS } from './Icons';
 import { date } from '../lib/markdown';
+import { supabase } from '../lib/supabaseClient';
 
 export function Sidebar({ onCreateWorkspace }: { onCreateWorkspace: () => void }) {
   const {
@@ -22,7 +23,15 @@ export function Sidebar({ onCreateWorkspace }: { onCreateWorkspace: () => void }
     meetings,
     selectedMeetingId,
     setSelectedMeetingId,
+    user,
+    setUser,
+    setAuthModalOpen,
   } = useAppStore();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   return (
     <aside className="workspace-sidebar">
@@ -98,11 +107,11 @@ export function Sidebar({ onCreateWorkspace }: { onCreateWorkspace: () => void }
         >
           <svg
             viewBox="0 0 24 24"
-            width="14"
-            height="14"
+            width="16"
+            height="16"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.2"
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden="true"
@@ -113,80 +122,83 @@ export function Sidebar({ onCreateWorkspace }: { onCreateWorkspace: () => void }
         </button>
       </div>
 
-      {/* Workspaces List */}
-      <div className="workspace-list" id="workspace-list">
+      {/* Workspaces & Meetings Navigation */}
+      <div className="workspace-nav-list" role="navigation" aria-label="Workspaces">
         {workspaces.map((ws) => {
-          const iconSvg = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
-          const count =
-            ws.id === 'default'
-              ? meetings.length
-              : (workspaceMeetings[ws.id] || []).length;
           const isActive = ws.id === activeWorkspaceId;
-          const visibleMeetings =
-            ws.id === 'default'
-              ? meetings
-              : meetings.filter((m) =>
-                  (workspaceMeetings[ws.id] || []).includes(m.id)
-                );
+          const count = workspaceMeetings[ws.id]?.length ?? 0;
+          const wsIcon = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
 
           return (
             <div
               key={ws.id}
-              className={`workspace-block ${isActive ? 'is-active' : ''}`}
-              data-workspace-id={ws.id}
+              className={`workspace-group ${isActive ? 'active' : ''}`}
+              data-id={ws.id}
             >
-              <button
-                type="button"
-                className={`workspace-nav-item ${isActive ? 'active' : ''}`}
-                data-workspace-id={ws.id}
-                aria-label={ws.name}
-                aria-expanded={isActive ? libraryExpanded : false}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (sidebarCollapsed) {
-                    setSidebarCollapsed(false);
+              <div className="workspace-row">
+                <button
+                  type="button"
+                  className="nav"
+                  data-id={ws.id}
+                  onClick={() => {
                     setActiveWorkspaceId(ws.id);
-                    setLibraryExpanded(true);
-                    return;
-                  }
-                  if (isActive) {
-                    toggleLibrary();
-                  } else {
-                    setActiveWorkspaceId(ws.id);
-                    setLibraryExpanded(true);
-                  }
-                }}
-              >
-                <span
-                  className="nav-icon"
-                  aria-hidden="true"
-                  dangerouslySetInnerHTML={{ __html: iconSvg }}
-                />
-                <span className="workspace-title">{ws.name}</span>
-                {count > 0 && <span className="workspace-count">{count}</span>}
-                {isActive && (
-                  <svg className="nav-chevron" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="m7 10 5 5 5-5" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Active Workspace Library List */}
-              {isActive && (
-                <section
-                  className={`library ${!libraryExpanded ? 'is-collapsed' : ''} ${
-                    visibleMeetings.length === 0 ? 'is-empty' : ''
-                  }`}
-                  id="meeting-library"
+                    if (sidebarCollapsed) setSidebarCollapsed(false);
+                  }}
                 >
-                  <div
-                    id="meetings"
-                    className={`meeting-list ${
-                      visibleMeetings.length === 0 ? 'is-empty' : ''
-                    }`}
+                  <span
+                    className="workspace-icon"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: wsIcon }}
+                  />
+                  <span className="workspace-title">{ws.name}</span>
+                  <span className="workspace-count" title={`${count} meetings`}>
+                    {count}
+                  </span>
+                </button>
+
+                {isActive && (
+                  <button
+                    type="button"
+                    className="nav-chevron"
+                    aria-label={libraryExpanded ? 'Collapse library' : 'Expand library'}
+                    title={libraryExpanded ? 'Collapse library' : 'Expand library'}
+                    aria-expanded={libraryExpanded}
+                    onClick={toggleLibrary}
                   >
-                    {visibleMeetings.length > 0 ? (
-                      visibleMeetings.map((m) => {
+                    <svg
+                      className="chevron-icon"
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      style={{
+                        transform: libraryExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                      }}
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {isActive && libraryExpanded && (
+                <section
+                  className="library active"
+                  aria-label={`${ws.name} library`}
+                >
+                  <div className="library-header">
+                    <h3>Meetings</h3>
+                    <span>{meetings.length}</span>
+                  </div>
+
+                  <div className="meeting-list">
+                    {meetings.length > 0 ? (
+                      meetings.map((m) => {
                         const isVideo = m.mime && m.mime.startsWith('video/');
                         return (
                           <button
@@ -238,10 +250,57 @@ export function Sidebar({ onCreateWorkspace }: { onCreateWorkspace: () => void }
         })}
       </div>
 
-      {/* Sidebar Footer */}
+      {/* Sidebar Footer: User Account / Sign In */}
       <div className="side-bottom">
-        <div className="side-title">A little more present.</div>
-        <p>Your conversations, ready to return to.</p>
+        {user ? (
+          <details className="sidebar-user-details">
+            <summary className="sidebar-user-summary" title={user.email}>
+              <div className="sidebar-user-avatar">
+                {user.email ? user.email.slice(0, 1).toUpperCase() : '?'}
+              </div>
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">
+                  {user.email ? user.email.split('@')[0] : 'User'}
+                </span>
+                <span className="sidebar-user-meta">
+                  {user.email ? '@' + user.email.split('@')[1] : 'Account'}
+                </span>
+              </div>
+              <span className="sidebar-user-dots">⋮</span>
+            </summary>
+            <div className="sidebar-user-dropdown">
+              <div className="sidebar-user-dropdown-header">
+                Signed in as<br />
+                <strong>{user.email}</strong>
+              </div>
+              <button
+                type="button"
+                className="sidebar-user-dropdown-item signout-btn"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </div>
+          </details>
+        ) : (
+          <button
+            type="button"
+            className="sidebar-signin-btn"
+            id="sidebar-signin-btn"
+            onClick={() => setAuthModalOpen(true)}
+          >
+            <div className="sidebar-user-avatar guest-avatar">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">Sign In / Register</span>
+              <span className="sidebar-user-meta">Cloud sync your meetings</span>
+            </div>
+          </button>
+        )}
       </div>
     </aside>
   );

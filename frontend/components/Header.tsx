@@ -14,7 +14,7 @@ interface HeaderProps {
 }
 
 export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
-  const { workspaces, activeWorkspaceId, user, setUser, setAuthModalOpen } = useAppStore();
+  const { workspaces, activeWorkspaceId, setUser } = useAppStore();
   const [soundAlerts, setSoundAlerts] = useState(true);
 
   useEffect(() => {
@@ -36,11 +36,6 @@ export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
     };
   }, [setUser]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-  };
-
   const currentWs =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
 
@@ -48,8 +43,6 @@ export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
     currentWs.id === 'default'
       ? 'Your workspace'
       : `Workspace · ${currentWs.name}`;
-
-  const userInitial = user?.email ? user.email.slice(0, 1).toUpperCase() : '?';
 
   return (
     <header>
@@ -79,37 +72,6 @@ export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
         >
           Import meeting
         </button>
-
-        {/* User Account / Sign In Pill */}
-        {user ? (
-          <details className="user-menu-details">
-            <summary className="user-avatar-btn" title="Account settings">
-              <span className="user-initials-badge">{userInitial}</span>
-              <span className="user-email-text">{user.email}</span>
-            </summary>
-            <div className="user-menu-dropdown">
-              <div className="user-menu-email-header">
-                Signed in as <strong>{user.email}</strong>
-              </div>
-              <button
-                type="button"
-                className="user-menu-item"
-                onClick={handleSignOut}
-              >
-                Sign out
-              </button>
-            </div>
-          </details>
-        ) : (
-          <button
-            type="button"
-            className="secondary"
-            id="signin-button"
-            onClick={() => setAuthModalOpen(true)}
-          >
-            Sign in
-          </button>
-        )}
 
         <details className="test-menu" id="test-menu">
           <summary aria-label="Workspace options" title="Workspace options">
