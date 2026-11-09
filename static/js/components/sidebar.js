@@ -288,5 +288,3 @@ export function initSidebar(onWorkspaceChange = null) {
   // Async sync with SQLite database
   syncWorkspacesWithServer(onWorkspaceChange);
 }
-  updateActiveWorkspaceUI();
-}
