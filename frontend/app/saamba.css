@@ -2497,7 +2497,6 @@ select:focus-visible,
   border-radius: 0;
   background: transparent;
   border: 0 !important;
-  border-bottom: 1px solid #536c5b !important;
   box-shadow: none !important;
   color: #ffffff;
   cursor: pointer;
@@ -2514,9 +2513,8 @@ select:focus-visible,
 .workspace-sidebar .meeting.selected {
   background: #435d4c !important;
   color: #ffffff !important;
-  box-shadow: none !important; /* NO LEFT BORDER */
+  box-shadow: inset 3px 0 var(--gold, #dfa552) !important; /* Gold left border highlight matching original HTML site */
   border: 0 !important;
-  border-bottom: 1px solid #536c5b !important;
 }
 
 .workspace-sidebar .meeting-icon {
