@@ -46,6 +46,12 @@ interface AppState {
   askScope: 'current' | 'all';
   askPanelOpen: boolean;
 
+  // Auth state
+  user: any | null;
+  authModalOpen: boolean;
+  setUser: (user: any | null) => void;
+  setAuthModalOpen: (open: boolean) => void;
+
   // Actions
   setWorkspaces: (ws: Workspace[]) => void;
   setActiveWorkspaceId: (id: string) => void;
@@ -105,6 +111,11 @@ export const useAppStore = create<AppState>((set) => ({
   isAsking: false,
   askScope: 'current',
   askPanelOpen: true,
+
+  user: null,
+  authModalOpen: false,
+  setUser: (user) => set({ user }),
+  setAuthModalOpen: (authModalOpen) => set({ authModalOpen }),
 
   setWorkspaces: (workspaces) => set({ workspaces }),
   setActiveWorkspaceId: (activeWorkspaceId) =>

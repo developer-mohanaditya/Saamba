@@ -2068,3 +2068,227 @@ select:focus-visible,
   margin: 0;
   padding: 0;
 }
+
+/* --- Authentication Modal & User Avatar --- */
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  z-index: 1000;
+  border: 1px solid var(--line, #e7e5dc);
+  border-radius: 12px;
+  background: var(--bg-card, #ffffff);
+  box-shadow: 0 20px 48px -12px rgba(23, 37, 28, 0.25);
+  padding: 0;
+  width: 90%;
+  max-width: 440px;
+}
+
+.auth-modal-card {
+  padding: 32px 28px 24px;
+}
+
+.auth-header h2 {
+  font-family: var(--font-serif, "Georgia", serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink, #17251c);
+  margin: 6px 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.auth-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-muted, #67756c);
+  margin-bottom: 20px;
+}
+
+.auth-tabs {
+  display: flex;
+  background: var(--bg, #fbf9f5);
+  border: 1px solid var(--line, #e7e5dc);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 20px;
+  gap: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted, #67756c);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-tab.active {
+  background: var(--bg-card, #ffffff);
+  color: var(--ink, #17251c);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink, #17251c);
+}
+
+.auth-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line, #e7e5dc);
+  border-radius: 6px;
+  font-size: 14px;
+  background: #ffffff;
+  color: var(--ink, #17251c);
+  transition: border-color 0.15s ease;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--green, #1a382b);
+  box-shadow: 0 0 0 3px rgba(26, 56, 43, 0.1);
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.auth-alert {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 16px;
+}
+
+.auth-alert.error {
+  background: #fdf2f0;
+  border: 1px solid #f5c2b8;
+  color: #b9381e;
+}
+
+.auth-alert.success {
+  background: #eff8f3;
+  border: 1px solid #b7e3ca;
+  color: #17643b;
+}
+
+/* User Avatar & Menu */
+.user-menu-details {
+  position: relative;
+  display: inline-block;
+}
+
+.user-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 4px 12px 4px 6px;
+  border: 1px solid var(--line, #e7e5dc);
+  border-radius: 9999px;
+  background: var(--bg-card, #ffffff);
+  cursor: pointer;
+  list-style: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.user-avatar-btn::-webkit-details-marker {
+  display: none;
+}
+
+.user-avatar-btn:hover {
+  border-color: var(--green, #1a382b);
+  background: var(--bg, #fbf9f5);
+}
+
+.user-initials-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--green, #1a382b);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.user-email-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink, #17251c);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid var(--line, #e7e5dc);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(23, 37, 28, 0.12);
+  padding: 8px 0;
+  z-index: 100;
+}
+
+.user-menu-item {
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--ink, #17251c);
+  cursor: pointer;
+  display: block;
+  transition: background-color 0.1s ease;
+}
+
+.user-menu-item:hover {
+  background: var(--bg, #fbf9f5);
+  color: var(--green, #1a382b);
+}
+
+.user-menu-divider {
+  height: 1px;
+  background: var(--line, #e7e5dc);
+  margin: 6px 0;
+}
+
+.user-menu-email-header {
+  padding: 6px 16px 8px;
+  font-size: 11px;
+  color: var(--ink-muted, #67756c);
+  border-bottom: 1px solid var(--line, #e7e5dc);
+  margin-bottom: 4px;
+}

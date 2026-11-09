@@ -10,6 +10,7 @@ import { MeetingDetail } from '../components/MeetingDetail';
 import { MediaPane, MediaPaneHandle } from '../components/MediaPane';
 import { AskPanel } from '../components/AskPanel';
 import { Modals } from '../components/Modals';
+import { AuthModal } from '../components/AuthModal';
 import { getMeetings, getMeeting, getWorkspaces } from '../lib/api';
 import { startRecording, stopRecording, isRecording } from '../lib/capture';
 
@@ -295,6 +296,8 @@ export default function Home() {
         onCloseTranslateModal={() => setTranslateModalOpen(false)}
         onStartTranslation={handleStartTranslation}
       />
+
+      <AuthModal />
     </div>
   );
 }
