@@ -77,7 +77,7 @@
 .media-pane audio, .media-pane video { display:block; width:100%; margin:24px 0 0; }
 .media-pane .hint { margin:12px 0 0; }
 .tabs { gap:28px; }
-.tab { font-weight:650; }
+.tab { font-weight:650; white-space:nowrap; }
 .transcript-head { align-items:center; margin-bottom:12px; }
 .transcript-head h3 { margin:0; }
 .transcript-head input { margin:0; max-width:48%; background:#fafbf8; }
@@ -1879,7 +1879,13 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
 .tab.translation-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tab.translation-tab .tab-globe-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 .tab.translation-tab .tab-close {
   display: inline-flex;
