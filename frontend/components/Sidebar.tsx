@@ -33,29 +33,16 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
     user,
     setUser,
     setAuthModalOpen,
+    setSettingsModalOpen,
     askPanelOpen,
     toggleAskPanel,
   } = useAppStore();
 
   const [soundAlerts, setSoundAlerts] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSoundAlerts(isSoundAlertsEnabled());
   }, []);
-
-  // Close settings popover when clicking outside
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const handleOutside = (e: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
-        setSettingsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [settingsOpen]);
 
   const handleToggleSoundAlerts = () => {
     const next = !soundAlerts;
@@ -290,58 +277,7 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
       {/* Fixed Bottom Section: Utility Bar + User Account Card (Fixed) */}
       <div className="sidebar-footer">
         {/* Row of 4 utility icon buttons (Hidden on collapse) */}
-        <div className="sidebar-utility-bar" ref={settingsRef}>
-          {/* Settings Popover (Manage relocated inside settings) */}
-          {settingsOpen && (
-            <div className="sidebar-settings-popover" role="dialog" aria-label="Settings and Preferences">
-              <div className="settings-popover-header">
-                <span>Preferences & Cloud</span>
-                <button
-                  type="button"
-                  className="settings-popover-close"
-                  onClick={() => setSettingsOpen(false)}
-                  aria-label="Close settings"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="settings-popover-body">
-                <label className="settings-row" htmlFor="settings-sound-toggle">
-                  <div className="settings-row-text">
-                    <strong>Sound alerts</strong>
-                    <small>Audio chime on meeting detections</small>
-                  </div>
-                  <input
-                    type="checkbox"
-                    id="settings-sound-toggle"
-                    checked={soundAlerts}
-                    onChange={handleToggleSoundAlerts}
-                  />
-                </label>
-
-                <div className="settings-row-cloud">
-                  <div className="settings-row-text">
-                    <strong>Supabase Cloud</strong>
-                    <small>swapfqsivtuqbrczrmns · Online</small>
-                  </div>
-                  <span className="cloud-status-dot" title="Active & Connected" />
-                </div>
-
-                <button
-                  type="button"
-                  className="settings-action-btn"
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    onCreateWorkspace();
-                  }}
-                >
-                  + Create new workspace
-                </button>
-              </div>
-            </div>
-          )}
-
+        <div className="sidebar-utility-bar">
           {/* 1: Alerts / Bell */}
           <button
             type="button"
@@ -356,13 +292,13 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
             </svg>
           </button>
 
-          {/* 2: Settings / Options (Opens Manage / Preferences popover) */}
+          {/* 2: Settings / Options (Opens Centered Settings Modal) */}
           <button
             type="button"
-            className={`utility-icon-btn ${settingsOpen ? 'is-active' : ''}`}
-            title="Workspace Options & Preferences"
-            aria-label="Workspace Options & Preferences"
-            onClick={() => setSettingsOpen(!settingsOpen)}
+            className="utility-icon-btn"
+            title="Settings & Preferences"
+            aria-label="Settings & Preferences"
+            onClick={() => setSettingsModalOpen(true, 'general')}
           >
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -370,37 +306,30 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
             </svg>
           </button>
 
-          {/* 3: Search */}
+          {/* 3: Storage & Cloud Destination (Drive Symbol) */}
           <button
             type="button"
             className="utility-icon-btn"
-            title="Search Meetings"
-            aria-label="Search Meetings"
-            onClick={() => {
-              const searchInput = document.getElementById('search-input') as HTMLInputElement;
-              if (searchInput) {
-                searchInput.focus();
-              }
-            }}
+            title="Active Storage & Cloud Destination"
+            aria-label="Active Storage & Cloud Destination"
+            onClick={() => setSettingsModalOpen(true, 'storage')}
           >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+              <path d="M7.71 3.5 1.15 15l3.43 6 6.55-11.5L7.71 3.5zm3.43 0 6.56 11.5h6.86l-6.56-11.5h-6.86zm-5.71 12 3.43 6h13.72l-3.43-6H5.43z" />
             </svg>
           </button>
 
-          {/* 4: Cloud API / Key */}
+          {/* 4: Keyboard Shortcuts */}
           <button
             type="button"
             className="utility-icon-btn"
-            title="Supabase Cloud Credentials & Status"
-            aria-label="Supabase Cloud API"
-            onClick={() => setSettingsOpen(true)}
+            title="Keyboard Shortcuts"
+            aria-label="Keyboard Shortcuts"
+            onClick={() => setSettingsModalOpen(true, 'shortcuts')}
           >
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="7.5" cy="15.5" r="5.5" />
-              <path d="m21 2-9.6 9.6" />
-              <path d="m15.5 7.5 3 3L22 7l-3-3" />
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10" />
             </svg>
           </button>
         </div>

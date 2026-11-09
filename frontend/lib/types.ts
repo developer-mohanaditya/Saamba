@@ -59,8 +59,10 @@ export interface Meeting {
 
 export interface ChatMessage {
   id?: number;
+  meeting_id?: string;
   role: 'user' | 'assistant';
   content: string;
+  text?: string;
   scope?: string;
   created_at?: string;
 }

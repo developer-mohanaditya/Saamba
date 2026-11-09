@@ -290,7 +290,7 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   max-height: 100%;
   margin-bottom: 0;
   overflow: hidden !important;
-  align-self: end !important;
+  align-self: stretch !important;
   transform-origin: bottom center;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -474,13 +474,13 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 @media(min-width:1101px) {
   .detail { grid-template-rows:auto minmax(0,1fr); }
   .ask-panel {
-    align-self: end !important;
+    align-self: stretch !important;
     transform-origin: bottom center;
   }
 }
 @media (max-width:1100px) and (min-width:701px) {
   .ask-panel {
-    align-self: end !important;
+    align-self: stretch !important;
     transform-origin: bottom center;
   }
 }
@@ -2248,7 +2248,7 @@ select:focus-visible,
 
 /* Outer sidebar container: strictly fixed height, NEVER scrollable */
 .workspace-sidebar {
-  width: clamp(260px, 18.5vw, 300px);
+  width: clamp(250px, 19vw, 310px);
   height: 100vh !important;
   max-height: 100vh !important;
   position: sticky;
@@ -2267,7 +2267,7 @@ select:focus-visible,
 }
 
 .layout-sidebar > .workspace-sidebar {
-  width: clamp(260px, 18.5vw, 300px);
+  width: clamp(250px, 19vw, 310px);
   height: 100vh !important;
   max-height: 100vh !important;
   overflow: hidden !important;
@@ -3097,3 +3097,451 @@ html.init-sidebar-collapsed .sidebar-user-avatar {
 }
 
 
+
+
+/* ==========================================================================
+   Centered IDE-Style Settings Modal (Inspired by Modern Developer Tooling)
+   No background blur as requested.
+   ========================================================================== */
+
+dialog.settings-modal-dialog {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: min(860px, calc(100vw - 48px)) !important;
+  height: min(620px, calc(100vh - 64px)) !important;
+  background: #1e3327 !important;
+  border: 1px solid #3d5846 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+  color: #f2f7f2 !important;
+  overflow: hidden !important;
+  z-index: 1000 !important;
+}
+
+dialog.settings-modal-dialog::backdrop {
+  background: rgba(14, 25, 18, 0.72) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.settings-modal-frame {
+  display: flex !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Left Sidebar */
+.settings-sidebar {
+  width: 230px !important;
+  background: #172a1f !important;
+  border-right: 1px solid #2d4536 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-shrink: 0 !important;
+}
+
+.settings-sidebar-header {
+  padding: 24px 20px 14px !important;
+}
+
+.settings-brand-title {
+  font-family: var(--font-serif, "Newsreader", Georgia, serif) !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #f2f7f2 !important;
+  letter-spacing: -0.2px !important;
+}
+
+.settings-nav-items {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 0 12px !important;
+  flex: 1 !important;
+}
+
+.settings-nav-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 9px 12px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #b5c7ba !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all .15s ease !important;
+  text-align: left !important;
+}
+
+.settings-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #eef5ef !important;
+}
+
+.settings-nav-item.is-active {
+  background: #233b2c !important;
+  color: #dfa552 !important;
+  font-weight: 600 !important;
+  box-shadow: inset 3px 0 #dfa552 !important;
+}
+
+.settings-nav-item svg {
+  flex-shrink: 0 !important;
+}
+
+.settings-sidebar-footer {
+  padding: 14px !important;
+  border-top: 1px solid #243a2c !important;
+  background: #14251b !important;
+}
+
+.settings-user-preview {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.settings-user-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: #355944 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.settings-user-meta {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.settings-user-email {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #e2ece3 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.settings-user-plan {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #dfa552 !important;
+  letter-spacing: 0.5px !important;
+}
+
+.settings-signin-btn {
+  width: 100% !important;
+  padding: 8px 12px !important;
+  background: #2a4634 !important;
+  color: #e8efe9 !important;
+  border: 1px solid #3d5f48 !important;
+  border-radius: 6px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background .15s ease !important;
+}
+
+.settings-signin-btn:hover {
+  background: #345842 !important;
+}
+
+/* Right Main Content Panel */
+.settings-content-panel {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #1b2f23 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.settings-content-header {
+  padding: 24px 28px 18px !important;
+  border-bottom: 1px solid #2d4536 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  background: #1b2f23 !important;
+}
+
+.settings-content-title {
+  font-family: var(--font-serif, "Newsreader", Georgia, serif) !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  color: #f2f7f2 !important;
+  margin: 0 !important;
+  letter-spacing: -0.2px !important;
+}
+
+.settings-content-desc {
+  font-size: 13px !important;
+  color: #9bb0a0 !important;
+  margin: 4px 0 0 !important;
+  line-height: 1.4 !important;
+}
+
+.settings-close-btn {
+  width: 30px !important;
+  height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #8fa595 !important;
+  font-size: 18px !important;
+  cursor: pointer !important;
+  transition: all .15s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.settings-close-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+.settings-content-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 22px 28px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+.settings-section-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.settings-group-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+  color: #8aa390 !important;
+  margin-top: 6px !important;
+  margin-bottom: 2px !important;
+}
+
+.settings-card {
+  background: #233d2e !important;
+  border: 1px solid #33533e !important;
+  border-radius: 10px !important;
+  padding: 14px 16px !important;
+  transition: border-color .15s ease !important;
+}
+
+.settings-card:hover {
+  border-color: #446850 !important;
+}
+
+.settings-card-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+}
+
+.settings-card-info {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  font-size: 12.5px !important;
+  color: #a4b8aa !important;
+  line-height: 1.35 !important;
+  min-width: 0 !important;
+}
+
+.settings-card-info strong {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #f0f5f0 !important;
+}
+
+.settings-badge-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.settings-select {
+  background: #172a1f !important;
+  border: 1px solid #385844 !important;
+  color: #e8efe9 !important;
+  border-radius: 6px !important;
+  padding: 7px 12px !important;
+  font-size: 13px !important;
+  font-family: inherit !important;
+  cursor: pointer !important;
+  outline: none !important;
+  max-width: 270px !important;
+}
+
+.settings-select:focus {
+  border-color: #dfa552 !important;
+}
+
+.settings-switch {
+  position: relative !important;
+  display: inline-block !important;
+  width: 42px !important;
+  height: 24px !important;
+  flex-shrink: 0 !important;
+}
+
+.settings-switch input {
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.settings-slider {
+  position: absolute !important;
+  cursor: pointer !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: #2e4a38 !important;
+  transition: .2s ease !important;
+  border-radius: 24px !important;
+  border: 1px solid #43634e !important;
+}
+
+.settings-slider:before {
+  position: absolute !important;
+  content: "" !important;
+  height: 18px !important;
+  width: 18px !important;
+  left: 2px !important;
+  bottom: 2px !important;
+  background-color: #e2ece3 !important;
+  transition: .2s ease !important;
+  border-radius: 50% !important;
+}
+
+.settings-switch input:checked + .settings-slider {
+  background-color: #dfa552 !important;
+  border-color: #e5b064 !important;
+}
+
+.settings-switch input:checked + .settings-slider:before {
+  transform: translateX(18px) !important;
+  background-color: #172a1f !important;
+}
+
+.settings-btn-primary {
+  padding: 6px 14px !important;
+  background: #dfa552 !important;
+  color: #122218 !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background .15s ease !important;
+}
+
+.settings-btn-primary:hover {
+  background: #ecc07a !important;
+}
+
+.settings-btn-secondary {
+  padding: 6px 14px !important;
+  background: #2a4634 !important;
+  color: #e8efe9 !important;
+  border: 1px solid #3d5f48 !important;
+  border-radius: 6px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all .15s ease !important;
+}
+
+.settings-btn-secondary:hover {
+  background: #345842 !important;
+  border-color: #4b7358 !important;
+}
+
+.status-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 2px 7px !important;
+  border-radius: 10px !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+}
+
+.status-pill.status-online {
+  background: rgba(74, 222, 128, 0.15) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+}
+
+.status-pill.status-active {
+  background: rgba(223, 165, 82, 0.18) !important;
+  color: #dfa552 !important;
+  border: 1px solid rgba(223, 165, 82, 0.4) !important;
+}
+
+.status-pill.status-default {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #cddcd1 !important;
+}
+
+.settings-shortcuts-table {
+  display: flex !important;
+  flex-direction: column !important;
+  background: #233d2e !important;
+  border: 1px solid #33533e !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+
+.shortcut-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 16px !important;
+  border-bottom: 1px solid #2a4835 !important;
+  font-size: 13px !important;
+  color: #cfdfd3 !important;
+}
+
+.shortcut-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.shortcut-row kbd {
+  display: inline-block !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  font-family: inherit !important;
+  font-weight: 600 !important;
+  background: #172a1f !important;
+  border: 1px solid #3d5f48 !important;
+  border-radius: 4px !important;
+  color: #dfa552 !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25) !important;
+}

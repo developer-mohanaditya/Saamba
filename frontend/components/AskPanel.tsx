@@ -7,6 +7,58 @@ import { useAppStore } from '../lib/store';
 import { markdown } from '../lib/markdown';
 import { sendChatMessage } from '../lib/api';
 
+// Generate dynamic contextual suggestion pills based on the current meeting (exact match to HTML site)
+function getMeetingSuggestions(m: any): string[] {
+  if (!m || !m.summary) {
+    return [
+      'Draft a follow-up email',
+      'What action items were assigned?',
+      'What were the key takeaways from this meeting?'
+    ].sort((a, b) => a.length - b.length);
+  }
+  const suggestions: string[] = [];
+  const summary: string = m.summary;
+
+  const boldMatches = [...summary.matchAll(/\*\*(.+?)\:\*\*/g)].map(x => x[1].trim());
+  const sectionHeadings = [...summary.matchAll(/^\s*#{1,4}\s+(.+?)\s*$/gm)]
+    .map(x => x[1].replace(/^\d+[\.\)]\s*/, '').trim())
+    .filter(h => !/^(summary|action items?|next steps)\b/i.test(h));
+
+  if (boldMatches.length > 0) {
+    const topic = boldMatches[0].replace(/[:\-]/g, '').trim();
+    suggestions.push(`Tell me more about ${topic.toLowerCase()}`);
+  } else if (sectionHeadings.includes('Decisions') || /decisions?/i.test(summary)) {
+    suggestions.push('What key decisions were finalized?');
+  } else {
+    suggestions.push('What were the most important takeaways?');
+  }
+
+  if (m.action_items && m.action_items.length > 0) {
+    const uncompleted = m.action_items.filter((a: any) => !a.checked).length;
+    if (uncompleted > 0) {
+      suggestions.push(`What are the next steps for the ${uncompleted} open action items?`);
+    } else {
+      suggestions.push('Help me plan the follow-ups for this call.');
+    }
+  } else if (boldMatches.length > 1) {
+    const topic = boldMatches[1].replace(/[:\-]/g, '').trim();
+    suggestions.push(`What was discussed regarding ${topic.toLowerCase()}?`);
+  } else {
+    suggestions.push('Anything left unresolved or needing follow-up?');
+  }
+
+  if (boldMatches.length > 2) {
+    const topic = boldMatches[2].replace(/[:\-]/g, '').trim();
+    suggestions.push(`Summarize discussion on ${topic.toLowerCase()}`);
+  } else if (m.title && !m.title.toLowerCase().startsWith('untitled')) {
+    suggestions.push(`Draft a recap email for "${m.title}"`);
+  } else {
+    suggestions.push('Draft a follow-up email to attendees');
+  }
+
+  return suggestions.slice(0, 3).sort((a, b) => a.length - b.length);
+}
+
 export function AskPanel() {
   const {
     currentMeeting,
@@ -24,6 +76,7 @@ export function AskPanel() {
   const [activeScope, setActiveScope] = useState<'this' | 'mine'>('this');
   const scopeMenuRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Outside click listener for scope menu
   useEffect(() => {
@@ -37,14 +90,15 @@ export function AskPanel() {
     return () => document.removeEventListener('click', handleOutsideClick);
   }, [scopeOpen]);
 
+  // Scroll to bottom of chat messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
   if (!currentMeeting) return null;
 
-  // Generate contextual suggestion pills like v1
-  const suggestions = [
-    'What key decisions were finalized?',
-    'What are the next steps for open action items?',
-    'Draft a follow-up email to attendees',
-  ];
+  // Generate dynamic contextual suggestion pills like HTML site
+  const suggestions = getMeetingSuggestions(currentMeeting);
 
   const handleSend = async (questionText?: string) => {
     const q = (questionText || input).trim();
@@ -143,18 +197,22 @@ export function AskPanel() {
           )}
 
           <div className="chat-messages" aria-live="polite">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`chat-message ${msg.role}`}>
-                <div
-                  dangerouslySetInnerHTML={{ __html: markdown(msg.content) }}
-                />
-              </div>
-            ))}
+            {chatMessages.map((msg, i) => {
+              const textContent = msg.content || msg.text || '';
+              return (
+                <div key={i} className={`chat-message ${msg.role}`}>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: markdown(textContent) }}
+                  />
+                </div>
+              );
+            })}
             {isAsking && (
               <div className="chat-message assistant">
                 <span className="spinner" /> Thinking…
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </div>
 

@@ -11,7 +11,8 @@ import { MediaPane, MediaPaneHandle } from '../components/MediaPane';
 import { AskPanel } from '../components/AskPanel';
 import { Modals } from '../components/Modals';
 import { AuthModal } from '../components/AuthModal';
-import { getMeetings, getMeeting, getWorkspaces } from '../lib/api';
+import { SettingsModal } from '../components/SettingsModal';
+import { getMeetings, getMeeting, getWorkspaces, getChatMessages } from '../lib/api';
 import { startRecording, stopRecording, isRecording } from '../lib/capture';
 
 export default function Home() {
@@ -106,8 +107,7 @@ export default function Home() {
         if (!active) return;
         setCurrentMeeting(m);
         // Load chat history for this meeting
-        fetch(`/api/meetings/${encodeURIComponent(m.id)}/chat`)
-          .then((r) => r.json())
+        getChatMessages(m.id)
           .then((msgs) => {
             if (active && Array.isArray(msgs)) setChatMessages(msgs);
           })
@@ -306,6 +306,7 @@ export default function Home() {
       />
 
       <AuthModal />
+      <SettingsModal />
     </div>
   );
 }

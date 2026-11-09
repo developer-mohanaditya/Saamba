@@ -205,18 +205,53 @@ export async function deleteMeeting(id: string): Promise<{ ok: boolean }> {
 export async function getChatMessages(id: string): Promise<ChatMessage[]> {
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData.session?.user) {
-    const { data } = await supabase.from('chat_messages').select('*').eq('meeting_id', id).order('created_at', { ascending: true });
-    if (data) return data;
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('meeting_id', id)
+      .order('created_at', { ascending: true });
+    if (data && data.length > 0) {
+      return data.map((d: any) => ({
+        id: d.id,
+        role: d.role,
+        content: d.content || d.text || '',
+        text: d.content || d.text || '',
+        scope: d.scope || 'this',
+        created_at: d.created_at,
+      }));
+    }
   }
-  return fetchJson(`/api/meetings/${id}/chat`);
+  const rows = await fetchJson<any[]>(`/api/meetings/${id}/chat`).catch(() => []);
+  return (rows || []).map((r: any) => ({
+    id: r.id,
+    role: r.role,
+    content: r.content || r.text || '',
+    text: r.content || r.text || '',
+    scope: r.scope || 'this',
+    created_at: r.created_at,
+  }));
 }
 
 export async function sendChatMessage(mid: string, question: string, scope: 'this' | 'mine' = 'this'): Promise<{ answer: string }> {
-  return fetchJson('/api/ask', {
+  const res = await fetchJson<{ answer: string }>('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ meeting_id: mid, question, scope }),
   });
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user) {
+      await supabase.from('chat_messages').insert([
+        { meeting_id: mid, role: 'user', content: question, scope },
+        { meeting_id: mid, role: 'assistant', content: res.answer, scope }
+      ]);
+    }
+  } catch (e) {
+    console.warn('Failed to sync chat message to Supabase:', e);
+  }
+
+  return res;
 }
 
 export async function toggleActionItem(mid: string, key: string, checked: boolean): Promise<{ ok: boolean }> {

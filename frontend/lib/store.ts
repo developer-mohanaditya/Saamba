@@ -52,6 +52,11 @@ interface AppState {
   setUser: (user: any | null) => void;
   setAuthModalOpen: (open: boolean) => void;
 
+  // Settings modal state
+  settingsModalOpen: boolean;
+  settingsTab: 'general' | 'storage' | 'ai' | 'workspaces' | 'shortcuts';
+  setSettingsModalOpen: (open: boolean, tab?: 'general' | 'storage' | 'ai' | 'workspaces' | 'shortcuts') => void;
+
   // Actions
   setWorkspaces: (ws: Workspace[]) => void;
   setActiveWorkspaceId: (id: string) => void;
@@ -116,6 +121,14 @@ export const useAppStore = create<AppState>((set) => ({
   authModalOpen: false,
   setUser: (user) => set({ user }),
   setAuthModalOpen: (authModalOpen) => set({ authModalOpen }),
+
+  settingsModalOpen: false,
+  settingsTab: 'general',
+  setSettingsModalOpen: (open, tab) =>
+    set((state) => ({
+      settingsModalOpen: open,
+      settingsTab: tab || (open ? state.settingsTab : 'general'),
+    })),
 
   setWorkspaces: (workspaces) => set({ workspaces }),
   setActiveWorkspaceId: (activeWorkspaceId) =>
