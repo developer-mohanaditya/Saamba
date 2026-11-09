@@ -7,6 +7,21 @@ import { useAppStore } from '../lib/store';
 import { WORKSPACE_ICONS } from './Icons';
 import { createWorkspace, deleteMeeting, getMeetings, getWorkspaces, getMeeting } from '../lib/api';
 
+const TRANSLATION_LANGUAGES = [
+  { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
+  { code: 'en', name: 'English', flag: '🇺🇸' },
+  { code: 'fr', name: 'French', flag: '🇫🇷' },
+  { code: 'de', name: 'German', flag: '🇩🇪' },
+  { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
+  { code: 'it', name: 'Italian', flag: '🇮🇹' },
+  { code: 'ja', name: 'Japanese', flag: '🇯🇵' },
+  { code: 'ko', name: 'Korean', flag: '🇰🇷' },
+  { code: 'zh', name: 'Mandarin', flag: '🇨🇳' },
+  { code: 'pt', name: 'Portuguese', flag: '🇧🇷' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'te', name: 'Telugu', flag: '🇮🇳' },
+];
+
 interface ModalsProps {
   workspaceModalOpen: boolean;
   onCloseWorkspaceModal: () => void;
@@ -18,6 +33,9 @@ interface ModalsProps {
   speakerToEdit?: string;
   speakerIndex?: number | null;
   onCloseSpeakerModal?: () => void;
+  translateModalOpen?: boolean;
+  onCloseTranslateModal?: () => void;
+  onStartTranslation?: (code: string, name: string) => void;
 }
 
 export function Modals({
@@ -31,6 +49,9 @@ export function Modals({
   speakerToEdit = '',
   speakerIndex = null,
   onCloseSpeakerModal,
+  translateModalOpen = false,
+  onCloseTranslateModal,
+  onStartTranslation,
 }: ModalsProps) {
   const {
     currentMeeting,
@@ -55,6 +76,9 @@ export function Modals({
   const [newSpeakerName, setNewSpeakerName] = useState(speakerToEdit);
   const [speakerScope, setSpeakerScope] = useState<'rename' | 'reassign'>('rename');
   const [speakerError, setSpeakerError] = useState('');
+
+  const [selectedLangCode, setSelectedLangCode] = useState('en');
+  const [selectedLangName, setSelectedLangName] = useState('English');
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,11 +170,25 @@ export function Modals({
     }
   };
 
+  const handleTranslateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onStartTranslation) {
+      onStartTranslation(selectedLangCode, selectedLangName);
+    }
+    if (onCloseTranslateModal) onCloseTranslateModal();
+  };
+
   return (
     <>
       {/* Create Workspace Dialog */}
       {workspaceModalOpen && (
-        <dialog id="workspace-dialog" open>
+        <dialog
+          id="workspace-dialog"
+          open
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onCloseWorkspaceModal();
+          }}
+        >
           <form id="workspace-form" onSubmit={handleCreateWorkspace}>
             <div className="dialog-top">
               <div>
@@ -223,7 +261,13 @@ export function Modals({
 
       {/* Import Meeting Dialog */}
       {importModalOpen && (
-        <dialog id="import-dialog" open>
+        <dialog
+          id="import-dialog"
+          open
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onCloseImportModal();
+          }}
+        >
           <form id="upload-form" onSubmit={handleImportSubmit}>
             <div className="dialog-top">
               <div>
@@ -293,7 +337,13 @@ export function Modals({
 
       {/* Delete Confirmation Dialog */}
       {deleteModalOpen && currentMeeting && (
-        <dialog id="delete-dialog" open>
+        <dialog
+          id="delete-dialog"
+          open
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onCloseDeleteModal();
+          }}
+        >
           <form id="delete-form" onSubmit={handleDeleteMeeting}>
             <div className="dialog-top">
               <div>
@@ -303,6 +353,15 @@ export function Modals({
                   back. Do you want to confirm?
                 </p>
               </div>
+              <button
+                type="button"
+                className="close"
+                id="close-delete-dialog"
+                aria-label="Close"
+                onClick={onCloseDeleteModal}
+              >
+                ×
+              </button>
             </div>
 
             <div className="delete-dialog-actions">
@@ -324,7 +383,13 @@ export function Modals({
 
       {/* Speaker Assignment Dialog */}
       {speakerModalOpen && currentMeeting && (
-        <dialog id="speaker-dialog" open>
+        <dialog
+          id="speaker-dialog"
+          open
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onCloseSpeakerModal && onCloseSpeakerModal();
+          }}
+        >
           <form id="speaker-form" onSubmit={handleSpeakerSave}>
             <div className="dialog-top">
               <div>
@@ -399,6 +464,70 @@ export function Modals({
               </button>
               <button className="primary" type="submit" id="speaker-save">
                 Save changes
+              </button>
+            </div>
+          </form>
+        </dialog>
+      )}
+
+      {/* Translate Conversation Dialog */}
+      {translateModalOpen && (
+        <dialog
+          id="translate-dialog"
+          open
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onCloseTranslateModal && onCloseTranslateModal();
+          }}
+        >
+          <form id="translate-form" onSubmit={handleTranslateSubmit}>
+            <div className="dialog-top">
+              <div>
+                <h2>Translate conversation</h2>
+                <p>Translate the transcript and summary into another language.</p>
+              </div>
+              <button
+                type="button"
+                className="close"
+                id="close-translate-dialog"
+                aria-label="Close"
+                onClick={onCloseTranslateModal}
+              >
+                ×
+              </button>
+            </div>
+            <div className="translate-modal-body">
+              <label className="translate-field-label">Select target language</label>
+              <div className="translate-lang-chips" id="translate-lang-chips">
+                {TRANSLATION_LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    className={`lang-chip ${selectedLangCode === lang.code ? 'is-selected' : ''}`}
+                    data-code={lang.code}
+                    data-name={lang.name}
+                    onClick={() => {
+                      setSelectedLangCode(lang.code);
+                      setSelectedLangName(lang.name);
+                    }}
+                  >
+                    {lang.flag} {lang.name}
+                  </button>
+                ))}
+              </div>
+              <input type="hidden" id="translate-target-code" value={selectedLangCode} />
+              <input type="hidden" id="translate-target-name" value={selectedLangName} />
+            </div>
+            <div className="dialog-actions">
+              <button
+                type="button"
+                className="secondary"
+                id="translate-cancel"
+                onClick={onCloseTranslateModal}
+              >
+                Cancel
+              </button>
+              <button className="primary" type="submit" id="translate-submit">
+                Translate
               </button>
             </div>
           </form>

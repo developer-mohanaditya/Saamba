@@ -14,8 +14,23 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
   function MediaPane({ meetingId }, ref) {
     const { currentMeeting, mediaCollapsed, toggleMediaCollapsed } = useAppStore();
     const [downloadOpen, setDownloadOpen] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState('');
+    const downloadMenuRef = useRef<HTMLDivElement | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+
+    // Outside click dismissal for download menu
+    useEffect(() => {
+      if (!downloadOpen) return;
+      const handleOutsideClick = (e: MouseEvent) => {
+        if (downloadMenuRef.current && !downloadMenuRef.current.contains(e.target as Node)) {
+          setDownloadOpen(false);
+        }
+      };
+      document.addEventListener('click', handleOutsideClick);
+      return () => document.removeEventListener('click', handleOutsideClick);
+    }, [downloadOpen]);
 
     useImperativeHandle(ref, () => ({
       seekTo: (seconds: number) => {
@@ -31,14 +46,75 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
 
     const isVideo = currentMeeting.mime && currentMeeting.mime.startsWith('video/');
 
-    const handleDownload = (format: string) => {
+    const handleDownload = async (format: string) => {
+      if (isDownloading || !currentMeeting) return;
       setDownloadOpen(false);
-      window.open(
-        `/api/meetings/${encodeURIComponent(currentMeeting.id)}/download?format=${encodeURIComponent(
-          format
-        )}`,
-        '_blank'
-      );
+      setIsDownloading(true);
+      setDownloadProgress('Preparing…');
+
+      try {
+        const response = await fetch(
+          `/api/meetings/${encodeURIComponent(currentMeeting.id)}/download?format=${encodeURIComponent(format)}`
+        );
+        if (!response.ok) {
+          let message = 'Could not prepare the download.';
+          try {
+            message = (await response.json()).error || message;
+          } catch (_) {}
+          throw new Error(message);
+        }
+
+        const totalHeader = response.headers.get('content-length') || response.headers.get('x-total-bytes');
+        const total = parseInt(totalHeader || '0', 10);
+        let loaded = 0;
+        const reader = response.body?.getReader();
+        const chunks: Uint8Array[] = [];
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              chunks.push(value);
+              loaded += value.length;
+              const mbLoaded = (loaded / (1024 * 1024)).toFixed(1);
+              if (total > 0) {
+                const pct = Math.min(100, Math.round((loaded / total) * 100));
+                const mbTotal = (total / (1024 * 1024)).toFixed(1);
+                setDownloadProgress(`Downloading ${pct}% (${mbLoaded}/${mbTotal}MB)`);
+              } else {
+                setDownloadProgress(`Downloading ${mbLoaded}MB`);
+              }
+            }
+          }
+        }
+
+        const blob = new Blob(chunks as any, {
+          type: response.headers.get('content-type') || 'application/octet-stream',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        let filename =
+          (currentMeeting.title.replace(/[\\/\x00-\x1f\x7f]/g, ' ').trim().slice(0, 120) || 'Meeting') +
+          (format === 'audio-webm' ? '.webm' : '.' + format);
+        const disp = response.headers.get('content-disposition');
+        if (disp && disp.includes("filename*=UTF-8''")) {
+          try {
+            filename = decodeURIComponent(disp.split("filename*=UTF-8''")[1].split(';')[0]);
+          } catch (_) {}
+        }
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err: any) {
+        alert(err.message || 'Download failed');
+      } finally {
+        setIsDownloading(false);
+        setDownloadProgress('');
+      }
     };
 
     return (
@@ -49,28 +125,38 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
         <div className="media-heading">
           <h3>Return to the moment</h3>
           <div className="media-actions">
-            <div className="share-menu download-menu">
+            <div className="share-menu download-menu" ref={downloadMenuRef}>
               <button
                 type="button"
                 id="download-toggle"
                 className="download-toggle"
                 aria-expanded={downloadOpen}
+                disabled={isDownloading}
                 onClick={() => setDownloadOpen(!downloadOpen)}
               >
                 <span className="download-label">
-                  <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    width="14"
-                    height="14"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}
-                  >
-                    <path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3" />
-                  </svg>
-                  Download
+                  {isDownloading ? (
+                    <>
+                      <span className="spinner" aria-hidden="true" style={{ marginRight: '6px' }} />
+                      {downloadProgress}
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}
+                      >
+                        <path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3" />
+                      </svg>
+                      Download
+                    </>
+                  )}
                 </span>
                 <span
                   className="download-chevron"

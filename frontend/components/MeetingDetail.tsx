@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../lib/store';
 import { date, time, inline, esc, speakerDisplayName, summarySections } from '../lib/markdown';
 import { icon } from './Icons';
@@ -13,6 +13,9 @@ interface MeetingDetailProps {
   onDeleteMeeting: () => void;
   onSeekAudio?: (seconds: number) => void;
   onOpenSpeakerDialog?: (speaker: string, index?: number) => void;
+  onOpenTranslateModal?: () => void;
+  onSelectTranslation?: (code: string, name: string) => void;
+  onCloseTranslationTab?: () => void;
 }
 
 export function MeetingDetail({
@@ -20,6 +23,9 @@ export function MeetingDetail({
   onDeleteMeeting,
   onSeekAudio,
   onOpenSpeakerDialog,
+  onOpenTranslateModal,
+  onSelectTranslation,
+  onCloseTranslationTab,
 }: MeetingDetailProps) {
   const {
     currentMeeting,
@@ -30,14 +36,44 @@ export function MeetingDetail({
     setCurrentMeeting,
     setMeetings,
     meetings,
+    activeTranslation,
   } = useAppStore();
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const [shareOpen, setShareOpen] = useState(false);
   const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [deletePopoverOpen, setDeletePopoverOpen] = useState(false);
   const [transcriptMenuOpen, setTranscriptMenuOpen] = useState(false);
+  const [translateSubmenuOpen, setTranslateSubmenuOpen] = useState(false);
   const [localChecks, setLocalChecks] = useState<Record<string, boolean>>({});
+
+  const shareMenuRef = useRef<HTMLDivElement | null>(null);
+  const rewriteMenuRef = useRef<HTMLDivElement | null>(null);
+  const deleteMenuRef = useRef<HTMLDivElement | null>(null);
+  const transcriptMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Outside click dismissal for all detail dropdowns
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (shareOpen && shareMenuRef.current && !shareMenuRef.current.contains(target)) {
+        setShareOpen(false);
+      }
+      if (rewriteOpen && rewriteMenuRef.current && !rewriteMenuRef.current.contains(target)) {
+        setRewriteOpen(false);
+      }
+      if (deletePopoverOpen && deleteMenuRef.current && !deleteMenuRef.current.contains(target)) {
+        setDeletePopoverOpen(false);
+      }
+      if (transcriptMenuOpen && transcriptMenuRef.current && !transcriptMenuRef.current.contains(target)) {
+        setTranscriptMenuOpen(false);
+        setTranslateSubmenuOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [shareOpen, rewriteOpen, deletePopoverOpen, transcriptMenuOpen]);
 
   if (!currentMeeting) {
     return (
@@ -87,7 +123,11 @@ export function MeetingDetail({
     }
   };
 
-  const filteredSegments = (currentMeeting.transcript || []).filter((s) => {
+  const isTransTab = activeTab.startsWith('trans-');
+  const activeTransData = isTransTab ? activeTranslation?.data?.transcript || [] : [];
+  const segmentsToFilter = isTransTab ? activeTransData : currentMeeting.transcript || [];
+
+  const filteredSegments = segmentsToFilter.filter((s: any) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -102,7 +142,16 @@ export function MeetingDetail({
 
   const handleExport = (format: 'txt' | 'md' | 'pdf') => {
     setTranscriptMenuOpen(false);
-    const exportSegments = currentMeeting.transcript || [];
+    setTranslateSubmenuOpen(false);
+
+    let exportSegments = currentMeeting.transcript || [];
+    let langSuffix = '';
+
+    if (isTransTab && activeTranslation?.data?.transcript) {
+      exportSegments = activeTranslation.data.transcript;
+      langSuffix = ` (${activeTranslation.name})`;
+    }
+
     if (exportSegments.length === 0) {
       alert('No transcript available to export.');
       return;
@@ -115,7 +164,7 @@ export function MeetingDetail({
       const printWindow = window.open('', '_blank');
       if (!printWindow) return;
       const rowsHtml = exportSegments
-        .map((s) => {
+        .map((s: any) => {
           const timestamp = time(Number(s.start) || 0);
           const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
           return `<div class="transcript-row"><div class="row-meta"><span class="timestamp">[${esc(
@@ -128,18 +177,18 @@ export function MeetingDetail({
 
       printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(
         cleanTitle
-      )} - Transcript</title><style>@page{margin:20mm 15mm;size:A4}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1a1a1a;line-height:1.5;padding:24px;max-width:800px;margin:0 auto}h1{font-size:22px;margin-bottom:4px;color:#1a382b;font-family:Georgia,serif}.meta{font-size:13px;color:#666;margin-bottom:24px;border-bottom:1px solid #e5e5e5;padding-bottom:12px}.transcript-row{margin-bottom:16px;page-break-inside:avoid}.row-meta{font-size:13px;margin-bottom:4px;display:flex;gap:8px;align-items:baseline}.timestamp{font-family:ui-monospace,monospace;font-size:12px;color:#888;background:#f3f3f3;padding:2px 6px;border-radius:4px}.speaker{color:#1a382b;font-weight:600}.text{margin:0;font-size:14.5px;color:#222;white-space:pre-wrap;line-height:1.6}@media print{body{padding:0}}</style></head><body><h1>${esc(
+      )} - Transcript${langSuffix}</title><style>@page{margin:20mm 15mm;size:A4}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1a1a1a;line-height:1.5;padding:24px;max-width:800px;margin:0 auto}h1{font-size:22px;margin-bottom:4px;color:#1a382b;font-family:Georgia,serif}.meta{font-size:13px;color:#666;margin-bottom:24px;border-bottom:1px solid #e5e5e5;padding-bottom:12px}.transcript-row{margin-bottom:16px;page-break-inside:avoid}.row-meta{font-size:13px;margin-bottom:4px;display:flex;gap:8px;align-items:baseline}.timestamp{font-family:ui-monospace,monospace;font-size:12px;color:#888;background:#f3f3f3;padding:2px 6px;border-radius:4px}.speaker{color:#1a382b;font-weight:600}.text{margin:0;font-size:14.5px;color:#222;white-space:pre-wrap;line-height:1.6}@media print{body{padding:0}}</style></head><body><h1>${esc(
         cleanTitle
       )}</h1><div class="meta">Date: ${esc(date(currentMeeting.created_at))} · ${
         exportSegments.length
-      } segments</div><div class="transcript-body">${rowsHtml}</div><script>window.onload=function(){setTimeout(function(){window.print();},200);};<\/script></body></html>`);
+      } segments${langSuffix ? ' · ' + esc(langSuffix) : ''}</div><div class="transcript-body">${rowsHtml}</div><script>window.onload=function(){setTimeout(function(){window.print();},200);};<\/script></body></html>`);
       printWindow.document.close();
       return;
     }
 
     if (format === 'md') {
       const mdLines = [
-        `# ${currentMeeting.title || 'Meeting'}`,
+        `# ${currentMeeting.title || 'Meeting'}${langSuffix}`,
         `*Date: ${date(currentMeeting.created_at)}*`,
         `*Segments: ${exportSegments.length}*`,
         '',
@@ -157,7 +206,7 @@ export function MeetingDetail({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${cleanTitle} - Transcript.md`;
+      link.download = `${cleanTitle} - Transcript${langSuffix}.md`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -167,7 +216,7 @@ export function MeetingDetail({
 
     // Default TXT
     const textLines = [
-      `Meeting: ${currentMeeting.title || 'Meeting'}`,
+      `Meeting: ${currentMeeting.title || 'Meeting'}${langSuffix}`,
       `Date: ${date(currentMeeting.created_at)}`,
       `Segments: ${exportSegments.length}`,
       '------------------------------------------------------------',
@@ -184,12 +233,14 @@ export function MeetingDetail({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${cleanTitle} - Transcript.txt`;
+    link.download = `${cleanTitle} - Transcript${langSuffix}.txt`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
+
+  const hasTranslations = currentMeeting.translations && currentMeeting.translations.length > 0;
 
   return (
     <div className="notes-card">
@@ -217,13 +268,14 @@ export function MeetingDetail({
           </span>
 
           {/* Rewrite Menu */}
-          <div className="share-menu">
+          <div className="share-menu" ref={rewriteMenuRef}>
             <button
               className="subtle-button"
               type="button"
               onClick={() => {
                 setRewriteOpen(!rewriteOpen);
                 setShareOpen(false);
+                setDeletePopoverOpen(false);
               }}
               aria-expanded={rewriteOpen}
             >
@@ -255,13 +307,14 @@ export function MeetingDetail({
           </div>
 
           {/* Share Menu */}
-          <div className="share-menu">
+          <div className="share-menu" ref={shareMenuRef}>
             <button
               className="subtle-button"
               type="button"
               onClick={() => {
                 setShareOpen(!shareOpen);
                 setRewriteOpen(false);
+                setDeletePopoverOpen(false);
               }}
               aria-expanded={shareOpen}
             >
@@ -297,16 +350,37 @@ export function MeetingDetail({
             )}
           </div>
 
-          {/* Delete Button */}
-          <div className="delete-menu">
+          {/* Delete Button with Popover matching v1 */}
+          <div className="delete-menu" ref={deleteMenuRef}>
             <button
               className="subtle-button delete-button"
+              id="delete-toggle"
               type="button"
               aria-label="Delete meeting"
-              onClick={onDeleteMeeting}
+              aria-expanded={deletePopoverOpen}
+              onClick={() => {
+                setDeletePopoverOpen(!deletePopoverOpen);
+                setShareOpen(false);
+                setRewriteOpen(false);
+              }}
             >
               <span dangerouslySetInnerHTML={{ __html: icon('delete') }} />
             </button>
+            {deletePopoverOpen && (
+              <div className="delete-popover" id="delete-popover">
+                <p>Do you really want to delete?</p>
+                <button
+                  id="delete-next"
+                  type="button"
+                  onClick={() => {
+                    setDeletePopoverOpen(false);
+                    onDeleteMeeting();
+                  }}
+                >
+                  Continue
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Status chip */}
@@ -383,6 +457,7 @@ export function MeetingDetail({
               <div
                 className={`transcript-menu-wrap ${transcriptMenuOpen ? 'is-open' : ''}`}
                 id="transcript-menu-wrap"
+                ref={transcriptMenuRef}
               >
                 <button
                   type="button"
@@ -427,6 +502,103 @@ export function MeetingDetail({
                       </svg>
                       Edit speakers
                     </button>
+
+                    {/* Translation Menu Option matching v1 */}
+                    {hasTranslations ? (
+                      <div
+                        className={`transcript-submenu-wrap ${translateSubmenuOpen ? 'is-open' : ''}`}
+                        id="menu-translate-wrap"
+                        onMouseEnter={() => setTranslateSubmenuOpen(true)}
+                        onMouseLeave={() => setTranslateSubmenuOpen(false)}
+                      >
+                        <button
+                          type="button"
+                          id="menu-translate"
+                          className="menu-item-with-submenu"
+                          aria-haspopup="true"
+                          aria-expanded={translateSubmenuOpen}
+                          onClick={() => setTranslateSubmenuOpen(!translateSubmenuOpen)}
+                        >
+                          <span
+                            style={{ display: 'inline-flex', marginRight: '6px' }}
+                            dangerouslySetInnerHTML={{ __html: icon('translate') }}
+                          />
+                          <span>Translate</span>
+                          <svg
+                            className="submenu-arrow"
+                            viewBox="0 0 24 24"
+                            width="12"
+                            height="12"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <path d="m9 18 6-6-6-6" />
+                          </svg>
+                        </button>
+                        {translateSubmenuOpen && (
+                          <div className="transcript-side-dropdown" id="translate-side-dropdown">
+                            <button
+                              type="button"
+                              id="menu-translate-new"
+                              onClick={() => {
+                                setTranscriptMenuOpen(false);
+                                setTranslateSubmenuOpen(false);
+                                if (onOpenTranslateModal) onOpenTranslateModal();
+                              }}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width="13"
+                                height="13"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                style={{ marginRight: '6px' }}
+                              >
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                              </svg>
+                              <span>New translation…</span>
+                            </button>
+                            <div className="transcript-dropdown-divider" />
+                            {currentMeeting.translations!.map((t) => (
+                              <button
+                                key={t.language_code}
+                                type="button"
+                                className="menu-open-translation"
+                                data-code={t.language_code}
+                                data-name={t.language_name}
+                                onClick={() => {
+                                  setTranscriptMenuOpen(false);
+                                  setTranslateSubmenuOpen(false);
+                                  if (onSelectTranslation) onSelectTranslation(t.language_code, t.language_name);
+                                }}
+                              >
+                                {t.language_name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        id="menu-translate-new"
+                        onClick={() => {
+                          setTranscriptMenuOpen(false);
+                          if (onOpenTranslateModal) onOpenTranslateModal();
+                        }}
+                      >
+                        <span
+                          style={{ display: 'inline-flex', marginRight: '6px' }}
+                          dangerouslySetInnerHTML={{ __html: icon('translate') }}
+                        />
+                        <span>Translate…</span>
+                      </button>
+                    )}
+
                     <div className="transcript-dropdown-divider" />
                     <div className="transcript-dropdown-label">Export transcript</div>
                     <button
@@ -495,11 +667,42 @@ export function MeetingDetail({
               </div>
             </div>
 
-            {/* Exact Search Bar positioned right in the tabs */}
+            {/* Active Translation Tab if open */}
+            {activeTranslation && (
+              <button
+                type="button"
+                className={`tab translation-tab ${activeTab === `trans-${activeTranslation.code}` ? 'active' : ''}`}
+                data-tab={`trans-${activeTranslation.code}`}
+                onClick={() => setActiveTab(`trans-${activeTranslation.code}`)}
+                title={`Translated transcript into ${activeTranslation.name}`}
+              >
+                {activeTranslation.name}
+                {activeTranslation.status === 'loading' && (
+                  <span className="spinner" aria-hidden="true" style={{ marginLeft: '4px' }} />
+                )}{' '}
+                <span
+                  className="tab-close"
+                  data-close-tab="true"
+                  title="Close translation tab"
+                  role="button"
+                  aria-label="Close tab"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onCloseTranslationTab) onCloseTranslationTab();
+                  }}
+                >
+                  ×
+                </span>
+              </button>
+            )}
+
+            {/* Search Bar positioned right in the tabs */}
             <div
               id="search-wrap"
               className="search-wrap"
-              style={{ display: activeTab === 'transcript' ? 'flex' : 'none' }}
+              style={{
+                display: activeTab === 'transcript' || isTransTab ? 'flex' : 'none',
+              }}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="10.5" cy="10.5" r="6.5" />
@@ -519,11 +722,12 @@ export function MeetingDetail({
           <div className="notes-scroll" id="notes-scroll">
             {/* SUMMARY TAB */}
             {activeTab === 'summary' && (
-              <div
-                id="summary"
-                className="tab-content"
-                dangerouslySetInnerHTML={{ __html: summaryHtml }}
-              />
+              <div id="summary" className="tab-content">
+                <div
+                  className="summary-text"
+                  dangerouslySetInnerHTML={{ __html: summaryHtml }}
+                />
+              </div>
             )}
 
             {/* ACTION ITEMS TAB */}
@@ -587,14 +791,14 @@ export function MeetingDetail({
               </div>
             )}
 
-            {/* TRANSCRIPT TAB */}
+            {/* ORIGINAL TRANSCRIPT TAB */}
             {activeTab === 'transcript' && (
               <div id="transcript" className="tab-content">
                 <div id="segments">
                   {filteredSegments.length === 0 ? (
                     <p className="muted">No matching transcript segments found.</p>
                   ) : (
-                    filteredSegments.map((s, idx) => (
+                    filteredSegments.map((s: any, idx: number) => (
                       <button
                         key={idx}
                         type="button"
@@ -640,6 +844,53 @@ export function MeetingDetail({
                     ))
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* TRANSLATED TRANSCRIPT TAB */}
+            {isTransTab && activeTranslation && (
+              <div id={`trans-${activeTranslation.code}`} className="tab-content">
+                {activeTranslation.status === 'loading' && (
+                  <div className="activity" role="status">
+                    <span className="spinner" aria-hidden="true" />
+                    <div>
+                      <strong>Translating conversation into {activeTranslation.name}…</strong>
+                      <p>Generating translated transcript segments with audio synchronization.</p>
+                    </div>
+                  </div>
+                )}
+
+                {activeTranslation.status === 'error' && (
+                  <p className="notice is-error">{activeTranslation.error || 'Translation failed.'}</p>
+                )}
+
+                {activeTranslation.status === 'ready' && (
+                  <div id="segments" className="segments">
+                    {filteredSegments.length === 0 ? (
+                      <p className="muted">No matching translated transcript segments found.</p>
+                    ) : (
+                      filteredSegments.map((s: any, idx: number) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="segment"
+                          data-time={s.start}
+                          onClick={() => onSeekAudio && onSeekAudio(Number(s.start))}
+                        >
+                          <span className="segment-time">{time(s.start)}</span>
+                          <span className="segment-body">
+                            {s.speaker != null && (
+                              <span className="speaker-tag" data-speaker={s.speaker}>
+                                <strong>{speakerDisplayName(s.speaker)}</strong>
+                              </span>
+                            )}
+                            <span>{s.text}</span>
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

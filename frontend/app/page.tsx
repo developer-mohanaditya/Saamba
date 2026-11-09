@@ -25,6 +25,10 @@ export default function Home() {
     setWorkspaces,
     setWorkspaceMeetings,
     setChatMessages,
+    activeTranslation,
+    setActiveTranslation,
+    activeTab,
+    setActiveTab,
   } = useAppStore();
 
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
@@ -33,10 +37,12 @@ export default function Home() {
   const [speakerModalOpen, setSpeakerModalOpen] = useState(false);
   const [speakerToEdit, setSpeakerToEdit] = useState('');
   const [speakerIndex, setSpeakerIndex] = useState<number | null>(null);
+  const [translateModalOpen, setTranslateModalOpen] = useState(false);
 
   const mediaPaneRef = useRef<MediaPaneHandle>(null);
+  const initialSelectedRef = useRef(false);
 
-  // Initial load
+  // Initial load and periodic refresh of meeting list
   useEffect(() => {
     let mounted = true;
     async function loadData() {
@@ -52,7 +58,10 @@ export default function Home() {
         }
         if (Array.isArray(meetingList)) {
           setMeetings(meetingList);
-          if (meetingList.length > 0 && !selectedMeetingId) {
+          // Only select the first meeting once on startup if nothing is selected
+          const curSelected = useAppStore.getState().selectedMeetingId;
+          if (meetingList.length > 0 && !curSelected && !initialSelectedRef.current) {
+            initialSelectedRef.current = true;
             setSelectedMeetingId(meetingList[0].id);
           }
         }
@@ -77,6 +86,14 @@ export default function Home() {
     let active = true;
     setIsLoadingMeeting(true);
 
+    // Reset active translation when changing meeting
+    setActiveTranslation(null);
+    let preferredTab = 'summary';
+    try {
+      preferredTab = localStorage.getItem(`saamba-active-tab-${selectedMeetingId}`) || 'summary';
+    } catch (_) {}
+    setActiveTab(preferredTab);
+
     getMeeting(selectedMeetingId)
       .then((m) => {
         if (!active) return;
@@ -100,6 +117,82 @@ export default function Home() {
       active = false;
     };
   }, [selectedMeetingId]);
+
+  const handleStartTranslation = async (code: string, name: string) => {
+    if (!currentMeeting) return;
+    setActiveTranslation({
+      code,
+      name,
+      status: 'loading',
+      data: null,
+    });
+    setActiveTab(`trans-${code}`);
+
+    try {
+      const res = await fetch(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language_code: code, language_name: name }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Translation failed');
+      }
+      const data = await res.json();
+      setActiveTranslation({
+        code,
+        name,
+        status: 'ready',
+        data,
+      });
+      const updated = await getMeeting(currentMeeting.id);
+      setCurrentMeeting(updated);
+    } catch (err: any) {
+      setActiveTranslation({
+        code,
+        name,
+        status: 'error',
+        error: err.message || 'Translation failed',
+      });
+    }
+  };
+
+  const handleSelectTranslation = async (code: string, name: string) => {
+    if (!currentMeeting) return;
+    setActiveTranslation({
+      code,
+      name,
+      status: 'loading',
+      data: null,
+    });
+    setActiveTab(`trans-${code}`);
+
+    try {
+      const res = await fetch(
+        `/api/meetings/${encodeURIComponent(currentMeeting.id)}/translations/${encodeURIComponent(code)}`
+      );
+      if (!res.ok) throw new Error('Could not load translation');
+      const data = await res.json();
+      setActiveTranslation({
+        code,
+        name,
+        status: 'ready',
+        data,
+      });
+    } catch (err: any) {
+      setActiveTranslation({
+        code,
+        name,
+        status: 'error',
+        error: err.message || 'Could not load translation',
+      });
+    }
+  };
+
+  const handleCloseTranslationTab = () => {
+    setActiveTranslation(null);
+    setActiveTab('transcript');
+  };
 
   return (
     <div
@@ -130,6 +223,9 @@ export default function Home() {
                 setSpeakerIndex(idx ?? null);
                 setSpeakerModalOpen(true);
               }}
+              onOpenTranslateModal={() => setTranslateModalOpen(true)}
+              onSelectTranslation={handleSelectTranslation}
+              onCloseTranslationTab={handleCloseTranslationTab}
             />
             {currentMeeting && (
               <>
@@ -154,6 +250,9 @@ export default function Home() {
         speakerToEdit={speakerToEdit}
         speakerIndex={speakerIndex}
         onCloseSpeakerModal={() => setSpeakerModalOpen(false)}
+        translateModalOpen={translateModalOpen}
+        onCloseTranslateModal={() => setTranslateModalOpen(false)}
+        onStartTranslation={handleStartTranslation}
       />
     </div>
   );

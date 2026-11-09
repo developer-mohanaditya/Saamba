@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../lib/store';
 import { markdown } from '../lib/markdown';
 import { sendChatMessage } from '../lib/api';
@@ -22,6 +22,20 @@ export function AskPanel() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [activeScope, setActiveScope] = useState<'this' | 'mine'>('this');
+  const scopeMenuRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Outside click listener for scope menu
+  useEffect(() => {
+    if (!scopeOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (scopeMenuRef.current && !scopeMenuRef.current.contains(e.target as Node)) {
+        setScopeOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [scopeOpen]);
 
   if (!currentMeeting) return null;
 
@@ -36,6 +50,7 @@ export function AskPanel() {
     const q = (questionText || input).trim();
     if (!q || isAsking) return;
 
+    if (isCollapsed) setIsCollapsed(false);
     addChatMessage({ role: 'user', content: q });
     setInput('');
     setIsAsking(true);
@@ -61,6 +76,9 @@ export function AskPanel() {
     <section
       className={`ask-panel ${isCollapsed ? 'is-collapsed' : ''}`}
       id="ask-panel"
+      onClick={() => {
+        if (isCollapsed) setIsCollapsed(false);
+      }}
     >
       <div className="ask-head">
         <div className="ask-title">
@@ -82,7 +100,10 @@ export function AskPanel() {
           type="button"
           aria-label={isCollapsed ? 'Expand Ask Saamba' : 'Collapse Ask Saamba'}
           aria-expanded={!isCollapsed}
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsCollapsed(!isCollapsed);
+          }}
         >
           <svg className="chevron" viewBox="0 0 24 24" aria-hidden="true">
             <path d="m7 10 5 5 5-5" />
@@ -150,7 +171,11 @@ export function AskPanel() {
             className="ask-expand-brand"
             aria-label="Expand Ask Saamba"
             aria-expanded={!isCollapsed}
-            onClick={() => setIsCollapsed(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsCollapsed(false);
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
           >
             <svg
               className="ask-ai-icon"
@@ -166,6 +191,7 @@ export function AskPanel() {
             <span className="ask-expand-label">Ask Saamba</span>
           </button>
           <input
+            ref={inputRef}
             id="ask-input"
             type="text"
             maxLength={2000}
@@ -173,16 +199,28 @@ export function AskPanel() {
             aria-label="Ask Saamba"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onFocus={() => {
+              if (isCollapsed) setIsCollapsed(false);
+            }}
+            onClick={(e) => {
+              if (isCollapsed) {
+                e.stopPropagation();
+                setIsCollapsed(false);
+              }
+            }}
             required
           />
           <div className="ask-controls">
-            <div className="share-menu scope-menu">
+            <div className="share-menu scope-menu" ref={scopeMenuRef}>
               <button
                 type="button"
                 className="subtle-button"
                 id="ask-scope-toggle"
                 aria-expanded={scopeOpen}
-                onClick={() => setScopeOpen(!scopeOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setScopeOpen(!scopeOpen);
+                }}
               >
                 {activeScope === 'this' ? 'This call' : 'My meetings'}{' '}
                 <svg className="chevron" viewBox="0 0 24 24" aria-hidden="true">
@@ -193,7 +231,8 @@ export function AskPanel() {
                 <div className="share-options" id="ask-scope-options">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setActiveScope('this');
                       setScopeOpen(false);
                     }}
@@ -202,7 +241,8 @@ export function AskPanel() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setActiveScope('mine');
                       setScopeOpen(false);
                     }}
@@ -218,7 +258,6 @@ export function AskPanel() {
                 </div>
               )}
             </div>
-
             <button
               className="ask-send"
               type="submit"

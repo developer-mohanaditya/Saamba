@@ -921,6 +921,7 @@ html.init-sidebar-collapsed .icon-expand {
 }
 .transcript-tab-wrapper:hover .transcript-more-btn,
 .transcript-tab-wrapper:focus-within .transcript-more-btn,
+.transcript-tab-wrapper:has(.tab.active) .transcript-more-btn,
 .transcript-menu-wrap.is-open .transcript-more-btn,
 .transcript-menu-wrap:has(.transcript-dropdown:not([hidden])) .transcript-more-btn {
   opacity: 1;
@@ -1505,6 +1506,16 @@ html.init-sidebar-collapsed .icon-expand {
 }
 
 /* Nested list hierarchy in summaries */
+.summary-text {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+.summary-text p, .summary-text li {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+}
 .summary-text ul {
   padding-left: 1.35rem;
   margin: .55rem 0 .75rem;
@@ -1516,10 +1527,14 @@ html.init-sidebar-collapsed .icon-expand {
 }
 .summary-text li {
   margin-bottom: .45rem;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 .summary-text li > ul {
   margin-top: .35rem;
+}
+.summary-text strong {
+  font-weight: 600;
+  color: var(--deep);
 }
 
 /* Smooth micro-interactions & transitions */

@@ -18,6 +18,22 @@ interface AppState {
   activeTab: 'summary' | 'actions' | 'transcript' | string;
   searchQuery: string;
   
+  // Translation state
+  activeTranslation: {
+    code: string;
+    name: string;
+    status: 'loading' | 'ready' | 'error';
+    error?: string | null;
+    data?: any;
+  } | null;
+  setActiveTranslation: (trans: {
+    code: string;
+    name: string;
+    status: 'loading' | 'ready' | 'error';
+    error?: string | null;
+    data?: any;
+  } | null) => void;
+
   // Media pane state
   mediaCollapsed: boolean;
   currentTime: number;
@@ -77,6 +93,8 @@ export const useAppStore = create<AppState>((set) => ({
 
   activeTab: 'summary',
   searchQuery: '',
+  activeTranslation: null,
+  setActiveTranslation: (activeTranslation) => set({ activeTranslation }),
 
   mediaCollapsed: false,
   currentTime: 0,
