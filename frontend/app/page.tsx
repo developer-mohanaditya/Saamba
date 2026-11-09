@@ -30,6 +30,9 @@ export default function Home() {
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [speakerModalOpen, setSpeakerModalOpen] = useState(false);
+  const [speakerToEdit, setSpeakerToEdit] = useState('');
+  const [speakerIndex, setSpeakerIndex] = useState<number | null>(null);
 
   const mediaPaneRef = useRef<MediaPaneHandle>(null);
 
@@ -122,6 +125,11 @@ export default function Home() {
               onImport={() => setImportModalOpen(true)}
               onDeleteMeeting={() => setDeleteModalOpen(true)}
               onSeekAudio={(sec) => mediaPaneRef.current?.seekTo(sec)}
+              onOpenSpeakerDialog={(spk, idx) => {
+                setSpeakerToEdit(spk);
+                setSpeakerIndex(idx ?? null);
+                setSpeakerModalOpen(true);
+              }}
             />
             {currentMeeting && (
               <>
@@ -142,6 +150,10 @@ export default function Home() {
         onCloseImportModal={() => setImportModalOpen(false)}
         deleteModalOpen={deleteModalOpen}
         onCloseDeleteModal={() => setDeleteModalOpen(false)}
+        speakerModalOpen={speakerModalOpen}
+        speakerToEdit={speakerToEdit}
+        speakerIndex={speakerIndex}
+        onCloseSpeakerModal={() => setSpeakerModalOpen(false)}
       />
     </div>
   );

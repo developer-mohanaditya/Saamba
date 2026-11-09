@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "./globals.css";
 import "./saamba.css";
 
 export const metadata: Metadata = {

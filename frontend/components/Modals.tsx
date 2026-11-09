@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../lib/store';
 import { WORKSPACE_ICONS } from './Icons';
-import { createWorkspace, deleteMeeting, getMeetings, getWorkspaces } from '../lib/api';
+import { createWorkspace, deleteMeeting, getMeetings, getWorkspaces, getMeeting } from '../lib/api';
 
 interface ModalsProps {
   workspaceModalOpen: boolean;
@@ -14,6 +14,10 @@ interface ModalsProps {
   onCloseImportModal: () => void;
   deleteModalOpen: boolean;
   onCloseDeleteModal: () => void;
+  speakerModalOpen?: boolean;
+  speakerToEdit?: string;
+  speakerIndex?: number | null;
+  onCloseSpeakerModal?: () => void;
 }
 
 export function Modals({
@@ -23,9 +27,14 @@ export function Modals({
   onCloseImportModal,
   deleteModalOpen,
   onCloseDeleteModal,
+  speakerModalOpen = false,
+  speakerToEdit = '',
+  speakerIndex = null,
+  onCloseSpeakerModal,
 }: ModalsProps) {
   const {
     currentMeeting,
+    setCurrentMeeting,
     setWorkspaces,
     setActiveWorkspaceId,
     setMeetings,
@@ -42,6 +51,10 @@ export function Modals({
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState('');
+
+  const [newSpeakerName, setNewSpeakerName] = useState(speakerToEdit);
+  const [speakerScope, setSpeakerScope] = useState<'rename' | 'reassign'>('rename');
+  const [speakerError, setSpeakerError] = useState('');
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +122,27 @@ export function Modals({
       onCloseDeleteModal();
     } catch (err: any) {
       console.error('Delete failed:', err);
+    }
+  };
+
+  const handleSpeakerSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentMeeting || !newSpeakerName.trim()) return;
+    try {
+      await fetch(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/speakers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          old_name: speakerToEdit || currentMeeting.transcript?.[speakerIndex ?? 0]?.speaker,
+          new_name: newSpeakerName.trim(),
+          line_index: speakerScope === 'reassign' && speakerIndex != null ? speakerIndex : undefined,
+        }),
+      });
+      const updated = await getMeeting(currentMeeting.id);
+      setCurrentMeeting(updated);
+      if (onCloseSpeakerModal) onCloseSpeakerModal();
+    } catch (err: any) {
+      setSpeakerError(err.message || 'Failed to update speaker');
     }
   };
 
@@ -282,6 +316,89 @@ export function Modals({
               </button>
               <button className="delete-confirm" type="submit" id="delete-yes">
                 Yes, delete
+              </button>
+            </div>
+          </form>
+        </dialog>
+      )}
+
+      {/* Speaker Assignment Dialog */}
+      {speakerModalOpen && currentMeeting && (
+        <dialog id="speaker-dialog" open>
+          <form id="speaker-form" onSubmit={handleSpeakerSave}>
+            <div className="dialog-top">
+              <div>
+                <h2 id="speaker-dialog-title">Speaker assignment</h2>
+                <p id="speaker-dialog-subtitle">
+                  Rename speaker across all lines or reassign this line.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="close"
+                id="speaker-close"
+                aria-label="Close"
+                onClick={onCloseSpeakerModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="speaker-scope-options" id="speaker-scope-options">
+              <label id="speaker-scope-rename-wrap">
+                <input
+                  type="radio"
+                  name="speaker-scope"
+                  value="rename"
+                  checked={speakerScope === 'rename'}
+                  onChange={() => setSpeakerScope('rename')}
+                />{' '}
+                <span>Rename everywhere in this meeting</span>
+              </label>
+              <label id="speaker-scope-single-wrap">
+                <input
+                  type="radio"
+                  name="speaker-scope"
+                  value="reassign"
+                  checked={speakerScope === 'reassign'}
+                  onChange={() => setSpeakerScope('reassign')}
+                />{' '}
+                <span>Reassign only this dialogue line</span>
+              </label>
+            </div>
+
+            <div id="speaker-input-wrap">
+              <label htmlFor="speaker-name-input" id="speaker-name-label">
+                New name
+              </label>
+              <input
+                id="speaker-name-input"
+                maxLength={100}
+                required
+                placeholder="e.g. Mohan"
+                value={newSpeakerName}
+                onChange={(e) => setNewSpeakerName(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {speakerError && (
+              <div id="speaker-error" className="error" role="alert">
+                {speakerError}
+              </div>
+            )}
+
+            <div className="delete-dialog-actions">
+              <button
+                type="button"
+                className="secondary"
+                id="speaker-cancel"
+                onClick={onCloseSpeakerModal}
+              >
+                Cancel
+              </button>
+              <button className="primary" type="submit" id="speaker-save">
+                Save changes
               </button>
             </div>
           </form>
