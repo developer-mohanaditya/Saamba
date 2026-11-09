@@ -1901,7 +1901,7 @@ select:focus-visible,
   flex-shrink: 0;
   opacity: 0.85;
 }
-.tab.translation-tab .tab-close {
+.tab .tab-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1913,15 +1913,40 @@ select:focus-visible,
   color: var(--muted);
   cursor: pointer;
   transition: background-color .15s ease, color .15s ease;
-  margin-left: 4px;
+  margin-left: 5px;
+  vertical-align: middle;
 }
-.tab.translation-tab .tab-close:hover {
+.tab .tab-close:hover {
   background: rgba(0,0,0,0.09);
   color: var(--ink);
 }
-.tab.translation-tab.active .tab-close:hover {
+.tab.active .tab-close:hover {
   background: rgba(35,66,53,0.15);
   color: var(--green);
+}
+
+.tab-pill-open {
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  align-self: center;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all .15s ease;
+}
+.tab-pill-open:hover {
+  background: var(--soft);
+  color: var(--green);
+  border-color: var(--green);
+  border-style: solid;
 }
 
 /* Real-time Streaming SSE Box */
