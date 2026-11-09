@@ -157,11 +157,12 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
         <div className="workspace-list" id="workspace-list" role="navigation" aria-label="Workspaces">
           {workspaces.map((ws) => {
             const isActive = ws.id === activeWorkspaceId;
-            const count = ws.id === 'default'
+            const isDefault = ws.id === 'default' || ws.isDefault;
+            const count = isDefault
               ? meetings.length
               : (workspaceMeetings[ws.id] || []).length;
             const wsIcon = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
-            const visibleMeetings = ws.id === 'default'
+            const visibleMeetings = isDefault
               ? meetings
               : meetings.filter((m) => (workspaceMeetings[ws.id] || []).includes(m.id));
 

@@ -37,9 +37,9 @@ export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
 
   const eyebrowText =
-    currentWs.id === 'default'
+    currentWs && (currentWs.id === 'default' || currentWs.isDefault)
       ? 'Your workspace'
-      : `Workspace · ${currentWs.name}`;
+      : `Workspace · ${currentWs?.name || ''}`;
 
   return (
     <header>
