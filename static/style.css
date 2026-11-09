@@ -1013,18 +1013,27 @@ html.init-sidebar-collapsed .icon-expand {
 }
 .transcript-side-dropdown {
   position: absolute;
-  top: -6px;
+  top: 0;
   left: calc(100% + 4px);
   z-index: 35;
-  min-width: 215px;
+  min-width: 155px;
+  max-width: 180px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-  padding: 6px;
+  padding: 4px;
   display: none;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+}
+.transcript-side-dropdown button {
+  padding: 6px 10px;
+  font-size: .8rem;
+}
+.transcript-side-dropdown .transcript-dropdown-label {
+  font-size: .68rem;
+  padding: 4px 10px 2px;
 }
 .transcript-side-dropdown::before {
   content: "";
