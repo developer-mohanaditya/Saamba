@@ -2,10 +2,62 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../lib/store';
 import { WORKSPACE_ICONS } from './Icons';
 import { createWorkspace, deleteMeeting, getMeetings, getWorkspaces, getMeeting } from '../lib/api';
+
+interface ModalDialogProps {
+  id?: string;
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+function ModalDialog({ id, open, onClose, children }: ModalDialogProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open) {
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleCancel = (e: Event) => {
+      e.preventDefault();
+      onClose();
+    };
+    dialog.addEventListener('cancel', handleCancel);
+    return () => dialog.removeEventListener('cancel', handleCancel);
+  }, [onClose]);
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={dialogRef}
+      id={id}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      {children}
+    </dialog>
+  );
+}
 
 const TRANSLATION_LANGUAGES = [
   { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
@@ -185,205 +237,195 @@ export function Modals({
   return (
     <>
       {/* Create Workspace Dialog */}
-      {workspaceModalOpen && (
-        <dialog
-          id="workspace-dialog"
-          open
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onCloseWorkspaceModal();
-          }}
-        >
-          <form id="workspace-form" onSubmit={handleCreateWorkspace}>
-            <div className="dialog-top">
-              <div>
-                <h2>Create workspace</h2>
-                <p>Organize conversations in a dedicated space.</p>
-              </div>
-              <button
-                type="button"
-                className="close"
-                id="close-workspace-dialog"
-                aria-label="Close"
-                onClick={onCloseWorkspaceModal}
-              >
-                ×
-              </button>
+      <ModalDialog
+        id="workspace-dialog"
+        open={workspaceModalOpen}
+        onClose={onCloseWorkspaceModal}
+      >
+        <form id="workspace-form" onSubmit={handleCreateWorkspace}>
+          <div className="dialog-top">
+            <div>
+              <h2>Create workspace</h2>
+              <p>Organize conversations in a dedicated space.</p>
             </div>
+            <button
+              type="button"
+              className="close"
+              id="close-workspace-dialog"
+              aria-label="Close"
+              onClick={onCloseWorkspaceModal}
+            >
+              ×
+            </button>
+          </div>
 
-            <label htmlFor="workspace-name-input">
-              Workspace name
-              <input
-                id="workspace-name-input"
-                maxLength={40}
-                placeholder="e.g. Design Team, Executive Syncs"
-                value={wsName}
-                onChange={(e) => setWsName(e.target.value)}
-                required
-                autoFocus
-              />
-            </label>
+          <label htmlFor="workspace-name-input">
+            Workspace name
+            <input
+              id="workspace-name-input"
+              maxLength={40}
+              placeholder="e.g. Design Team, Executive Syncs"
+              value={wsName}
+              onChange={(e) => setWsName(e.target.value)}
+              required
+              autoFocus
+            />
+          </label>
 
-            <div className="icon-picker-section">
-              <span className="icon-picker-heading">Choose an icon</span>
-              <div className="icon-picker-grid" id="icon-picker-grid">
-                {Object.entries(WORKSPACE_ICONS).map(([key, svg]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`icon-picker-tile ${wsIcon === key ? 'is-selected' : ''}`}
-                    aria-label={key}
-                    title={key}
-                    onClick={() => setWsIcon(key)}
-                    dangerouslySetInnerHTML={{ __html: svg }}
-                  />
-                ))}
-              </div>
+          <div className="icon-picker-section">
+            <span className="icon-picker-heading">Choose an icon</span>
+            <div className="icon-picker-grid" id="icon-picker-grid">
+              {Object.entries(WORKSPACE_ICONS).map(([key, svg]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`icon-picker-tile ${wsIcon === key ? 'is-selected' : ''}`}
+                  aria-label={key}
+                  title={key}
+                  onClick={() => setWsIcon(key)}
+                  dangerouslySetInnerHTML={{ __html: svg }}
+                />
+              ))}
             </div>
+          </div>
 
-            {wsError && (
-              <div id="workspace-error" className="error" role="alert">
-                {wsError}
-              </div>
-            )}
-
-            <div className="dialog-actions">
-              <button
-                type="button"
-                className="secondary"
-                id="workspace-cancel"
-                onClick={onCloseWorkspaceModal}
-              >
-                Cancel
-              </button>
-              <button className="primary" type="submit" id="workspace-submit">
-                Create workspace
-              </button>
+          {wsError && (
+            <div id="workspace-error" className="error" role="alert">
+              {wsError}
             </div>
-          </form>
-        </dialog>
-      )}
+          )}
+
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              id="workspace-cancel"
+              onClick={onCloseWorkspaceModal}
+            >
+              Cancel
+            </button>
+            <button className="primary" type="submit" id="workspace-submit">
+              Create workspace
+            </button>
+          </div>
+        </form>
+      </ModalDialog>
 
       {/* Import Meeting Dialog */}
-      {importModalOpen && (
-        <dialog
-          id="import-dialog"
-          open
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onCloseImportModal();
-          }}
-        >
-          <form id="upload-form" onSubmit={handleImportSubmit}>
-            <div className="dialog-top">
-              <div>
-                <h2>Import a meeting</h2>
-                <p>Keep the recording and its notes together.</p>
-              </div>
+      <ModalDialog
+        id="import-dialog"
+        open={importModalOpen}
+        onClose={onCloseImportModal}
+      >
+        <form id="upload-form" onSubmit={handleImportSubmit}>
+          <div className="dialog-top">
+            <div>
+              <h2>Import a meeting</h2>
+              <p>Keep the recording and its notes together.</p>
+            </div>
+            <button
+              type="button"
+              className="close"
+              id="close-dialog"
+              aria-label="Close"
+              onClick={onCloseImportModal}
+            >
+              ×
+            </button>
+          </div>
+
+          <label>
+            Meeting title
+            <input
+              name="title"
+              id="title"
+              placeholder="e.g. Weekly project catch-up"
+              required
+              maxLength={200}
+              value={importTitle}
+              onChange={(e) => {
+                setImportTitle(e.target.value);
+                setTitleManuallyEdited(true);
+              }}
+              autoFocus
+            />
+          </label>
+
+          <label htmlFor="audio">
+            Audio or video file
+            <input
+              name="audio"
+              id="audio"
+              type="file"
+              accept="audio/*,video/mp4,video/webm,video/quicktime"
+              required
+              onChange={(e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file) {
+                  setImportFile(file);
+                  if (!titleManuallyEdited || !importTitle.trim()) {
+                    const rawBase = file.name.replace(/\.[^.]+$/, '').trim();
+                    const cleaned = rawBase.replace(/[_-]+/g, ' ').trim();
+                    const isGeneric = /^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
+                    let newTitle = '';
+                    if (isGeneric || !cleaned) {
+                      const today = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                      newTitle = 'Meeting · ' + today;
+                    } else {
+                      newTitle = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+                    }
+                    setImportTitle(newTitle);
+                  }
+                }
+              }}
+            />
+          </label>
+
+          {importFile && (
+            <div className="file-clear-row" id="file-clear-row">
+              <span className="file-chosen-text" id="file-chosen-name">{importFile.name}</span>
               <button
                 type="button"
-                className="close"
-                id="close-dialog"
-                aria-label="Close"
-                onClick={onCloseImportModal}
+                className="file-remove-btn"
+                id="file-remove-btn"
+                aria-label="Remove uploaded file"
+                title="Remove file"
+                onClick={() => {
+                  setImportFile(null);
+                  setImportTitle('');
+                  setTitleManuallyEdited(false);
+                }}
               >
                 ×
               </button>
             </div>
+          )}
 
-            <label>
-              Meeting title
-              <input
-                name="title"
-                id="title"
-                placeholder="e.g. Weekly project catch-up"
-                required
-                maxLength={200}
-                value={importTitle}
-                onChange={(e) => {
-                  setImportTitle(e.target.value);
-                  setTitleManuallyEdited(true);
-                }}
-                autoFocus
-              />
-            </label>
+          <p className="hint">Up to 2 GB.</p>
 
-            <label htmlFor="audio">
-              Audio or video file
-              <input
-                name="audio"
-                id="audio"
-                type="file"
-                accept="audio/*,video/mp4,video/webm,video/quicktime"
-                required
-                onChange={(e) => {
-                  const file = e.target.files && e.target.files[0];
-                  if (file) {
-                    setImportFile(file);
-                    if (!titleManuallyEdited || !importTitle.trim()) {
-                      const rawBase = file.name.replace(/\.[^.]+$/, '').trim();
-                      const cleaned = rawBase.replace(/[_-]+/g, ' ').trim();
-                      const isGeneric = /^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
-                      let newTitle = '';
-                      if (isGeneric || !cleaned) {
-                        const today = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-                        newTitle = 'Meeting · ' + today;
-                      } else {
-                        newTitle = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-                      }
-                      setImportTitle(newTitle);
-                    }
-                  }
-                }}
-              />
-            </label>
+          {importError && (
+            <div id="upload-error" className="error" role="alert">
+              {importError}
+            </div>
+          )}
 
-            {importFile && (
-              <div className="file-clear-row" id="file-clear-row">
-                <span className="file-chosen-text" id="file-chosen-name">{importFile.name}</span>
-                <button
-                  type="button"
-                  className="file-remove-btn"
-                  id="file-remove-btn"
-                  aria-label="Remove uploaded file"
-                  title="Remove file"
-                  onClick={() => {
-                    setImportFile(null);
-                    setImportTitle('');
-                    setTitleManuallyEdited(false);
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            <p className="hint">Up to 2 GB.</p>
-
-            {importError && (
-              <div id="upload-error" className="error" role="alert">
-                {importError}
-              </div>
-            )}
-
-            <button
-              className="primary"
-              type="submit"
-              id="submit"
-              disabled={isImporting}
-            >
-              {isImporting ? 'Importing…' : 'Import meeting'}
-            </button>
-          </form>
-        </dialog>
-      )}
+          <button
+            className="primary"
+            type="submit"
+            id="submit"
+            disabled={isImporting}
+          >
+            {isImporting ? 'Importing…' : 'Import meeting'}
+          </button>
+        </form>
+      </ModalDialog>
 
       {/* Delete Confirmation Dialog */}
-      {deleteModalOpen && currentMeeting && (
-        <dialog
+      {currentMeeting && (
+        <ModalDialog
           id="delete-dialog"
-          open
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onCloseDeleteModal();
-          }}
+          open={deleteModalOpen}
+          onClose={onCloseDeleteModal}
         >
           <form id="delete-form" onSubmit={handleDeleteMeeting}>
             <div className="dialog-top">
@@ -419,17 +461,15 @@ export function Modals({
               </button>
             </div>
           </form>
-        </dialog>
+        </ModalDialog>
       )}
 
       {/* Speaker Assignment Dialog */}
-      {speakerModalOpen && currentMeeting && (
-        <dialog
+      {currentMeeting && (
+        <ModalDialog
           id="speaker-dialog"
-          open
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onCloseSpeakerModal && onCloseSpeakerModal();
-          }}
+          open={speakerModalOpen}
+          onClose={() => onCloseSpeakerModal && onCloseSpeakerModal()}
         >
           <form id="speaker-form" onSubmit={handleSpeakerSave}>
             <div className="dialog-top">
@@ -508,72 +548,68 @@ export function Modals({
               </button>
             </div>
           </form>
-        </dialog>
+        </ModalDialog>
       )}
 
       {/* Translate Conversation Dialog */}
-      {translateModalOpen && (
-        <dialog
-          id="translate-dialog"
-          open
-          onClick={(e) => {
-            if (e.target === e.currentTarget) onCloseTranslateModal && onCloseTranslateModal();
-          }}
-        >
-          <form id="translate-form" onSubmit={handleTranslateSubmit}>
-            <div className="dialog-top">
-              <div>
-                <h2>Translate conversation</h2>
-                <p>Translate the transcript and summary into another language.</p>
-              </div>
-              <button
-                type="button"
-                className="close"
-                id="close-translate-dialog"
-                aria-label="Close"
-                onClick={onCloseTranslateModal}
-              >
-                ×
-              </button>
+      <ModalDialog
+        id="translate-dialog"
+        open={translateModalOpen}
+        onClose={() => onCloseTranslateModal && onCloseTranslateModal()}
+      >
+        <form id="translate-form" onSubmit={handleTranslateSubmit}>
+          <div className="dialog-top">
+            <div>
+              <h2>Translate conversation</h2>
+              <p>Translate the transcript and summary into another language.</p>
             </div>
-            <div className="translate-modal-body">
-              <label className="translate-field-label">Select target language</label>
-              <div className="translate-lang-chips" id="translate-lang-chips">
-                {TRANSLATION_LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    className={`lang-chip ${selectedLangCode === lang.code ? 'is-selected' : ''}`}
-                    data-code={lang.code}
-                    data-name={lang.name}
-                    onClick={() => {
-                      setSelectedLangCode(lang.code);
-                      setSelectedLangName(lang.name);
-                    }}
-                  >
-                    {lang.flag} {lang.name}
-                  </button>
-                ))}
-              </div>
-              <input type="hidden" id="translate-target-code" value={selectedLangCode} />
-              <input type="hidden" id="translate-target-name" value={selectedLangName} />
+            <button
+              type="button"
+              className="close"
+              id="close-translate-dialog"
+              aria-label="Close"
+              onClick={onCloseTranslateModal}
+            >
+              ×
+            </button>
+          </div>
+          <div className="translate-modal-body">
+            <label className="translate-field-label">Select target language</label>
+            <div className="translate-lang-chips" id="translate-lang-chips">
+              {TRANSLATION_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  className={`lang-chip ${selectedLangCode === lang.code ? 'is-selected' : ''}`}
+                  data-code={lang.code}
+                  data-name={lang.name}
+                  onClick={() => {
+                    setSelectedLangCode(lang.code);
+                    setSelectedLangName(lang.name);
+                  }}
+                >
+                  {lang.flag} {lang.name}
+                </button>
+              ))}
             </div>
-            <div className="dialog-actions">
-              <button
-                type="button"
-                className="secondary"
-                id="translate-cancel"
-                onClick={onCloseTranslateModal}
-              >
-                Cancel
-              </button>
-              <button className="primary" type="submit" id="translate-submit">
-                Translate
-              </button>
-            </div>
-          </form>
-        </dialog>
-      )}
+            <input type="hidden" id="translate-target-code" value={selectedLangCode} />
+            <input type="hidden" id="translate-target-name" value={selectedLangName} />
+          </div>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="secondary"
+              id="translate-cancel"
+              onClick={onCloseTranslateModal}
+            >
+              Cancel
+            </button>
+            <button className="primary" type="submit" id="translate-submit">
+              Translate
+            </button>
+          </div>
+        </form>
+      </ModalDialog>
     </>
   );
 }
