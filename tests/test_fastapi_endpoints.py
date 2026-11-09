@@ -329,6 +329,22 @@ class FastAPIExtensiveEndpointTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(res.status_code, 200)
 
+        # Valid Next.js frontend origin on port 3001
+        res_next = await self.client.post(
+            f'/api/meetings/{self.mid}/rename',
+            json={'title': 'Next Frontend Origin'},
+            headers={'Origin': 'http://localhost:3001', 'Host': '127.0.0.1:24917'}
+        )
+        self.assertEqual(res_next.status_code, 200)
+
+        # Valid production domain origin
+        res_prod = await self.client.post(
+            f'/api/meetings/{self.mid}/rename',
+            json={'title': 'Prod Origin'},
+            headers={'Origin': 'https://saamba.profeshare.ai', 'Host': '127.0.0.1:24917'}
+        )
+        self.assertEqual(res_prod.status_code, 200)
+
         # Evil cross-site origin
         res_evil = await self.client.post(
             f'/api/meetings/{self.mid}/rename',

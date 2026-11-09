@@ -40,6 +40,17 @@ if os.name == 'posix':
 DB = DATA / 'meetings.sqlite3'
 MAX_BYTES = 2 * 1024 * 1024 * 1024
 
+ALLOWED_ORIGIN_REGEX = re.compile(
+    r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|https?://([a-zA-Z0-9-]+\.)*profeshare\.ai(:\d+)?|chrome-extension://.*)$"
+)
+
+def is_valid_origin(origin: Optional[str], host: Optional[str] = None) -> bool:
+    if not origin:
+        return True
+    if host and origin in (f"http://{host}", f"https://{host}"):
+        return True
+    return bool(ALLOWED_ORIGIN_REGEX.match(origin))
+
 class ClosingConnection(sqlite3.Connection):
     def __exit__(self, exc_type, exc, tb):
         try:
@@ -834,7 +845,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path=urlparse(self.path).path
         origin = self.headers.get('Origin')
-        if origin and origin != 'http://' + self.headers.get('Host', ''):
+        if origin and not is_valid_origin(origin, self.headers.get('Host')):
             return self.send_json({'error':'Invalid request origin'},403)
         if path=='/api/live/start':
             return self.send_json({'id':live_capture.create(sys.modules[__name__], unquote(self.headers.get('X-Meeting-Title','')))},201)
@@ -1117,20 +1128,13 @@ async def verify_origin_middleware(request: Request, call_next):
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         origin = request.headers.get("origin")
         host = request.headers.get("host")
-        if origin and host:
-            allowed = {
-                f"http://{host}",
-                f"https://{host}",
-                "http://127.0.0.1:24917",
-                "http://localhost:24917",
-            }
-            if origin not in allowed and not origin.startswith("chrome-extension://"):
-                return JSONResponse({"error": "Invalid request origin"}, status_code=403)
+        if origin and not is_valid_origin(origin, host):
+            return JSONResponse({"error": "Invalid request origin"}, status_code=403)
     return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^(http://(127\.0\.0\.1|localhost)(:\d+)?|chrome-extension://.*)$",
+    allow_origin_regex=r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|https?://([a-zA-Z0-9-]+\.)*profeshare\.ai(:\d+)?|chrome-extension://.*)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
