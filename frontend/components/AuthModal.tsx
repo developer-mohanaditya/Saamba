@@ -61,7 +61,7 @@ export function AuthModal() {
           setUser(data.user);
           setAuthModalOpen(false);
         } else if (data.user) {
-          setMessage('Account created! Please check your email to confirm, or sign in.');
+          setMessage(`Verification email sent! Please check your inbox at ${email.trim()} and click the confirmation link to activate your account.`);
         }
       }
     } catch (err: any) {
