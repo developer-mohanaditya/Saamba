@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../lib/store';
 import { isSoundAlertsEnabled, setSoundAlertsEnabled, unlockAlertAudio, playAlert } from '../lib/sound';
+import { CustomSelect } from './CustomSelect';
 
 export function SettingsModal() {
   const {
@@ -22,6 +23,8 @@ export function SettingsModal() {
 
   const [activeTab, setActiveTab] = useState<'general' | 'storage' | 'ai' | 'workspaces' | 'shortcuts'>('general');
   const [activeStorage, setActiveStorage] = useState<'local' | 'gdrive' | 'supabase' | 'cloudflare'>('supabase');
+  const [transcriptionEngine, setTranscriptionEngine] = useState('groq');
+  const [synthesisModel, setSynthesisModel] = useState('gemini');
   const [autoScroll, setAutoScroll] = useState(true);
   const [streamTranscript, setStreamTranscript] = useState(true);
 
@@ -272,16 +275,16 @@ export function SettingsModal() {
                       <strong>Primary Storage Engine</strong>
                       <span>Where audio files and high-res recordings are permanently stored.</span>
                     </div>
-                    <select
-                      className="settings-select"
+                    <CustomSelect
                       value={activeStorage}
-                      onChange={(e: any) => setActiveStorage(e.target.value)}
-                    >
-                      <option value="supabase">Supabase Cloud (PostgreSQL + S3 Storage)</option>
-                      <option value="gdrive">Google Drive Personal / Workspace</option>
-                      <option value="cloudflare">Cloudflare R2 (Production zero-egress)</option>
-                      <option value="local">Local Machine Disk (data/ folder)</option>
-                    </select>
+                      onChange={(val) => setActiveStorage(val as any)}
+                      options={[
+                        { value: 'supabase', label: 'Supabase Cloud (PostgreSQL + S3 Storage)' },
+                        { value: 'gdrive', label: 'Google Drive Personal / Workspace' },
+                        { value: 'cloudflare', label: 'Cloudflare R2 (Production zero-egress)' },
+                        { value: 'local', label: 'Local Machine Disk (data/ folder)' },
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -345,11 +348,15 @@ export function SettingsModal() {
                       <strong>Transcription Engine</strong>
                       <span>Primary model used to transcribe audio recordings into timestamps and speakers.</span>
                     </div>
-                    <select className="settings-select" defaultValue="groq">
-                      <option value="groq">Groq Whisper Large-v3 (Ultra-fast)</option>
-                      <option value="gemini">Gemini 2.5 Flash Audio ASR</option>
-                      <option value="local">Local Whisper (Offline on device)</option>
-                    </select>
+                    <CustomSelect
+                      value={transcriptionEngine}
+                      onChange={setTranscriptionEngine}
+                      options={[
+                        { value: 'groq', label: 'Groq Whisper Large-v3 (Ultra-fast)' },
+                        { value: 'gemini', label: 'Gemini 2.5 Flash Audio ASR' },
+                        { value: 'local', label: 'Local Whisper (Offline on device)' },
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -360,10 +367,14 @@ export function SettingsModal() {
                       <strong>Analysis & Synthesis Model</strong>
                       <span>Generates summaries, decisions, action items, and powers Ask Saamba.</span>
                     </div>
-                    <select className="settings-select" defaultValue="gemini">
-                      <option value="gemini">Gemini 2.5 Flash (Editorial synthesis)</option>
-                      <option value="groq">Groq Llama 3.3 70B Versatile</option>
-                    </select>
+                    <CustomSelect
+                      value={synthesisModel}
+                      onChange={setSynthesisModel}
+                      options={[
+                        { value: 'gemini', label: 'Gemini 2.5 Flash (Editorial synthesis)' },
+                        { value: 'groq', label: 'Groq Llama 3.3 70B Versatile' },
+                      ]}
+                    />
                   </div>
                 </div>
 

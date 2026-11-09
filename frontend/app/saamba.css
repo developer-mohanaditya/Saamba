@@ -3450,6 +3450,132 @@ dialog.settings-modal-dialog::backdrop {
   box-shadow: 0 0 0 3px rgba(40, 84, 59, 0.12) !important;
 }
 
+/* Custom Editorial Select matching Saamba Design System */
+.settings-custom-select-wrap {
+  position: relative !important;
+  display: inline-block !important;
+  flex-shrink: 0 !important;
+  min-width: 270px !important;
+  max-width: 330px !important;
+  margin: 0 !important;
+}
+
+.settings-custom-select-trigger {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  height: 32px !important;
+  padding: 0 11px !important;
+  background: #ffffff !important;
+  border: 1px solid #ccd6cc !important;
+  border-radius: 6px !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #172a1e !important;
+  cursor: pointer !important;
+  transition: all .15s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  text-align: left !important;
+  user-select: none !important;
+}
+
+.settings-custom-select-trigger:hover,
+.settings-custom-select-trigger.is-active {
+  border-color: #28543b !important;
+  box-shadow: 0 0 0 3px rgba(40, 84, 59, 0.12) !important;
+}
+
+.settings-custom-select-value {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.settings-custom-select-chevron {
+  flex-shrink: 0 !important;
+  color: #55675b !important;
+}
+
+.settings-custom-select-options {
+  position: absolute !important;
+  top: calc(100% + 5px) !important;
+  right: 0 !important;
+  min-width: 100% !important;
+  width: max-content !important;
+  max-width: 340px !important;
+  background: #ffffff !important;
+  border: 1px solid #dcd7cc !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 28px rgba(23, 42, 30, 0.14), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  padding: 4px !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  max-height: 220px !important;
+  overflow-y: auto !important;
+  transform-origin: top right !important;
+  animation: dropdownFadeSlide 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.settings-custom-select-option {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  padding: 7px 10px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #172a1e !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: all .12s ease !important;
+}
+
+.settings-custom-select-option:hover {
+  background: #eef2e9 !important;
+  color: #28543b !important;
+}
+
+.settings-custom-select-option.is-selected {
+  background: #eef2e980 !important;
+  color: #28543b !important;
+  font-weight: 600 !important;
+}
+
+.settings-custom-select-opt-text {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+  min-width: 0 !important;
+}
+
+.settings-custom-select-opt-desc {
+  font-size: 10.5px !important;
+  color: #6f7f73 !important;
+}
+
+.settings-custom-select-option .check-icon {
+  width: 13px !important;
+  height: 13px !important;
+  stroke: #28543b !important;
+  fill: none !important;
+  stroke-width: 2.5 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  flex-shrink: 0 !important;
+}
+
 .settings-switch {
   position: relative !important;
   display: inline-block !important;
