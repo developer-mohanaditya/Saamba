@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  /* Saamba Design System Tokens */
+  --brand-forest: #1A382B;
+  --brand-forest-hover: #132A20;
+  --brand-forest-active: #0E1E17;
+  --brand-forest-tint: #EEF4F1;
+  --brand-gold: #DEB569;
+  --brand-gold-muted: #F8F2E4;
+
+  --surface-bg: #FBF9F5;
+  --surface-card: #FFFFFF;
+  --surface-muted: #F5F2EB;
+  --surface-hover: #EFECE4;
+  --surface-active: #E6E2D8;
+
+  --border-subtle: #E8E4DC;
+  --border-strong: #D5D0C6;
+
+  --text-primary: #1A1A1A;
+  --text-body: #3D3D3D;
+  --text-muted: #767676;
+  --text-disabled: #A8A8A8;
+
+  --status-ready: #235A3D;
+  --status-error: #D32F2F;
+  --status-error-bg: #FDEDED;
+
+  --background: var(--surface-bg);
+  --foreground: var(--text-primary);
+}
+
+@theme inline {
+  --color-brand-forest: var(--brand-forest);
+  --color-brand-forest-hover: var(--brand-forest-hover);
+  --color-brand-forest-active: var(--brand-forest-active);
+  --color-brand-forest-tint: var(--brand-forest-tint);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-muted: var(--brand-gold-muted);
+
+  --color-surface-bg: var(--surface-bg);
+  --color-surface-card: var(--surface-card);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-body: var(--text-body);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
+
+  --color-status-ready: var(--status-ready);
+  --color-status-error: var(--status-error);
+  --color-status-error-bg: var(--status-error-bg);
+
+  --font-serif: Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+body {
+  background-color: var(--surface-bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

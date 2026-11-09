@@ -1,0 +1,96 @@
+// frontend/components/Icons.tsx - SVG icon registry for Saamba v2
+
+import React from 'react';
+import {
+  Users,
+  Briefcase,
+  Folder,
+  Sparkles,
+  Code,
+  Rocket,
+  Palette,
+  Globe,
+  Zap,
+  Star,
+  Book,
+  Building,
+  Flame,
+  Heart,
+  Compass,
+  CheckCircle2,
+  Tag,
+  Trophy,
+  Terminal,
+  Cloud,
+  Shield,
+  Layers,
+  Cpu,
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Play,
+  Pause,
+  Search,
+  Music,
+  Video,
+  Check,
+  X,
+  MoreVertical,
+  Volume2
+} from 'lucide-react';
+
+export const WORKSPACE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  users: Users,
+  briefcase: Briefcase,
+  folder: Folder,
+  sparkles: Sparkles,
+  code: Code,
+  rocket: Rocket,
+  palette: Palette,
+  globe: Globe,
+  lightning: Zap,
+  star: Star,
+  book: Book,
+  building: Building,
+  flame: Flame,
+  heart: Heart,
+  compass: Compass,
+  checkCircle: CheckCircle2,
+  tag: Tag,
+  trophy: Trophy,
+  terminal: Terminal,
+  cloud: Cloud,
+  shield: Shield,
+  layers: Layers,
+  cpu: Cpu,
+  messageSquare: MessageSquare,
+};
+
+export function WorkspaceIcon({ name, className = 'w-4 h-4' }: { name: string; className?: string }) {
+  const IconComponent = WORKSPACE_ICON_MAP[name] || Briefcase;
+  return <IconComponent className={className} />;
+}
+
+export {
+  Users,
+  Briefcase,
+  Folder,
+  Sparkles,
+  Code,
+  Globe,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Play,
+  Pause,
+  Search,
+  Music,
+  Video,
+  Check,
+  X,
+  MoreVertical,
+  Volume2
+};
