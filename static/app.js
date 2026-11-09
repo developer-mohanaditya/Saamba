@@ -568,7 +568,7 @@ function summaryContent(m) {
   if(m.status==='queued')return activity('Getting things ready','Your recording is saved.');
   if(m.status==='transcribing')return activity('Creating your transcript','Follow along in the Transcript tab.')+(m.transcript_preview?`<div class="draft-label">STREAMING TRANSCRIPT</div><div class="transcript-stream-preview"><pre>${esc(m.transcript_preview)}</pre></div>`:'');
   if(m.status==='summarizing'){
-    return activity('Creating your English summary', 'Streaming real-time analysis directly from Gemini…', true) +
+    return activity('Creating your English summary', 'Generating summary, key points, and action items in real-time…', true) +
       `<div class="live-stream-box"><div class="draft-badge"><span class="live-pulse"></span> STREAMING SUMMARY</div><div id="stream-summary-text" class="summary-text">${m.summary_preview?markdown(m.summary_preview.content):''}</div></div>`;
   }
   if(m.status==='recording'&&!m.summary)return '<p class="muted">The summary can be created after the recording ends.</p>';
@@ -720,7 +720,7 @@ async function refresh(){
 }
 function transcriptActivity(m){
   if(m.status==='transcribing'){
-    return activity('Creating your transcript','Streaming real-time diarized text directly from Gemini…',true) +
+    return activity('Creating your transcript','Transcribing speech and identifying participants in real-time…',true) +
       `<div class="live-stream-box"><div class="draft-badge"><span class="live-pulse"></span> STREAMING TRANSCRIPT</div><pre id="stream-transcript-text" class="stream-text">${m.transcript_preview?esc(m.transcript_preview):''}</pre></div>`;
   }
   if(m.status==='recording')return activity('Listening for speech','New transcript segments will appear here as they are ready.');

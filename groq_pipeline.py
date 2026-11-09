@@ -47,13 +47,13 @@ def send(path, body, content_type, key):
                 if 0 <= delay <= 60:
                     time.sleep(max(delay, 1.0))
                     continue
-            messages = {401:'Groq rejected the API key. Check GROQ_API_KEY.', 403:'Groq denied the request. Check account and model permissions.', 413:'The audio segment exceeded Groq’s file size limit.', 429:'Groq is limiting requests. Your audio and completed transcript segments are saved; retry after the limit resets.'}
-            raise ProcessingError(messages.get(exc.code, f'Groq request failed (HTTP {exc.code}). Retry later.')) from None
+            messages = {401:'Transcription service authentication failed.', 403:'Transcription service request denied. Check account permissions.', 413:'The audio segment exceeded the file size limit.', 429:'Transcription service is currently rate limited. Your audio and completed transcript segments are saved; retry after the limit resets.'}
+            raise ProcessingError(messages.get(exc.code, f'Transcription request failed (HTTP {exc.code}). Retry later.')) from None
         except (urllib.error.URLError, TimeoutError, OSError):
             if attempt < 2:
                 time.sleep(5 * (attempt + 1))
                 continue
-            raise ProcessingError('Could not connect to Groq. Your audio and completed segments are saved; retry later.') from None
+            raise ProcessingError('Could not connect to transcription service. Your audio and completed segments are saved; retry later.') from None
 
 def duration(path):
     try:
@@ -119,7 +119,7 @@ def summarize(segments, key, cache_get=None, cache_set=None, request_get=None, r
         if result['choices'][0].get('finish_reason') == 'length':
             raise OutputLimit()
         message=result['choices'][0]['message'].get('content') or ''
-        if not message.strip(): raise ProcessingError('Groq returned an empty summary. Your transcript is saved; retry later.')
+        if not message.strip(): raise ProcessingError('Summary generation returned empty output. Your transcript is saved; retry later.')
         message=message.strip()
         if request_set: request_set(request_id,message)
         return message

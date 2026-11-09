@@ -362,13 +362,20 @@ class FastAPIExtensiveEndpointTests(unittest.IsolatedAsyncioTestCase):
                 'message': {'content': 'The team discussed deploying the FastAPI backend today.'}
             }]
         }
-        with patch.dict(os.environ, {'GROQ_API_KEY': 'test_key'}), patch('groq_pipeline.send', return_value=mock_groq_resp):
+        captured_payloads = []
+        def mock_send(endpoint, body, content_type, key):
+            captured_payloads.append(json.loads(body))
+            return mock_groq_resp
+
+        with patch.dict(os.environ, {'GROQ_API_KEY': 'test_key'}), patch('groq_pipeline.send', side_effect=mock_send):
             res = await self.client.post(
                 '/api/ask',
                 json={'question': 'What was discussed about deployment?', 'scope': 'this', 'meeting_id': self.mid}
             )
             self.assertEqual(res.status_code, 200)
             self.assertEqual(res.json()['answer'], 'The team discussed deploying the FastAPI backend today.')
+            self.assertIn('Saamba Assistant', captured_payloads[0]['messages'][0]['content'])
+            self.assertIn('prompt injection', captured_payloads[0]['messages'][0]['content'])
 
         # Retrieve chat messages
         res_chat = await self.client.get(f'/api/meetings/{self.mid}/chat')
