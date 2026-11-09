@@ -16,19 +16,16 @@ export function SettingsModal() {
     setActiveWorkspaceId,
     user,
     setAuthModalOpen,
+    soundAlerts,
+    setSoundAlerts,
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'general' | 'storage' | 'ai' | 'workspaces' | 'shortcuts'>('general');
-  const [soundAlerts, setSoundAlerts] = useState(true);
   const [activeStorage, setActiveStorage] = useState<'local' | 'gdrive' | 'supabase' | 'cloudflare'>('supabase');
   const [autoScroll, setAutoScroll] = useState(true);
   const [streamTranscript, setStreamTranscript] = useState(true);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    setSoundAlerts(isSoundAlertsEnabled());
-  }, []);
 
   useEffect(() => {
     if (settingsTab) {
@@ -161,7 +158,7 @@ export function SettingsModal() {
                 </div>
                 <div className="settings-user-meta">
                   <span className="settings-user-email">{user.email}</span>
-                  <span className="settings-user-plan">PRO PLAN</span>
+                  <span className="settings-user-plan">PRO</span>
                 </div>
               </div>
             ) : (

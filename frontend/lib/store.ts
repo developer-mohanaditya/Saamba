@@ -52,10 +52,12 @@ interface AppState {
   setUser: (user: any | null) => void;
   setAuthModalOpen: (open: boolean) => void;
 
-  // Settings modal state
+  // Settings & Sound alert state
   settingsModalOpen: boolean;
   settingsTab: 'general' | 'storage' | 'ai' | 'workspaces' | 'shortcuts';
   setSettingsModalOpen: (open: boolean, tab?: 'general' | 'storage' | 'ai' | 'workspaces' | 'shortcuts') => void;
+  soundAlerts: boolean;
+  setSoundAlerts: (enabled: boolean) => void;
 
   // Actions
   setWorkspaces: (ws: Workspace[]) => void;
@@ -129,6 +131,11 @@ export const useAppStore = create<AppState>((set) => ({
       settingsModalOpen: open,
       settingsTab: tab || (open ? state.settingsTab : 'general'),
     })),
+  soundAlerts: typeof window !== 'undefined' ? (localStorage.getItem('saamba-sound-alerts') !== 'false') : true,
+  setSoundAlerts: (soundAlerts) => {
+    try { localStorage.setItem('saamba-sound-alerts', String(soundAlerts)); } catch (_) {}
+    set({ soundAlerts });
+  },
 
   setWorkspaces: (workspaces) => set({ workspaces }),
   setActiveWorkspaceId: (activeWorkspaceId) =>

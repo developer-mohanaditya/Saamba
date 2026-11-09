@@ -276,23 +276,9 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
 
       {/* Fixed Bottom Section: Utility Bar + User Account Card (Fixed) */}
       <div className="sidebar-footer">
-        {/* Row of 4 utility icon buttons (Hidden on collapse) */}
+        {/* Row of 4 utility icon buttons: Settings, Drive, API Key, Signout (Hidden on collapse) */}
         <div className="sidebar-utility-bar">
-          {/* 1: Alerts / Bell */}
-          <button
-            type="button"
-            className={`utility-icon-btn ${soundAlerts ? 'is-active' : ''}`}
-            title={soundAlerts ? 'Sound alerts: Enabled' : 'Sound alerts: Muted'}
-            aria-label="Toggle sound alerts"
-            onClick={handleToggleSoundAlerts}
-          >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </button>
-
-          {/* 2: Settings / Options (Opens Centered Settings Modal) */}
+          {/* 1: Settings */}
           <button
             type="button"
             className="utility-icon-btn"
@@ -300,36 +286,52 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
             aria-label="Settings & Preferences"
             onClick={() => setSettingsModalOpen(true, 'general')}
           >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
 
-          {/* 3: Storage & Cloud Destination (Drive Symbol) */}
+          {/* 2: Drive / Storage Destination */}
           <button
             type="button"
             className="utility-icon-btn"
-            title="Active Storage & Cloud Destination"
-            aria-label="Active Storage & Cloud Destination"
+            title="Storage & Cloud Destination"
+            aria-label="Storage & Cloud Destination"
             onClick={() => setSettingsModalOpen(true, 'storage')}
           >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
               <path d="M7.71 3.5 1.15 15l3.43 6 6.55-11.5L7.71 3.5zm3.43 0 6.56 11.5h6.86l-6.56-11.5h-6.86zm-5.71 12 3.43 6h13.72l-3.43-6H5.43z" />
             </svg>
           </button>
 
-          {/* 4: Keyboard Shortcuts */}
+          {/* 3: API Key */}
           <button
             type="button"
             className="utility-icon-btn"
-            title="Keyboard Shortcuts"
-            aria-label="Keyboard Shortcuts"
-            onClick={() => setSettingsModalOpen(true, 'shortcuts')}
+            title="AI & API Credentials"
+            aria-label="AI & API Credentials"
+            onClick={() => setSettingsModalOpen(true, 'ai')}
           >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10" />
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="7.5" cy="15.5" r="5.5" />
+              <path d="m21 2-9.6 9.6" />
+              <path d="m15.5 7.5 3 3L22 7l-3-3" />
+            </svg>
+          </button>
+
+          {/* 4: Sign Out / Sign In */}
+          <button
+            type="button"
+            className="utility-icon-btn"
+            title={user ? 'Sign Out' : 'Sign In'}
+            aria-label={user ? 'Sign Out' : 'Sign In'}
+            onClick={user ? handleSignOut : () => setAuthModalOpen(true)}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
           </button>
         </div>

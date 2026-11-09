@@ -14,12 +14,9 @@ interface HeaderProps {
 }
 
 export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
-  const { workspaces, activeWorkspaceId, setUser } = useAppStore();
-  const [soundAlerts, setSoundAlerts] = useState(true);
+  const { workspaces, activeWorkspaceId, setUser, soundAlerts, setSoundAlerts } = useAppStore();
 
   useEffect(() => {
-    setSoundAlerts(isSoundAlertsEnabled());
-
     // Listen to Supabase Auth state changes
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {

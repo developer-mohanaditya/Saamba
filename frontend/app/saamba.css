@@ -290,7 +290,8 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   max-height: 100%;
   margin-bottom: 0;
   overflow: hidden !important;
-  align-self: stretch !important;
+  align-self: end !important;
+  margin-top: auto !important;
   transform-origin: bottom center;
   background: var(--paper);
   border: 1px solid var(--line);
@@ -307,6 +308,8 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
   height: 52px;
   min-height: 0;
   max-height: none;
+  margin-top: auto !important;
+  align-self: end !important;
   margin-bottom: 0;
   padding: 8px 12px !important;
   background: var(--paper) !important;
@@ -627,7 +630,13 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 .layout-sidebar .workspace-sidebar .meeting-list { flex:1; min-height:0; overflow-y:auto; border-color:#536c5b; }
 .layout-sidebar .workspace-sidebar .meeting { color:#fff; border-color:#536c5b; border-radius:0; padding:10px 8px; }
 .layout-sidebar .workspace-sidebar .meeting:hover,.layout-sidebar .workspace-sidebar .meeting.selected { background:#435d4c; }
-.layout-sidebar .workspace-sidebar .meeting.selected { box-shadow:none; }
+.layout-sidebar .workspace-sidebar .meeting.selected {
+  background: #435d4c !important;
+  color: #ffffff !important;
+  box-shadow: inset 3px 0 var(--gold, #dfa552) !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+}
 .layout-sidebar .workspace-sidebar .meeting-copy small { color:#c5d1c6; }
 .layout-sidebar .workspace-sidebar .list-empty { color:#c5d1c6; }
 .layout-sidebar .workspace-sidebar .side-bottom { padding-top:14px; }
@@ -2279,9 +2288,8 @@ select:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 64px;
-  padding: 16px 18px 14px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 24px 16px 0 16px;
+  border-bottom: none !important;
   flex-shrink: 0;
   background: var(--deep, #263e30);
   box-sizing: border-box;
@@ -2312,7 +2320,7 @@ select:focus-visible,
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 14px 12px 20px 12px;
+  padding: 14px 16px 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2342,30 +2350,32 @@ select:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 10px 8px 10px;
+  margin: 18px 0 8px 0;
+  padding: 0 2px 0 4px;
 }
 
 .workspace-section-header .side-label {
-  margin: 0;
-  color: #bac9bb;
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1;
+  font-size: 15px;
+  font-weight: 700;
+  color: #eef3ef;
+  letter-spacing: -0.1px;
 }
 
 .create-workspace-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid #536c5b !important;
-  color: #bac9bb;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #d0ded1;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: all .15s ease;
   padding: 0;
 }
 
@@ -2382,6 +2392,10 @@ select:focus-visible,
 
 .workspace-block {
   width: 100%;
+}
+
+.workspace-block.is-active .workspace-nav-item {
+  margin-bottom: 4px;
 }
 
 .workspace-nav-item {
@@ -2464,13 +2478,30 @@ select:focus-visible,
   flex-shrink: 0;
 }
 
-/* Meetings List Inside Active Workspace (Exact match to original HTML site: white icon square & divider line) */
+/* Connecting Thread & Meetings List Inside Active Workspace (Exact match to HTML site) */
+.layout-sidebar .workspace-sidebar .library,
+.workspace-sidebar .library {
+  margin-left: 8px !important;
+  padding-left: 6px !important;
+  border-left: 2px solid rgba(255, 255, 255, 0.18) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin-top: 4px !important;
+}
+
+.layout-sidebar .workspace-sidebar .library.is-empty,
+.workspace-sidebar .library.is-empty {
+  border-left: none !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
 .workspace-sidebar .meeting-list {
   display: flex;
   flex-direction: column;
   width: 100%;
   padding: 0;
-  margin: 4px 0 8px 0;
+  margin: 0;
   border: 0 !important;
   box-shadow: none !important;
   max-height: calc(100vh - 430px);
@@ -2490,86 +2521,90 @@ select:focus-visible,
 }
 
 .workspace-sidebar .meeting {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 0;
-  background: transparent;
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  padding: 7px 8px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   border: 0 !important;
+  border-bottom: 1px solid #536c5b !important;
   box-shadow: none !important;
-  color: #ffffff;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.12s ease;
-  width: 100%;
-  box-sizing: border-box;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: background 0.12s ease !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .workspace-sidebar .meeting:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: #435d4c !important;
 }
 
 .workspace-sidebar .meeting.selected {
   background: #435d4c !important;
   color: #ffffff !important;
   box-shadow: inset 3px 0 var(--gold, #dfa552) !important; /* Gold left border highlight matching original HTML site */
+  border-radius: 0 !important;
   border: 0 !important;
+  border-bottom: 1px solid #536c5b !important;
+  border-left: none !important;
 }
 
 .workspace-sidebar .meeting-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px !important;
-  height: 36px !important;
-  border-radius: 8px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 8px !important;
   background: #ffffff !important;
   color: #234235 !important;
-  font-size: 16px;
-  font-family: Georgia, serif;
-  font-weight: bold;
-  flex-shrink: 0;
+  font-size: .85rem !important;
+  font-family: Georgia, serif !important;
+  font-weight: bold !important;
+  flex-shrink: 0 !important;
 }
 
 .workspace-sidebar .meeting-media-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px !important;
+  height: 16px !important;
   fill: #234235 !important;
 }
 
 .workspace-sidebar .meeting-audio-symbol {
-  font-family: Georgia, serif;
-  font-size: 17px;
-  font-weight: bold;
+  font-family: Georgia, serif !important;
+  font-size: 15px !important;
+  font-weight: bold !important;
   color: #234235 !important;
-  line-height: 1;
+  line-height: 1 !important;
 }
 
 .workspace-sidebar .meeting-copy {
-  min-width: 0;
-  flex: 1;
+  min-width: 0 !important;
+  flex: 1 !important;
 }
 
 .workspace-sidebar .meeting-copy strong {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.35;
-  color: #ffffff;
+  display: block !important;
+  font-size: .78rem !important;
+  font-weight: 600 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1.35 !important;
+  color: #ffffff !important;
 }
 
 .workspace-sidebar .meeting-copy small {
-  display: block;
-  font-size: 11.5px;
-  color: #c5d1c6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 2px;
+  display: block !important;
+  font-size: .7rem !important;
+  color: #c5d1c6 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  margin-top: 3px !important;
 }
 
 /* Sidebar Footer (Fixed at bottom) */
@@ -2754,7 +2789,8 @@ select:focus-visible,
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
   padding: 1px;
   background: rgba(255, 255, 255, 0.22);
   flex-shrink: 0;
@@ -2767,7 +2803,8 @@ select:focus-visible,
 .sidebar-user-avatar {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
   background: #355944;
   color: #ffffff;
   font-family: var(--font, ui-sans-serif, system-ui, sans-serif);
@@ -3111,12 +3148,12 @@ dialog.settings-modal-dialog {
   transform: translate(-50%, -50%) !important;
   margin: 0 !important;
   padding: 0 !important;
-  width: min(860px, calc(100vw - 48px)) !important;
-  height: min(620px, calc(100vh - 64px)) !important;
+  width: min(720px, calc(100vw - 48px)) !important;
+  height: min(480px, calc(100vh - 60px)) !important;
   background: #ffffff !important;
-  border: 1px solid #e2ded5 !important;
-  border-radius: 16px !important;
-  box-shadow: 0 24px 70px rgba(20, 36, 26, 0.22), 0 4px 16px rgba(20, 36, 26, 0.06) !important;
+  border: 1px solid #dfdbd1 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 50px rgba(20, 36, 26, 0.2), 0 4px 16px rgba(20, 36, 26, 0.05) !important;
   color: #1f2c23 !important;
   overflow: hidden !important;
   z-index: 1000 !important;
@@ -3137,7 +3174,7 @@ dialog.settings-modal-dialog::backdrop {
 
 /* Left Sidebar — Soft warm cream tone */
 .settings-sidebar {
-  width: 220px !important;
+  width: 195px !important;
   background: #fbfaf7 !important;
   border-right: 1px solid #e8e5dc !important;
   display: flex !important;
@@ -3146,12 +3183,12 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-sidebar-header {
-  padding: 24px 20px 14px !important;
+  padding: 18px 16px 10px !important;
 }
 
 .settings-brand-title {
   font-family: var(--font-serif, "Newsreader", Georgia, serif) !important;
-  font-size: 22px !important;
+  font-size: 19px !important;
   font-weight: 600 !important;
   color: #172a1e !important;
   letter-spacing: -0.3px !important;
@@ -3160,25 +3197,27 @@ dialog.settings-modal-dialog::backdrop {
 .settings-nav-items {
   display: flex !important;
   flex-direction: column !important;
-  gap: 3px !important;
-  padding: 0 12px !important;
+  gap: 2px !important;
+  padding: 0 8px !important;
   flex: 1 !important;
 }
 
 .settings-nav-item {
   display: flex !important;
   align-items: center !important;
-  gap: 12px !important;
-  padding: 9px 12px !important;
+  gap: 10px !important;
+  padding: 7px 10px !important;
   border: 0 !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
   background: transparent !important;
   color: #55675b !important;
-  font-size: 13.5px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
   transition: all .15s ease !important;
   text-align: left !important;
+  box-shadow: none !important;
+  border-left: none !important;
 }
 
 .settings-nav-item:hover {
@@ -3190,15 +3229,18 @@ dialog.settings-modal-dialog::backdrop {
   background: #e7eee8 !important;
   color: #1a422b !important;
   font-weight: 650 !important;
-  box-shadow: inset 3px 0 #28543b !important;
+  box-shadow: none !important; /* CRITICAL: NO LEFT BORDER ANYWHERE */
+  border-left: none !important;
 }
 
 .settings-nav-item svg {
   flex-shrink: 0 !important;
+  width: 15px !important;
+  height: 15px !important;
 }
 
 .settings-sidebar-footer {
-  padding: 14px !important;
+  padding: 10px 12px !important;
   border-top: 1px solid #e8e5dc !important;
   background: #f4f2ea !important;
 }
@@ -3206,17 +3248,18 @@ dialog.settings-modal-dialog::backdrop {
 .settings-user-preview {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 8px !important;
 }
 
 .settings-user-avatar {
-  width: 32px !important;
-  height: 32px !important;
+  width: 28px !important;
+  height: 28px !important;
   border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
   background: #28543b !important;
   color: #ffffff !important;
   font-weight: 700 !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -3230,7 +3273,7 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-user-email {
-  font-size: 12px !important;
+  font-size: 11.5px !important;
   font-weight: 600 !important;
   color: #172a1e !important;
   overflow: hidden !important;
@@ -3239,7 +3282,7 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-user-plan {
-  font-size: 10px !important;
+  font-size: 9.5px !important;
   font-weight: 700 !important;
   color: #92671b !important;
   letter-spacing: 0.5px !important;
@@ -3247,12 +3290,12 @@ dialog.settings-modal-dialog::backdrop {
 
 .settings-signin-btn {
   width: 100% !important;
-  padding: 8px 12px !important;
+  padding: 7px 12px !important;
   background: #28543b !important;
   color: #ffffff !important;
   border: 0 !important;
   border-radius: 6px !important;
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   transition: background .15s ease !important;
@@ -3273,7 +3316,7 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-content-header {
-  padding: 24px 30px 18px !important;
+  padding: 16px 22px 12px !important;
   border-bottom: 1px solid #eeebe3 !important;
   display: flex !important;
   justify-content: space-between !important;
@@ -3283,7 +3326,7 @@ dialog.settings-modal-dialog::backdrop {
 
 .settings-content-title {
   font-family: var(--font-serif, "Newsreader", Georgia, serif) !important;
-  font-size: 23px !important;
+  font-size: 19px !important;
   font-weight: 600 !important;
   color: #172a1e !important;
   margin: 0 !important;
@@ -3291,15 +3334,15 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-content-desc {
-  font-size: 13px !important;
+  font-size: 12px !important;
   color: #67786c !important;
-  margin: 4px 0 0 !important;
-  line-height: 1.4 !important;
+  margin: 3px 0 0 !important;
+  line-height: 1.35 !important;
 }
 
 .settings-close-btn {
-  width: 30px !important;
-  height: 30px !important;
+  width: 26px !important;
+  height: 26px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -3307,7 +3350,7 @@ dialog.settings-modal-dialog::backdrop {
   border-radius: 6px !important;
   background: #f8f6f0 !important;
   color: #55675b !important;
-  font-size: 16px !important;
+  font-size: 15px !important;
   cursor: pointer !important;
   transition: all .15s ease !important;
   flex-shrink: 0 !important;
@@ -3321,61 +3364,61 @@ dialog.settings-modal-dialog::backdrop {
 .settings-content-body {
   flex: 1 !important;
   overflow-y: auto !important;
-  padding: 22px 30px !important;
+  padding: 16px 22px !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 16px !important;
+  gap: 10px !important;
   background: #ffffff !important;
 }
 
 .settings-section-group {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 8px !important;
 }
 
 .settings-group-title {
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.7px !important;
+  letter-spacing: 0.6px !important;
   color: #6f7f73 !important;
-  margin-top: 6px !important;
-  margin-bottom: 2px !important;
+  margin-top: 4px !important;
+  margin-bottom: 1px !important;
 }
 
 .settings-card {
-  background: #faf9f5 !important;
-  border: 1px solid #e7e3da !important;
-  border-radius: 12px !important;
-  padding: 15px 18px !important;
+  background: #faf9f6 !important;
+  border: 1px solid #e8e4db !important;
+  border-radius: 9px !important;
+  padding: 9px 13px !important;
   transition: border-color .15s ease, box-shadow .15s ease !important;
 }
 
 .settings-card:hover {
   border-color: #d3cdc2 !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.03) !important;
 }
 
 .settings-card-row {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 20px !important;
+  gap: 16px !important;
 }
 
 .settings-card-info {
   display: flex !important;
   flex-direction: column !important;
-  gap: 4px !important;
-  font-size: 12.5px !important;
+  gap: 2px !important;
+  font-size: 11.5px !important;
   color: #5c6c60 !important;
-  line-height: 1.35 !important;
+  line-height: 1.3 !important;
   min-width: 0 !important;
 }
 
 .settings-card-info strong {
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   color: #172a1e !important;
 }
@@ -3391,13 +3434,14 @@ dialog.settings-modal-dialog::backdrop {
   border: 1px solid #ccd6cc !important;
   color: #172a1e !important;
   border-radius: 6px !important;
-  padding: 7px 12px !important;
-  font-size: 13px !important;
+  padding: 5px 9px !important;
+  font-size: 12px !important;
   font-family: inherit !important;
   font-weight: 500 !important;
+  height: 30px !important;
   cursor: pointer !important;
   outline: none !important;
-  max-width: 270px !important;
+  max-width: 260px !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
 }
 
@@ -3409,8 +3453,8 @@ dialog.settings-modal-dialog::backdrop {
 .settings-switch {
   position: relative !important;
   display: inline-block !important;
-  width: 44px !important;
-  height: 25px !important;
+  width: 36px !important;
+  height: 20px !important;
   flex-shrink: 0 !important;
 }
 
@@ -3429,15 +3473,15 @@ dialog.settings-modal-dialog::backdrop {
   bottom: 0 !important;
   background-color: #dce3dc !important;
   transition: .2s ease !important;
-  border-radius: 24px !important;
+  border-radius: 20px !important;
   border: 1px solid #ccd6cc !important;
 }
 
 .settings-slider:before {
   position: absolute !important;
   content: "" !important;
-  height: 19px !important;
-  width: 19px !important;
+  height: 14px !important;
+  width: 14px !important;
   left: 2px !important;
   bottom: 2px !important;
   background-color: #ffffff !important;
@@ -3452,17 +3496,17 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-switch input:checked + .settings-slider:before {
-  transform: translateX(19px) !important;
+  transform: translateX(16px) !important;
   background-color: #ffffff !important;
 }
 
 .settings-btn-primary {
-  padding: 7px 15px !important;
+  padding: 6px 12px !important;
   background: #28543b !important;
   color: #ffffff !important;
   border: 0 !important;
   border-radius: 6px !important;
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   transition: background .15s ease !important;
@@ -3473,12 +3517,12 @@ dialog.settings-modal-dialog::backdrop {
 }
 
 .settings-btn-secondary {
-  padding: 7px 14px !important;
+  padding: 6px 12px !important;
   background: #ffffff !important;
   color: #1c442c !important;
   border: 1px solid #ccd6cc !important;
   border-radius: 6px !important;
-  font-size: 12.5px !important;
+  font-size: 12px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   transition: all .15s ease !important;
