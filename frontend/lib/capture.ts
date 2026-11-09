@@ -1,31 +1,6 @@
 // frontend/lib/capture.ts - Full in-browser meeting recording engine matching v1 capture.js
 
-function playAlert(kind: 'start' | 'stop') {
-  try {
-    const alertAudio = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const notes: Record<string, number[]> = {
-      start: [523, 659, 784],
-      stop: [659, 523],
-    };
-    const seq = notes[kind];
-    if (!seq) return;
-    const now = alertAudio.currentTime;
-    seq.forEach((freq, i) => {
-      const at = now + i * 0.1;
-      const osc = alertAudio.createOscillator();
-      const gain = alertAudio.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, at);
-      gain.gain.exponentialRampToValueAtTime(0.035, at + 0.018);
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
-      osc.connect(gain);
-      gain.connect(alertAudio.destination);
-      osc.start(at);
-      osc.stop(at + 0.17);
-    });
-  } catch (_) {}
-}
+import { playAlert, unlockAlertAudio } from './sound';
 
 function wav(samples: Float32Array, rate: number): ArrayBuffer {
   const out = new ArrayBuffer(44 + samples.length * 2);
@@ -127,6 +102,7 @@ export async function startRecording({
   onCreated?: (meetingId: string) => void;
 }): Promise<string> {
   if (activeSession) throw new Error('A recording is already in progress.');
+  unlockAlertAudio();
 
   if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
     throw new Error('Audio recording is not supported in this browser.');

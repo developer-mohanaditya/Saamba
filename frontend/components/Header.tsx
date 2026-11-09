@@ -2,8 +2,9 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../lib/store';
+import { isSoundAlertsEnabled, setSoundAlertsEnabled, unlockAlertAudio, playAlert } from '../lib/sound';
 
 interface HeaderProps {
   onRecord: () => void;
@@ -13,6 +14,12 @@ interface HeaderProps {
 
 export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
   const { workspaces, activeWorkspaceId } = useAppStore();
+  const [soundAlerts, setSoundAlerts] = useState(true);
+
+  useEffect(() => {
+    setSoundAlerts(isSoundAlertsEnabled());
+  }, []);
+
   const currentWs =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0];
 
@@ -61,7 +68,16 @@ export function Header({ onRecord, onImport, isRecording }: HeaderProps) {
                   type="checkbox"
                   id="sound-alerts"
                   className="toggle-checkbox"
-                  defaultChecked
+                  checked={soundAlerts}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setSoundAlerts(checked);
+                    setSoundAlertsEnabled(checked);
+                    if (checked) {
+                      unlockAlertAudio();
+                      playAlert('detected');
+                    }
+                  }}
                 />
                 <span className="toggle-slider" />
               </div>
