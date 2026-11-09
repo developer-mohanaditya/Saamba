@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../lib/store';
 import { supabase } from '../lib/supabaseClient';
 
@@ -15,16 +15,22 @@ export function AuthModal() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
   useEffect(() => {
-    if (!authModalOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setAuthModalOpen(false);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (authModalOpen) {
+      if (!dialog.open) {
+        dialog.showModal();
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [authModalOpen, setAuthModalOpen]);
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [authModalOpen]);
 
   if (!authModalOpen) return null;
 
@@ -67,13 +73,17 @@ export function AuthModal() {
 
   return (
     <dialog
-      open
+      ref={dialogRef}
       id="auth-modal"
       className="auth-modal"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           setAuthModalOpen(false);
         }
+      }}
+      onCancel={(e) => {
+        e.preventDefault();
+        setAuthModalOpen(false);
       }}
     >
       <form id="auth-form" onSubmit={handleSubmit}>

@@ -140,167 +140,101 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
 
       {/* Inner Scrollable Region (CRITICAL: Only this inner element scrolls!) */}
       <div className="sidebar-scrollable-content">
-        {/* SECTION 1: QUICK ACTIONS (Rearranged to Top) */}
-        <div className="sidebar-section sidebar-section-quick-actions">
-          <div className="sidebar-section-header">
-            <span className="sidebar-section-title">Quick Actions</span>
-          </div>
-          <div className="sidebar-nav-actions">
-            {onRecord && (
-              <button
-                type="button"
-                className={`sidebar-action-item ${isRecording ? 'is-recording-action' : ''}`}
-                onClick={onRecord}
-                title={isRecording ? 'Stop recording' : 'Record meeting'}
-              >
-                <span className="sidebar-action-icon">
-                  {isRecording ? (
-                    <span className="recording-dot-pulse" />
-                  ) : (
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="16" />
-                      <line x1="8" y1="12" x2="16" y2="12" />
-                    </svg>
-                  )}
-                </span>
-                <span className="sidebar-action-label">
-                  {isRecording ? 'Stop Recording…' : 'Record meeting'}
-                </span>
-              </button>
-            )}
-
-            {onImport && (
-              <button
-                type="button"
-                className="sidebar-action-item"
-                onClick={onImport}
-                title="Import audio/video file"
-              >
-                <span className="sidebar-action-icon">
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </span>
-                <span className="sidebar-action-label">Import file</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="sidebar-action-item"
-              onClick={() => {
-                if (!askPanelOpen) toggleAskPanel();
-              }}
-              title="Open Saamba AI Assistant"
+        {/* WORKSPACES (Exact layout & behavior matching original HTML site) */}
+        <div className="workspace-section-header">
+          <div className="side-label">Workspaces</div>
+          <button
+            type="button"
+            className="create-workspace-btn"
+            id="create-workspace-btn"
+            aria-label="Create workspace"
+            title="Create workspace"
+            onClick={onCreateWorkspace}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <span className="sidebar-action-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                </svg>
-              </span>
-              <span className="sidebar-action-label">Ask Saamba AI</span>
-            </button>
-          </div>
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
         </div>
 
-        {/* SECTION 2: WORKSPACES (Without sub-meetings header chip, direct listing) */}
-        <div className="sidebar-section sidebar-section-workspaces">
-          <div className="sidebar-section-header">
-            <span className="sidebar-section-title">Workspaces</span>
-            <button
-              type="button"
-              className="create-workspace-btn"
-              id="create-workspace-btn"
-              aria-label="Create workspace"
-              title="Create workspace"
-              onClick={onCreateWorkspace}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+        <div className="workspace-list" id="workspace-list" role="navigation" aria-label="Workspaces">
+          {workspaces.map((ws) => {
+            const isActive = ws.id === activeWorkspaceId;
+            const count = ws.id === 'default'
+              ? meetings.length
+              : (workspaceMeetings[ws.id] || []).length;
+            const wsIcon = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
+            const visibleMeetings = ws.id === 'default'
+              ? meetings
+              : meetings.filter((m) => (workspaceMeetings[ws.id] || []).includes(m.id));
+
+            return (
+              <div
+                key={ws.id}
+                className={`workspace-block ${isActive ? 'is-active' : ''}`}
+                data-workspace-id={ws.id}
               >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="workspace-nav-list" role="navigation" aria-label="Workspaces">
-            {workspaces.map((ws) => {
-              const isActive = ws.id === activeWorkspaceId;
-              const count = (workspaceMeetings[ws.id]?.length) || (isActive ? meetings.length : 0);
-              const wsIcon = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
-
-              return (
-                <div
-                  key={ws.id}
-                  className={`workspace-group ${isActive ? 'active' : ''}`}
-                  data-id={ws.id}
+                <button
+                  type="button"
+                  className={`workspace-nav-item ${isActive ? 'active' : ''}`}
+                  data-workspace-id={ws.id}
+                  aria-label={ws.name}
+                  aria-expanded={isActive ? libraryExpanded : false}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (sidebarCollapsed) {
+                      setSidebarCollapsed(false);
+                      setActiveWorkspaceId(ws.id);
+                      return;
+                    }
+                    if (isActive) {
+                      toggleLibrary();
+                    } else {
+                      setActiveWorkspaceId(ws.id);
+                    }
+                  }}
                 >
-                  <div className={`workspace-row ${isActive ? 'is-active' : ''}`}>
-                    <button
-                      type="button"
-                      className="nav workspace-item-btn"
-                      data-id={ws.id}
-                      onClick={() => {
-                        setActiveWorkspaceId(ws.id);
-                        if (sidebarCollapsed) setSidebarCollapsed(false);
+                  <span
+                    className="nav-icon"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: wsIcon }}
+                  />
+                  <span className="workspace-title">{ws.name}</span>
+                  {count > 0 && (
+                    <span className="workspace-count" title={`${count} meetings`}>
+                      {count}
+                    </span>
+                  )}
+                  {isActive && (
+                    <svg
+                      className="nav-chevron"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      style={{
+                        transform: libraryExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                       }}
                     >
-                      <span
-                        className="workspace-icon"
-                        aria-hidden="true"
-                        dangerouslySetInnerHTML={{ __html: wsIcon }}
-                      />
-                      <span className="workspace-title">{ws.name}</span>
-                      <span className="workspace-count" title={`${count} meetings`}>
-                        {count}
-                      </span>
-                    </button>
+                      <path d="m7 10 5 5 5-5" />
+                    </svg>
+                  )}
+                </button>
 
-                    {isActive && (
-                      <button
-                        type="button"
-                        className="nav-chevron"
-                        aria-label={libraryExpanded ? 'Collapse meetings' : 'Expand meetings'}
-                        title={libraryExpanded ? 'Collapse meetings' : 'Expand meetings'}
-                        aria-expanded={libraryExpanded}
-                        onClick={toggleLibrary}
-                      >
-                        <svg
-                          className="chevron-icon"
-                          viewBox="0 0 24 24"
-                          width="14"
-                          height="14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          style={{
-                            transform: libraryExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                          }}
-                        >
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Direct Meetings Listing without nested header layout */}
-                  {isActive && libraryExpanded && (
-                    <div className="meeting-list" role="region" aria-label={`${ws.name} meetings`}>
-                      {meetings.length > 0 ? (
-                        meetings.map((m) => {
+                {/* Direct Meetings Listing under Active Workspace */}
+                {isActive && libraryExpanded && (
+                  <section className="library" id="meeting-library">
+                    <div id="meetings" className="meeting-list" role="region" aria-label={`${ws.name} meetings`}>
+                      {visibleMeetings.length > 0 ? (
+                        visibleMeetings.map((m) => {
                           const isVideo = m.mime && m.mime.startsWith('video/');
                           return (
                             <button
@@ -318,9 +252,10 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
                                   <svg
                                     className="meeting-media-icon video-icon"
                                     viewBox="0 0 24 24"
-                                    width="14"
-                                    height="14"
+                                    width="16"
+                                    height="16"
                                     fill="currentColor"
+                                    aria-hidden="true"
                                   >
                                     <path d="m22 8-6 4 6 4V8Z" />
                                     <rect x="2" y="6" width="14" height="12" rx="2" />
@@ -344,11 +279,11 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  </section>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
