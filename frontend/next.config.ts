@@ -2,16 +2,22 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   basePath: '/v2',
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
+  async rewrites() {
+    return {
+      beforeFiles: [],
+      afterFiles: [
+        {
+          source: '/api/:path*',
+          destination: 'http://127.0.0.1:24917/api/:path*',
+          basePath: false,
+        },
+        {
+          source: '/api/:path*',
+          destination: 'http://127.0.0.1:24917/api/:path*',
+        },
+      ],
+      fallback: [],
+    };
   },
 };
 

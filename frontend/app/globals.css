@@ -31,7 +31,7 @@
   --foreground: var(--text-primary);
 }
 
-@theme inline {
+@theme {
   --color-brand-forest: var(--brand-forest);
   --color-brand-forest-hover: var(--brand-forest-hover);
   --color-brand-forest-active: var(--brand-forest-active);
