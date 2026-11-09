@@ -141,35 +141,46 @@
 
     /* Hero Banner */
     .ds-hero {
-      margin-bottom: 40px;
+      display: block !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      justify-content: flex-start !important;
+      border-bottom: 1px solid #E8E4DC !important;
+      padding: 32px 0 32px 0 !important;
+      margin-bottom: 36px !important;
+      gap: 0 !important;
     }
     .ds-eyebrow {
-      font-size: 11.5px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #8C827A;
-      margin-bottom: 8px;
+      display: inline-block !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0.1em !important;
+      text-transform: uppercase !important;
+      color: #8C827A !important;
+      margin-bottom: 10px !important;
     }
     .ds-hero h1 {
-      font-family: Georgia, serif;
-      font-size: 36px;
-      color: #1A382B;
-      margin: 0 0 12px;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
+      font-family: Georgia, serif !important;
+      font-size: 40px !important;
+      color: #1A382B !important;
+      margin: 0 0 12px 0 !important;
+      letter-spacing: -0.025em !important;
+      line-height: 1.18 !important;
+      width: 100% !important;
     }
     .ds-hero p {
-      font-size: 15.5px;
-      color: #5A5A5A;
-      line-height: 1.6;
-      max-width: 720px;
-      margin: 0 0 20px;
+      font-size: 16px !important;
+      color: #5A5A5A !important;
+      line-height: 1.6 !important;
+      max-width: 680px !important;
+      margin: 0 0 22px 0 !important;
+      width: 100% !important;
     }
     .ds-quicknav {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+      width: 100% !important;
     }
     .ds-quicknav a {
       font-size: 12px;
@@ -364,12 +375,12 @@
   </nav>
 
   <!-- Content Container -->
-  <main class="ds-container">
+  <div class="ds-container">
     
     <!-- Hero Introduction -->
-    <header class="ds-hero">
-      <div class="ds-eyebrow">Visual Language & Foundations</div>
-      <h1>Component Primitives & Tokens</h1>
+    <div class="ds-hero">
+      <div class="ds-eyebrow">Visual Language &amp; Foundations</div>
+      <h1>Component Primitives &amp; Tokens</h1>
       <p>A living specification of color tokens, typographic hierarchy, responsive controls, and atomic UI components for the Saamba frontend redesign. Click any token or component to copy its value.</p>
       <div class="ds-quicknav">
         <a href="#colors"># Colors</a>
@@ -377,10 +388,10 @@
         <a href="#buttons"># Buttons</a>
         <a href="#tabs"># Tabs</a>
         <a href="#waveform"># Waveform</a>
-        <a href="#dropdowns"># Dropdowns & Flyouts</a>
+        <a href="#dropdowns"># Dropdowns &amp; Flyouts</a>
         <a href="#chat"># Ask Saamba AI</a>
       </div>
-    </header>
+    </div>
 
     <!-- 1. Color System -->
     <section class="ds-section" id="colors">
@@ -671,10 +682,8 @@
       </div>
 
       <div class="ds-interactive-box" style="display:flex;flex-direction:column;gap:12px">
-        <div class="chat-message user" style="align-self:flex-end">
-          What were the primary outcomes from today's discussion?
-        </div>
-        <div class="chat-message assistant" style="align-self:flex-start">
+        <div class="chat-message user" style="align-self:flex-end;white-space:normal;padding:10px 14px;max-width:440px;margin:0;line-height:1.45;border-radius:12px 12px 3px 12px;">What were the primary outcomes from today's discussion?</div>
+        <div class="chat-message assistant" style="align-self:flex-start;max-width:540px;margin:0;padding:12px 16px;line-height:1.5;">
           <p>The team agreed on three principal decisions:</p>
           <ul>
             <li><strong>Baseline:</strong> The existing HTML application is stabilized and tagged as <code>v1.0-alpha</code>.</li>
@@ -685,7 +694,7 @@
       </div>
     </section>
 
-  </main>
+  </div>
 
   <!-- Live Toast Notification -->
   <div id="ds-toast" class="ds-toast" hidden>
