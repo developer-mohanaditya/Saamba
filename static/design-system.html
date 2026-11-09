@@ -3,114 +3,306 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Saamba Design System v2.0 — Component Showcase</title>
+  <title>Saamba Design System v2.0</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%23deb569%22/%3E%3Ctext x=%2232%22 y=%2250%22 text-anchor=%22middle%22 font-family=%22Georgia,serif%22 font-weight=%22bold%22 font-size=%2253%22 fill=%22%23234235%22%3ES%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css?v=48">
   <style>
-    /* Design System Showcase specific styling */
-    .ds-body {
-      background: var(--color-surface-bg, #FBF9F5);
-      color: var(--color-text-primary, #1A1A1A);
-      padding: 40px 24px 80px;
-      max-width: 1100px;
-      margin: 0 auto;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Explicit scrollability overrides to prevent style.css app locks */
+    html, body {
+      height: auto !important;
+      min-height: 100vh !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      background: #FBF9F5 !important;
+      color: #1A1A1A !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
-    .ds-header {
-      margin-bottom: 48px;
+
+    /* Top Navigation Bar */
+    .ds-nav {
+      background: #FFFFFF;
       border-bottom: 1px solid #E8E4DC;
-      padding-bottom: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      background: rgba(255, 255, 255, 0.95);
     }
-    .ds-header h1 {
-      font-family: Georgia, serif;
-      font-size: 32px;
+    .ds-nav-inner {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ds-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
       color: #1A382B;
-      margin: 0 0 8px;
-      letter-spacing: -0.02em;
     }
-    .ds-header p {
+    .ds-brand-logo {
+      width: 28px;
+      height: 28px;
+      background: #DEB569;
+      color: #234235;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-family: Georgia, serif;
+      font-weight: bold;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .ds-brand-name {
       font-size: 15px;
-      color: #767676;
-      margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #1A382B;
     }
+    .ds-brand-period {
+      color: #DEB569;
+    }
+    .ds-brand-sep {
+      color: #D5D0C6;
+      font-size: 14px;
+      margin: 0 2px;
+    }
+    .ds-brand-title {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #767676;
+    }
+    .ds-spec-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #EEF4F1;
+      color: #1A382B;
+      border: 1px solid #D2E4DC;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      letter-spacing: 0.02em;
+      margin-left: 4px;
+    }
+    .ds-spec-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #235A3D;
+    }
+    .ds-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .ds-nav-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: #767676;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .ds-nav-link:hover {
+      color: #1A382B;
+    }
+    .ds-back-app {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #1A382B;
+      text-decoration: none;
+      background: #F5F2EB;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #E8E4DC;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .ds-back-app:hover {
+      background: #EFECE4;
+      border-color: #D5D0C6;
+    }
+
+    /* Main Container */
+    .ds-container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 40px 24px 100px;
+    }
+
+    /* Hero Banner */
+    .ds-hero {
+      margin-bottom: 40px;
+    }
+    .ds-eyebrow {
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8C827A;
+      margin-bottom: 8px;
+    }
+    .ds-hero h1 {
+      font-family: Georgia, serif;
+      font-size: 36px;
+      color: #1A382B;
+      margin: 0 0 12px;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .ds-hero p {
+      font-size: 15.5px;
+      color: #5A5A5A;
+      line-height: 1.6;
+      max-width: 720px;
+      margin: 0 0 20px;
+    }
+    .ds-quicknav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ds-quicknav a {
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      background: #FFFFFF;
+      border: 1px solid #E8E4DC;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .ds-quicknav a:hover {
+      background: #1A382B;
+      color: #FFFFFF;
+      border-color: #1A382B;
+    }
+
+    /* Section Cards */
     .ds-section {
       background: #FFFFFF;
       border: 1px solid #E8E4DC;
       border-radius: 12px;
       padding: 32px;
-      margin-bottom: 36px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      margin-bottom: 32px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+      scroll-margin-top: 80px;
     }
-    .ds-section h2 {
+    .ds-section-header {
+      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #F5F2EB;
+    }
+    .ds-section-title {
       font-family: Georgia, serif;
       font-size: 22px;
       color: #1A382B;
-      margin: 0 0 6px;
-      border-bottom: 1px solid #F5F2EB;
-      padding-bottom: 12px;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
     }
     .ds-section-desc {
       font-size: 13.5px;
       color: #767676;
-      margin: 0 0 24px;
+      margin: 0;
+    }
+
+    /* Color Swatch Grid */
+    .ds-subheading {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #8C827A;
+      margin: 20px 0 12px;
     }
     .ds-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 16px;
+      gap: 14px;
     }
     .ds-color-card {
       border: 1px solid #E8E4DC;
       border-radius: 8px;
       overflow: hidden;
       background: #FFFFFF;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    }
+    .ds-color-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      border-color: #D5D0C6;
     }
     .ds-color-swatch {
-      height: 72px;
+      height: 64px;
       width: 100%;
     }
     .ds-color-meta {
-      padding: 10px 12px;
+      padding: 9px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .ds-color-meta strong {
+    .ds-color-info strong {
       display: block;
-      font-size: 13px;
+      font-size: 12.5px;
       color: #1A1A1A;
-      margin-bottom: 2px;
+      font-weight: 600;
     }
-    .ds-color-meta code {
+    .ds-color-info code {
       font-size: 11px;
       color: #767676;
       font-family: ui-monospace, monospace;
     }
+    .ds-copy-hint {
+      font-size: 10px;
+      color: #A8A8A8;
+      background: #F5F2EB;
+      padding: 2px 6px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .ds-color-card:hover .ds-copy-hint {
+      opacity: 1;
+    }
+
+    /* Typography Table */
     .ds-type-row {
       display: flex;
       align-items: baseline;
-      padding: 14px 0;
+      padding: 16px 0;
       border-bottom: 1px solid #F5F2EB;
       gap: 24px;
     }
+    .ds-type-row:last-child {
+      border-bottom: none;
+    }
     .ds-type-meta {
-      width: 180px;
+      width: 170px;
       flex-shrink: 0;
-      font-size: 12px;
+      font-size: 11.5px;
       color: #767676;
       font-family: ui-monospace, monospace;
     }
+
+    /* Component Rows */
     .ds-component-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 16px;
-      margin-bottom: 20px;
-    }
-    .ds-subheading {
-      font-size: 13px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #8C827A;
-      margin: 24px 0 12px;
+      margin-bottom: 16px;
     }
     .ds-interactive-box {
       background: #FBF9F5;
@@ -119,278 +311,410 @@
       padding: 24px;
       margin-top: 12px;
     }
+
+    /* Toast Notification */
+    .ds-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1A382B;
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .ds-toast[hidden] {
+      display: none;
+    }
   </style>
 </head>
-<body class="ds-body">
+<body>
 
-  <header class="ds-header">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-      <span class="mark" style="background:#deb569;color:#234235;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;font-family:Georgia,serif;font-weight:bold;font-size:18px">S</span>
-      <span style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;color:#1A382B">Saamba Design System</span>
-      <span style="background:#EEF4F1;color:#1A382B;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600">v2.0 Spec</span>
+  <!-- Top Sticky Navigation -->
+  <nav class="ds-nav">
+    <div class="ds-nav-inner">
+      <div class="ds-brand">
+        <span class="ds-brand-logo">S</span>
+        <span class="ds-brand-name">saamba<span class="ds-brand-period">.</span></span>
+        <span class="ds-brand-sep">·</span>
+        <span class="ds-brand-title">Design System</span>
+        <span class="ds-spec-badge"><span class="ds-spec-dot"></span> v2.0 Spec</span>
+      </div>
+      <div class="ds-nav-links">
+        <a href="#colors" class="ds-nav-link">Colors</a>
+        <a href="#typography" class="ds-nav-link">Typography</a>
+        <a href="#buttons" class="ds-nav-link">Buttons</a>
+        <a href="#tabs" class="ds-nav-link">Tabs</a>
+        <a href="#waveform" class="ds-nav-link">Waveform</a>
+        <a href="#dropdowns" class="ds-nav-link">Menus</a>
+        <a href="#chat" class="ds-nav-link">AI Chat</a>
+        <a href="/" class="ds-back-app">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Open App
+        </a>
+      </div>
     </div>
-    <h1>Visual Language & Component Primitives</h1>
-    <p>A living reference of tokens, type scales, interactive states, and atomic UI components for the Saamba frontend redesign.</p>
-  </header>
+  </nav>
 
-  <!-- 1. Color Palette Tokens -->
-  <section class="ds-section">
-    <h2>1. Color System & Semantic Roles</h2>
-    <p class="ds-section-desc">Warm editorial surfaces paired with deep forest green authority and warm gold accents.</p>
+  <!-- Content Container -->
+  <main class="ds-container">
     
-    <div class="ds-subheading">Brand Primaries</div>
-    <div class="ds-grid">
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#1A382B"></div>
-        <div class="ds-color-meta">
-          <strong>Forest Green</strong>
-          <code>#1A382B</code>
-        </div>
+    <!-- Hero Introduction -->
+    <header class="ds-hero">
+      <div class="ds-eyebrow">Visual Language & Foundations</div>
+      <h1>Component Primitives & Tokens</h1>
+      <p>A living specification of color tokens, typographic hierarchy, responsive controls, and atomic UI components for the Saamba frontend redesign. Click any token or component to copy its value.</p>
+      <div class="ds-quicknav">
+        <a href="#colors"># Colors</a>
+        <a href="#typography"># Typography</a>
+        <a href="#buttons"># Buttons</a>
+        <a href="#tabs"># Tabs</a>
+        <a href="#waveform"># Waveform</a>
+        <a href="#dropdowns"># Dropdowns & Flyouts</a>
+        <a href="#chat"># Ask Saamba AI</a>
       </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#132A20"></div>
-        <div class="ds-color-meta">
-          <strong>Forest Hover</strong>
-          <code>#132A20</code>
-        </div>
-      </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#DEB569"></div>
-        <div class="ds-color-meta">
-          <strong>Warm Gold</strong>
-          <code>#DEB569</code>
-        </div>
-      </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#EEF4F1"></div>
-        <div class="ds-color-meta">
-          <strong>Forest Tint</strong>
-          <code>#EEF4F1</code>
-        </div>
-      </div>
-    </div>
+    </header>
 
-    <div class="ds-subheading">Surfaces & Canvas</div>
-    <div class="ds-grid">
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#FBF9F5;border-bottom:1px solid #E8E4DC"></div>
-        <div class="ds-color-meta">
-          <strong>Canvas Background</strong>
-          <code>#FBF9F5</code>
-        </div>
+    <!-- 1. Color System -->
+    <section class="ds-section" id="colors">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">1. Color System & Semantic Roles</h2>
+        <p class="ds-section-desc">Warm editorial surfaces with deep forest green authority and warm gold accents. Click any swatch to copy its hex.</p>
       </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#FFFFFF;border-bottom:1px solid #E8E4DC"></div>
-        <div class="ds-color-meta">
-          <strong>Card Surface</strong>
-          <code>#FFFFFF</code>
-        </div>
-      </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#F5F2EB;border-bottom:1px solid #E8E4DC"></div>
-        <div class="ds-color-meta">
-          <strong>Sidebar / Rail</strong>
-          <code>#F5F2EB</code>
-        </div>
-      </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#E8E4DC"></div>
-        <div class="ds-color-meta">
-          <strong>Divider Border</strong>
-          <code>#E8E4DC</code>
-        </div>
-      </div>
-    </div>
 
-    <div class="ds-subheading">Status & Feedback</div>
-    <div class="ds-grid">
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#235A3D"></div>
-        <div class="ds-color-meta">
-          <strong>Ready / Active</strong>
-          <code>#235A3D</code>
-        </div>
-      </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#D32F2F"></div>
-        <div class="ds-color-meta">
-          <strong>Error Crimson</strong>
-          <code>#D32F2F</code>
-        </div>
-      </div>
-      <div class="ds-color-card">
-        <div class="ds-color-swatch" style="background:#FDEDED;border-bottom:1px solid #E8E4DC"></div>
-        <div class="ds-color-meta">
-          <strong>Error Tint</strong>
-          <code>#FDEDED</code>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2. Typography Scale -->
-  <section class="ds-section">
-    <h2>2. Typography Scale & Hierarchy</h2>
-    <p class="ds-section-desc">Editorial Georgia for high-level structure and crisp sans-serif for responsive application controls.</p>
-
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Display Serif · 30px</div>
-      <div style="font-family:Georgia,serif;font-size:30px;color:#1A382B;letter-spacing:-0.02em">Executive Strategy Sync 2026.</div>
-    </div>
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Title Large · 24px</div>
-      <div style="font-family:Georgia,serif;font-size:24px;color:#1A1A1A">Meeting summary and key takeaways</div>
-    </div>
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Title Medium · 18px</div>
-      <div style="font-size:18px;font-weight:600;color:#1A1A1A">Return to the moment</div>
-    </div>
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Body Large · 16px</div>
-      <div style="font-size:16px;line-height:1.55;color:#3D3D3D">The product design team met to finalize the unified design system tokens, responsive navigation rail, and audio timeline synchronizer.</div>
-    </div>
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Body Medium · 14.5px</div>
-      <div style="font-size:14.5px;line-height:1.5;color:#3D3D3D">Speaker 1: Let's ensure all dropdown menus and flyouts remain keyboard operable.</div>
-    </div>
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Label & Tabs · 13px</div>
-      <div style="font-size:13px;font-weight:500;color:#767676">TRANSCRIPT · ACTION ITEMS (3/5) · SUMMARY</div>
-    </div>
-    <div class="ds-type-row">
-      <div class="ds-type-meta">Monospace Meta · 12px</div>
-      <div style="font-family:ui-monospace,monospace;font-size:12px;color:#767676;background:#F5F2EB;padding:2px 8px;border-radius:4px">[04:18] · 44.1 kHz · 18.2 MB</div>
-    </div>
-  </section>
-
-  <!-- 3. Button Primitives -->
-  <section class="ds-section">
-    <h2>3. Button Variants & State Matrix</h2>
-    <p class="ds-section-desc">Interactive button primitives showing default, hover, active, and loading spinner states.</p>
-
-    <div class="ds-subheading">Action Buttons</div>
-    <div class="ds-component-row">
-      <button type="button" class="primary">Record a meeting</button>
-      <button type="button" class="secondary">Import meeting</button>
-      <button type="button" class="subtle-button">Subtle button</button>
-      <button type="button" class="subtle-button delete-button" title="Delete meeting">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5"/></svg>
-      </button>
-      <button type="button" class="primary" disabled>Disabled button</button>
-      <button type="button" class="primary"><span class="spinner" aria-hidden="true"></span> Saving notes…</button>
-    </div>
-
-    <div class="ds-subheading">Status Chips & Indicators</div>
-    <div class="ds-component-row">
-      <span class="status-chip is-busy"><span class="spinner" aria-hidden="true"></span> Creating transcript…</span>
-      <span class="status-chip is-busy"><span class="spinner" aria-hidden="true"></span> Creating summary…</span>
-      <span class="status-chip">Ready</span>
-      <span class="status-chip is-error">Needs attention</span>
-    </div>
-  </section>
-
-  <!-- 4. Navigation & Tabs -->
-  <section class="ds-section">
-    <h2>4. Navigation Tabs & Closable Translation Badges</h2>
-    <p class="ds-section-desc">High-contrast tab bar with action item counters, streaming status spinners, and dismissable language tabs.</p>
-
-    <div class="tabs" style="margin-bottom:0">
-      <button type="button" class="tab active" data-tab="summary">Summary</button>
-      <button type="button" class="tab action-tab" data-tab="actions">Action items <span class="action-count">3/5</span></button>
-      <div class="transcript-tab-wrapper">
-        <button type="button" class="tab" data-tab="transcript">Transcript</button>
-      </div>
-      <button type="button" class="tab translation-tab" data-tab="trans-es" title="Translated transcript into Spanish">Spanish <span class="tab-close" role="button" aria-label="Close tab">×</span></button>
-    </div>
-  </section>
-
-  <!-- 5. Audio Waveform Scrubber -->
-  <section class="ds-section">
-    <h2>5. Interactive Audio Waveform Visualizer</h2>
-    <p class="ds-section-desc">42-bar amplitude visualizer with hover scrub sync and played progress states.</p>
-
-    <div class="ds-interactive-box">
-      <div class="waveform" id="demo-waveform" style="cursor:pointer;height:48px;display:flex;align-items:flex-end;gap:3px">
-        <!-- Render 42 amplitude bars -->
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#767676;font-family:ui-monospace,monospace">
-        <span id="demo-time">0:45</span>
-        <span>3:12</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- 6. Interactive Dropdown & Flyout Menu -->
-  <section class="ds-section">
-    <h2>6. Flyout Dropdowns & Menus</h2>
-    <p class="ds-section-desc">Multi-level dropdowns with auto-aligning flyouts and keyboard navigation.</p>
-
-    <div class="ds-component-row" style="position:relative">
-      <div class="transcript-menu-wrap is-open" style="display:inline-block;position:relative">
-        <div class="transcript-dropdown" style="display:block;position:static;box-shadow:0 8px 24px rgba(0,0,0,0.08)">
-          <button type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button>
-          
-          <div class="transcript-submenu-wrap is-open" style="position:relative">
-            <button type="button" class="menu-item-with-submenu" aria-expanded="true">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
-              <span>Translate</span>
-              <svg class="submenu-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-            <div class="transcript-side-dropdown" style="display:block;left:100%;top:0;margin-left:4px">
-              <button type="button"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New translation…</span></button>
-              <div class="transcript-dropdown-divider"></div>
-              <div class="transcript-dropdown-label">Saved</div>
-              <button type="button"><span>English</span></button>
-              <button type="button"><span>Telugu</span></button>
+      <div class="ds-subheading">Brand Primaries</div>
+      <div class="ds-grid">
+        <div class="ds-color-card" data-copy="#1A382B">
+          <div class="ds-color-swatch" style="background:#1A382B"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Forest Green</strong>
+              <code>#1A382B</code>
             </div>
+            <span class="ds-copy-hint">Copy</span>
           </div>
-
-          <div class="transcript-dropdown-divider"></div>
-          <div class="transcript-dropdown-label">Export transcript</div>
-          <button type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Text (.txt)</button>
-          <button type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M7 15V9l3 3 3-3v6"/><path d="m18 12-2 3-2-3"/></svg>Markdown (.md)</button>
+        </div>
+        <div class="ds-color-card" data-copy="#132A20">
+          <div class="ds-color-swatch" style="background:#132A20"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Forest Hover</strong>
+              <code>#132A20</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#DEB569">
+          <div class="ds-color-swatch" style="background:#DEB569"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Warm Gold</strong>
+              <code>#DEB569</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#EEF4F1">
+          <div class="ds-color-swatch" style="background:#EEF4F1"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Forest Tint</strong>
+              <code>#EEF4F1</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- 7. AI Chat & Prompt Pills -->
-  <section class="ds-section">
-    <h2>7. Ask Saamba AI & Suggestion Pills</h2>
-    <p class="ds-section-desc">Prompt suggestion chips and conversational message bubbles.</p>
-
-    <div class="ds-component-row">
-      <button type="button" class="suggestion-pill">
-        <svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        <span class="suggestion-text">Draft a follow-up email</span>
-      </button>
-      <button type="button" class="suggestion-pill">
-        <svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        <span class="suggestion-text">What action items were assigned?</span>
-      </button>
-      <button type="button" class="suggestion-pill">
-        <svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        <span class="suggestion-text">What key decisions were finalized?</span>
-      </button>
-    </div>
-
-    <div class="ds-interactive-box" style="display:flex;flex-direction:column;gap:12px">
-      <div class="chat-message user" style="align-self:flex-end">
-        What were the primary outcomes from today's discussion?
+      <div class="ds-subheading">Surfaces & Canvas</div>
+      <div class="ds-grid">
+        <div class="ds-color-card" data-copy="#FBF9F5">
+          <div class="ds-color-swatch" style="background:#FBF9F5;border-bottom:1px solid #E8E4DC"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Canvas Background</strong>
+              <code>#FBF9F5</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#FFFFFF">
+          <div class="ds-color-swatch" style="background:#FFFFFF;border-bottom:1px solid #E8E4DC"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Card Surface</strong>
+              <code>#FFFFFF</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#F5F2EB">
+          <div class="ds-color-swatch" style="background:#F5F2EB;border-bottom:1px solid #E8E4DC"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Sidebar / Rail</strong>
+              <code>#F5F2EB</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#E8E4DC">
+          <div class="ds-color-swatch" style="background:#E8E4DC"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Divider Border</strong>
+              <code>#E8E4DC</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
       </div>
-      <div class="chat-message assistant" style="align-self:flex-start">
-        <p>The team agreed on three principal decisions:</p>
-        <ul>
-          <li><strong>Baseline:</strong> The existing HTML application is stabilized and tagged as <code>v1.0-alpha</code>.</li>
-          <li><strong>Branch Isolation:</strong> All redesign work proceeds in <code>dev-ag-v2</code>.</li>
-          <li><strong>Design System:</strong> Establish atomic tokens and UI primitives prior to page assembly.</li>
-        </ul>
+
+      <div class="ds-subheading">Status & Feedback</div>
+      <div class="ds-grid">
+        <div class="ds-color-card" data-copy="#235A3D">
+          <div class="ds-color-swatch" style="background:#235A3D"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Ready / Active</strong>
+              <code>#235A3D</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#D32F2F">
+          <div class="ds-color-swatch" style="background:#D32F2F"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Error Crimson</strong>
+              <code>#D32F2F</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
+        <div class="ds-color-card" data-copy="#FDEDED">
+          <div class="ds-color-swatch" style="background:#FDEDED;border-bottom:1px solid #E8E4DC"></div>
+          <div class="ds-color-meta">
+            <div class="ds-color-info">
+              <strong>Error Tint</strong>
+              <code>#FDEDED</code>
+            </div>
+            <span class="ds-copy-hint">Copy</span>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+
+    <!-- 2. Typography Scale -->
+    <section class="ds-section" id="typography">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">2. Typography Scale & Pairing</h2>
+        <p class="ds-section-desc">Editorial serif for titles and clean geometric sans-serif for UI controls.</p>
+      </div>
+
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Display Serif · 32px</div>
+        <div style="font-family:Georgia,serif;font-size:32px;color:#1A382B;letter-spacing:-0.02em">Executive Strategy Sync 2026.</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Title Large · 24px</div>
+        <div style="font-family:Georgia,serif;font-size:24px;color:#1A1A1A">Meeting summary and key takeaways</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Title Medium · 18px</div>
+        <div style="font-size:18px;font-weight:600;color:#1A1A1A">Return to the moment</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Body Large · 16px</div>
+        <div style="font-size:16px;line-height:1.6;color:#3D3D3D">The product design team met to finalize the unified design system tokens, responsive navigation rail, and audio timeline synchronizer.</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Body Medium · 14.5px</div>
+        <div style="font-size:14.5px;line-height:1.55;color:#3D3D3D">Speaker 1: Let's ensure all dropdown menus and flyouts remain keyboard operable.</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Label & Tabs · 13px</div>
+        <div style="font-size:13px;font-weight:600;letter-spacing:0.02em;color:#767676">SUMMARY · ACTION ITEMS (3/5) · TRANSCRIPT</div>
+      </div>
+      <div class="ds-type-row">
+        <div class="ds-type-meta">Monospace Meta · 12px</div>
+        <div style="font-family:ui-monospace,monospace;font-size:12px;color:#767676;background:#F5F2EB;padding:3px 8px;border-radius:4px">[04:18] · 44.1 kHz · 18.2 MB</div>
+      </div>
+    </section>
+
+    <!-- 3. Button Matrix -->
+    <section class="ds-section" id="buttons">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">3. Button Variants & State Matrix</h2>
+        <p class="ds-section-desc">Action button primitives showing default, hover, active, disabled, and loading states.</p>
+      </div>
+
+      <div class="ds-subheading">Action Buttons</div>
+      <div class="ds-component-row">
+        <button type="button" class="primary">Record a meeting</button>
+        <button type="button" class="secondary">Import meeting</button>
+        <button type="button" class="subtle-button">Subtle button</button>
+        <button type="button" class="subtle-button delete-button" title="Delete meeting">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5"/></svg>
+        </button>
+        <button type="button" class="primary" disabled>Disabled button</button>
+        <button type="button" class="primary"><span class="spinner" aria-hidden="true"></span> Saving notes…</button>
+      </div>
+
+      <div class="ds-subheading">Status Chips & Live Indicators</div>
+      <div class="ds-component-row">
+        <span class="status-chip is-busy"><span class="spinner" aria-hidden="true"></span> Creating transcript…</span>
+        <span class="status-chip is-busy"><span class="spinner" aria-hidden="true"></span> Creating summary…</span>
+        <span class="status-chip">Ready</span>
+        <span class="status-chip is-error">Needs attention</span>
+      </div>
+    </section>
+
+    <!-- 4. Navigation & Tabs -->
+    <section class="ds-section" id="tabs">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">4. Navigation Tabs & Closable Translation Badges</h2>
+        <p class="ds-section-desc">Tab bar with action item counters, live streaming spinners, and dismissable translation tabs.</p>
+      </div>
+
+      <div class="tabs" style="margin-bottom:0">
+        <button type="button" class="tab active" data-tab="summary">Summary</button>
+        <button type="button" class="tab action-tab" data-tab="actions">Action items <span class="action-count">3/5</span></button>
+        <div class="transcript-tab-wrapper">
+          <button type="button" class="tab" data-tab="transcript">Transcript</button>
+        </div>
+        <button type="button" class="tab translation-tab" data-tab="trans-es" title="Translated transcript into Spanish">Spanish <span class="tab-close" role="button" aria-label="Close tab">×</span></button>
+      </div>
+    </section>
+
+    <!-- 5. Audio Waveform Scrubber -->
+    <section class="ds-section" id="waveform">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">5. Interactive Audio Waveform Visualizer</h2>
+        <p class="ds-section-desc">42-bar amplitude visualizer with hover scrub sync and timestamp preview.</p>
+      </div>
+
+      <div class="ds-interactive-box">
+        <div class="waveform" id="demo-waveform" style="cursor:pointer;height:48px;display:flex;align-items:flex-end;gap:3px">
+          <!-- Populated by script -->
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:#767676;font-family:ui-monospace,monospace">
+          <span id="demo-time">0:45</span>
+          <span>3:12</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Dropdowns & Flyout -->
+    <section class="ds-section" id="dropdowns">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">6. Dropdowns & Nested Side Flyouts</h2>
+        <p class="ds-section-desc">Multi-level dropdowns with side flyout for language translations.</p>
+      </div>
+
+      <div class="ds-component-row" style="position:relative">
+        <div class="transcript-menu-wrap is-open" style="display:inline-block;position:relative">
+          <div class="transcript-dropdown" style="display:block;position:static;box-shadow:0 8px 24px rgba(0,0,0,0.08)">
+            <button type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button>
+            
+            <div class="transcript-submenu-wrap is-open" style="position:relative">
+              <button type="button" class="menu-item-with-submenu" aria-expanded="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                <span>Translate</span>
+                <svg class="submenu-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+              <div class="transcript-side-dropdown" style="display:block;left:100%;top:0;margin-left:4px">
+                <button type="button"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New translation…</span></button>
+                <div class="transcript-dropdown-divider"></div>
+                <div class="transcript-dropdown-label">Saved</div>
+                <button type="button"><span>English</span></button>
+                <button type="button"><span>Telugu</span></button>
+              </div>
+            </div>
+
+            <div class="transcript-dropdown-divider"></div>
+            <div class="transcript-dropdown-label">Export transcript</div>
+            <button type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Text (.txt)</button>
+            <button type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M7 15V9l3 3 3-3v6"/><path d="m18 12-2 3-2-3"/></svg>Markdown (.md)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. AI Chat & Suggestion Pills -->
+    <section class="ds-section" id="chat">
+      <div class="ds-section-header">
+        <h2 class="ds-section-title">7. Ask Saamba AI & Suggestion Pills</h2>
+        <p class="ds-section-desc">Prompt suggestion chips and conversational message bubbles.</p>
+      </div>
+
+      <div class="ds-component-row">
+        <button type="button" class="suggestion-pill">
+          <svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span class="suggestion-text">Draft a follow-up email</span>
+        </button>
+        <button type="button" class="suggestion-pill">
+          <svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span class="suggestion-text">What action items were assigned?</span>
+        </button>
+        <button type="button" class="suggestion-pill">
+          <svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span class="suggestion-text">What key decisions were finalized?</span>
+        </button>
+      </div>
+
+      <div class="ds-interactive-box" style="display:flex;flex-direction:column;gap:12px">
+        <div class="chat-message user" style="align-self:flex-end">
+          What were the primary outcomes from today's discussion?
+        </div>
+        <div class="chat-message assistant" style="align-self:flex-start">
+          <p>The team agreed on three principal decisions:</p>
+          <ul>
+            <li><strong>Baseline:</strong> The existing HTML application is stabilized and tagged as <code>v1.0-alpha</code>.</li>
+            <li><strong>Branch Isolation:</strong> All redesign work proceeds in <code>dev-ag-v2</code>.</li>
+            <li><strong>Design System:</strong> Establish atomic tokens and UI primitives prior to page assembly.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Live Toast Notification -->
+  <div id="ds-toast" class="ds-toast" hidden>
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+    <span id="ds-toast-text">Copied to clipboard</span>
+  </div>
 
   <script>
-    // Populate Demo Waveform
+    // Copy Color Hex
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById('ds-toast');
+        const toastText = document.getElementById('ds-toast-text');
+        if (toast && toastText) {
+          toastText.textContent = `Copied ${text} to clipboard`;
+          toast.hidden = false;
+          clearTimeout(copyText.timer);
+          copyText.timer = setTimeout(() => { toast.hidden = true; }, 2400);
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-copy]').forEach(el => {
+      el.addEventListener('click', () => {
+        copyText(el.dataset.copy);
+      });
+    });
+
+    // Populate Interactive Waveform
     const wave = document.getElementById('demo-waveform');
     if (wave) {
       let html = '';
