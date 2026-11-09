@@ -195,7 +195,7 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
               type="button"
               className="sidebar-action-item is-disabled"
               disabled
-              title="Create a note (Coming soon)"
+              title="Create a note"
               aria-disabled="true"
             >
               <span className="sidebar-action-icon">
@@ -215,39 +215,39 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
                 </svg>
               </span>
               <span className="sidebar-action-label">Create a note</span>
-              <span className="sidebar-action-badge">Soon</span>
             </button>
           </div>
         </div>
 
         {/* WORKSPACES (Exact layout & behavior matching original HTML site) */}
-        <div className="workspace-section-header">
-          <div className="side-label">Workspaces</div>
-          <button
-            type="button"
-            className="create-workspace-btn"
-            id="create-workspace-btn"
-            aria-label="Create workspace"
-            title="Create workspace"
-            onClick={onCreateWorkspace}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="sidebar-section-workspaces" role="region" aria-label="Workspaces">
+          <div className="workspace-section-header">
+            <div className="side-label">Workspaces</div>
+            <button
+              type="button"
+              className="create-workspace-btn"
+              id="create-workspace-btn"
+              aria-label="Create workspace"
+              title="Create workspace"
+              onClick={onCreateWorkspace}
             >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
 
-        <div className="workspace-list" id="workspace-list" role="navigation" aria-label="Workspaces">
+          <div className="workspace-list" id="workspace-list" role="navigation" aria-label="Workspaces">
           {workspaces.map((ws) => {
             const isActive = ws.id === activeWorkspaceId;
             const isDefault = ws.id === 'default' || ws.isDefault;
@@ -367,6 +367,7 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
           })}
         </div>
       </div>
+    </div>
 
       {/* Fixed Bottom Section: Utility Bar + User Account Card (Fixed) */}
       <div className="sidebar-footer">

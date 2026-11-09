@@ -1725,8 +1725,8 @@ select:focus-visible,
   align-items: center;
   justify-content: space-between;
   height: 24px;
-  margin: 28px 0 10px;
-  padding: 0 2px 0 12px;
+  margin: 0 !important;
+  padding: 0 2px 0 4px;
 }
 .layout-sidebar .workspace-sidebar .workspace-section-header .side-label,
 .workspace-section-header .side-label {
@@ -2378,7 +2378,7 @@ select:focus-visible,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 16px 0 16px;
+  padding: 24px 16px 12px 16px;
   border-bottom: none !important;
   flex-shrink: 0;
   background: var(--deep, #263e30);
@@ -2410,10 +2410,10 @@ select:focus-visible,
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 14px 16px 20px 16px;
+  padding: 12px 16px 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
@@ -2439,23 +2439,25 @@ select:focus-visible,
 .sidebar-section-quick-actions {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-top: 2px;
+  gap: 6px;
+  margin: 0;
 }
 
 .quick-actions-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 0 6px 0;
+  margin: 0;
   padding: 0 2px 0 4px;
+  height: 24px;
 }
 
-.quick-actions-section-header .side-label {
+.quick-actions-section-header .side-label,
+.workspace-section-header .side-label {
   margin: 0 !important;
   padding: 0 !important;
   line-height: 1;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #eef3ef;
   letter-spacing: -0.1px;
@@ -2515,24 +2517,8 @@ select:focus-visible,
 
 .sidebar-action-item:disabled,
 .sidebar-action-item.is-disabled {
-  opacity: 0.45;
+  opacity: 0.42;
   cursor: not-allowed;
-}
-
-.sidebar-action-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 1.5px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #9cb3a0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  line-height: 1.3;
-  margin-left: auto;
 }
 
 .sidebar-action-item.is-recording-action {
@@ -2560,23 +2546,21 @@ select:focus-visible,
   100% { transform: scale(0.95); opacity: 0.8; }
 }
 
-/* Workspace Navigation Header & List (Matching Original HTML site) */
+/* Workspaces Section (Matching hierarchy and rhythm) */
+.sidebar-section-workspaces {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
 .workspace-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 18px 0 8px 0;
-  padding: 0 2px 0 4px;
-}
-
-.workspace-section-header .side-label {
   margin: 0 !important;
-  padding: 0 !important;
-  line-height: 1;
-  font-size: 15px;
-  font-weight: 700;
-  color: #eef3ef;
-  letter-spacing: -0.1px;
+  padding: 0 2px 0 4px;
+  height: 24px;
 }
 
 .create-workspace-btn {
@@ -3259,6 +3243,16 @@ html.init-sidebar-collapsed .sidebar-scrollable-content {
   gap: 8px;
   overflow-x: hidden;
   align-items: center;
+}
+
+.sidebar-collapsed .sidebar-section-workspaces,
+.workspace-sidebar.is-collapsed .sidebar-section-workspaces,
+html.init-sidebar-collapsed .sidebar-section-workspaces {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 0 !important;
 }
 
 .sidebar-collapsed .workspace-list,
