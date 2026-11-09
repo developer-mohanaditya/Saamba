@@ -18,6 +18,7 @@ function setSidebarCollapsed(collapsed) {
     sidebarCollapseBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
   }
   try { localStorage.setItem('saamba-sidebar-collapsed', String(collapsed)); } catch (_) {}
+  document.documentElement.classList.remove('init-sidebar-collapsed');
 }
 setSidebarCollapsed(sidebarCollapsed);
 if (sidebarCollapseBtn) {
@@ -26,37 +27,451 @@ if (sidebarCollapseBtn) {
     setSidebarCollapsed(!sidebarCollapsed);
   });
 }
-workspaceToggle.addEventListener('click', () => {
-  if (sidebarCollapsed) setSidebarCollapsed(false);
-});
+if (workspaceToggle) {
+  workspaceToggle.addEventListener('click', (e) => {
+    if (sidebarCollapsed) {
+      e.stopPropagation();
+      return;
+    }
+  });
+}
 let libraryExpanded = true;
 try { libraryExpanded = localStorage.getItem('saamba-library-expanded') !== 'false'; } catch (_) {}
 function syncLibrary() {
-  libraryPane.classList.toggle('is-collapsed', !libraryExpanded);
-  libraryPane.setAttribute('aria-hidden', String(!libraryExpanded));
-  libraryToggle.setAttribute('aria-expanded', String(libraryExpanded));
+  const currentLibrary = document.querySelector('.library');
+  if (currentLibrary) {
+    currentLibrary.classList.toggle('is-collapsed', !libraryExpanded);
+    currentLibrary.setAttribute('aria-hidden', String(!libraryExpanded));
+  }
+  if (libraryToggle) {
+    libraryToggle.setAttribute('aria-expanded', String(libraryExpanded));
+  }
+  const activeNavItem = document.querySelector('.workspace-nav-item.active');
+  if (activeNavItem) {
+    activeNavItem.setAttribute('aria-expanded', String(libraryExpanded));
+  }
+  document.documentElement.classList.remove('init-library-collapsed');
 }
 syncLibrary();
-libraryToggle.addEventListener('click', () => {
-  libraryExpanded = !libraryExpanded;
-  try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
+if (libraryToggle) {
+  libraryToggle.addEventListener('click', (e) => {
+    if (sidebarCollapsed) {
+      e.stopPropagation();
+      setSidebarCollapsed(false);
+      if (!libraryExpanded) {
+        libraryExpanded = true;
+        try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+        syncLibrary();
+      }
+      return;
+    }
+    libraryExpanded = !libraryExpanded;
+    try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
+    syncLibrary();
+  });
+}
+
+const WORKSPACE_ICONS = {
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  briefcase: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>',
+  code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  rocket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>',
+  palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  lightning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="22.01"/><line x1="15" y1="22" x2="15" y2="22.01"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="9" y2="18.01"/><line x1="15" y1="18" x2="15" y2="18.01"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+  checkCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>',
+  terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  cpu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>',
+  messageSquare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+};
+
+let workspaces = [
+  { id: 'default', name: 'My meetings', icon: 'users' }
+];
+try {
+  const savedWs = JSON.parse(localStorage.getItem('saamba-workspaces') || 'null');
+  if (Array.isArray(savedWs) && savedWs.length > 0) workspaces = savedWs;
+} catch (_) {}
+
+let activeWorkspaceId = 'default';
+try {
+  activeWorkspaceId = localStorage.getItem('saamba-active-workspace') || 'default';
+} catch (_) {}
+if (!workspaces.some(w => w.id === activeWorkspaceId)) activeWorkspaceId = workspaces[0].id;
+
+let workspaceMeetings = {};
+try {
+  workspaceMeetings = JSON.parse(localStorage.getItem('saamba-workspace-meetings') || '{}');
+} catch (_) {}
+
+function updateActiveWorkspaceUI() {
+  const currentWs = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0];
+  const h1 = document.querySelector('header h1');
+  const eyebrow = document.querySelector('header .eyebrow');
+  if (h1) h1.innerHTML = `${esc(currentWs.name)}<span>.</span>`;
+  if (eyebrow) eyebrow.textContent = currentWs.id === 'default' ? 'Your workspace' : `Workspace · ${currentWs.name}`;
+  document.querySelectorAll('.workspace-nav-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.workspaceId === activeWorkspaceId);
+  });
+}
+
+let allMeetingsCache = [];
+function renderWorkspaces(allMeetings = allMeetingsCache) {
+  if (Array.isArray(allMeetings) && allMeetings.length > 0) allMeetingsCache = allMeetings;
+  const list = document.querySelector('#workspace-list');
+  if (!list) return;
+
+  let html = '';
+  workspaces.forEach((ws) => {
+    const iconSvg = WORKSPACE_ICONS[ws.icon] || WORKSPACE_ICONS.briefcase;
+    let count = 0;
+    if (ws.id === 'default') {
+      count = allMeetingsCache.length;
+    } else {
+      const ids = workspaceMeetings[ws.id] || [];
+      count = allMeetingsCache.filter(m => ids.includes(m.id)).length;
+    }
+    const isActive = ws.id === activeWorkspaceId;
+    const chevronSvg = isActive
+      ? `<svg class="nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>`
+      : '';
+    const countBadgeHtml = count > 0 ? `<span class="workspace-count">${count}</span>` : '';
+    html += `<div class="workspace-block ${isActive ? 'is-active' : ''}" data-workspace-id="${esc(ws.id)}">
+      <button type="button" class="workspace-nav-item ${isActive ? 'active' : ''}" data-workspace-id="${esc(ws.id)}" aria-label="${esc(ws.name)}" aria-expanded="${isActive ? String(libraryExpanded) : 'false'}">
+        <span class="nav-icon" aria-hidden="true">${iconSvg}</span>
+        <span class="workspace-title">${esc(ws.name)}</span>
+        ${countBadgeHtml}
+        ${chevronSvg}
+      </button>`;
+    if (isActive) {
+      const hasMeetings = count > 0;
+      html += `<section class="library ${!libraryExpanded ? 'is-collapsed' : ''} ${!hasMeetings ? 'is-empty' : ''}" id="meeting-library"><div id="meetings" class="meeting-list ${!hasMeetings ? 'is-empty' : ''}"></div></section>`;
+    }
+    html += `</div>`;
+  });
+  list.innerHTML = html;
+
+  list.querySelectorAll('.workspace-nav-item').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const wsId = btn.dataset.workspaceId;
+      if (sidebarCollapsed) {
+        setSidebarCollapsed(false);
+        activeWorkspaceId = wsId;
+        libraryExpanded = true;
+        try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
+        try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+        updateActiveWorkspaceUI();
+        refresh();
+        return;
+      }
+      if (wsId === activeWorkspaceId) {
+        libraryExpanded = !libraryExpanded;
+        try { localStorage.setItem('saamba-library-expanded', String(libraryExpanded)); } catch (_) {}
+        syncLibrary();
+        btn.setAttribute('aria-expanded', String(libraryExpanded));
+        return;
+      }
+      activeWorkspaceId = wsId;
+      try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
+      libraryExpanded = true;
+      try { localStorage.setItem('saamba-library-expanded', 'true'); } catch (_) {}
+      updateActiveWorkspaceUI();
+      refresh();
+    };
+  });
   syncLibrary();
-});
+}
+
+function initWorkspaceDialog() {
+  const workspaceDialog = document.querySelector('#workspace-dialog');
+  const createWorkspaceBtn = document.querySelector('#create-workspace-btn');
+  const closeWorkspaceDialog = document.querySelector('#close-workspace-dialog');
+  const workspaceCancel = document.querySelector('#workspace-cancel');
+  const workspaceForm = document.querySelector('#workspace-form');
+  const iconPickerGrid = document.querySelector('#icon-picker-grid');
+  const workspaceIconInput = document.querySelector('#workspace-icon-input');
+  const workspaceNameInput = document.querySelector('#workspace-name-input');
+  const workspaceError = document.querySelector('#workspace-error');
+
+  if (iconPickerGrid) {
+    iconPickerGrid.innerHTML = Object.entries(WORKSPACE_ICONS).map(([key, svg]) => {
+      return `<button type="button" class="icon-picker-tile ${key === 'briefcase' ? 'is-selected' : ''}" data-icon="${key}" aria-label="${key}" title="${key}">${svg}</button>`;
+    }).join('');
+
+    iconPickerGrid.querySelectorAll('.icon-picker-tile').forEach(tile => {
+      tile.onclick = () => {
+        iconPickerGrid.querySelectorAll('.icon-picker-tile').forEach(t => t.classList.remove('is-selected'));
+        tile.classList.add('is-selected');
+        workspaceIconInput.value = tile.dataset.icon;
+      };
+    });
+  }
+
+  if (createWorkspaceBtn && workspaceDialog) {
+    createWorkspaceBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (sidebarCollapsed) setSidebarCollapsed(false);
+      if (workspaceError) workspaceError.textContent = '';
+      if (workspaceNameInput) workspaceNameInput.value = '';
+      if (workspaceIconInput) workspaceIconInput.value = 'briefcase';
+      if (iconPickerGrid) {
+        iconPickerGrid.querySelectorAll('.icon-picker-tile').forEach(t => t.classList.toggle('is-selected', t.dataset.icon === 'briefcase'));
+      }
+      workspaceDialog.showModal();
+    };
+  }
+
+  if (closeWorkspaceDialog && workspaceDialog) closeWorkspaceDialog.onclick = () => workspaceDialog.close();
+  if (workspaceCancel && workspaceDialog) workspaceCancel.onclick = () => workspaceDialog.close();
+
+  if (workspaceForm && workspaceDialog) {
+    workspaceForm.onsubmit = (e) => {
+      e.preventDefault();
+      const name = workspaceNameInput ? workspaceNameInput.value.trim() : '';
+      if (!name) {
+        if (workspaceError) workspaceError.textContent = 'Please enter a workspace name.';
+        return;
+      }
+      const iconKey = (workspaceIconInput && workspaceIconInput.value) || 'briefcase';
+      const newWs = {
+        id: 'ws_' + Date.now(),
+        name,
+        icon: iconKey
+      };
+      workspaces.push(newWs);
+      try { localStorage.setItem('saamba-workspaces', JSON.stringify(workspaces)); } catch (_) {}
+      activeWorkspaceId = newWs.id;
+      try { localStorage.setItem('saamba-active-workspace', activeWorkspaceId); } catch (_) {}
+      workspaceDialog.close();
+      showToast(`Workspace "${name}" created.`);
+      refresh();
+    };
+  }
+}
+initWorkspaceDialog();
 const $ = s => document.querySelector(s);
 let selected = null, current = null, lastVersion = null, editing = false;
 const chats = {};
 const downloads = new Set();
+const downloadProgress = {}; // mid -> string
+const activeTranslationByMeeting = {}; // mid -> { code, name, status: 'loading'|'ready'|'error', error: null, data: null }
+const dismissedTranslationByMeeting = {}; // mid -> boolean
+const translationsCache = {}; // `${mid}:${code}` -> data
+let mediaCollapsed = false;
+try { mediaCollapsed = localStorage.getItem('saamba-media-collapsed') === 'true'; } catch (_) {}
+function syncMediaPane() {
+  const pane = document.querySelector('#media-pane');
+  const btn = document.querySelector('#media-collapse-btn');
+  if (!pane || !btn) return;
+  pane.classList.toggle('is-collapsed', mediaCollapsed);
+  btn.setAttribute('aria-expanded', String(!mediaCollapsed));
+  btn.setAttribute('title', mediaCollapsed ? 'Expand media player' : 'Collapse media player');
+  btn.setAttribute('aria-label', mediaCollapsed ? 'Expand media player' : 'Collapse media player');
+}
 function showToast(message){const toast=$('#toast');toast.querySelector('span').textContent=message;toast.hidden=false;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.hidden=true,3000);}
 $('#toast button').onclick=()=>$('#toast').hidden=true;
+
+function initTranslateDialog() {
+  const translateDialog = $('#translate-dialog');
+  const translateForm = $('#translate-form');
+  const translateClose = $('#close-translate-dialog');
+  const translateCancel = $('#translate-cancel');
+  const translateError = $('#translate-error');
+  if (!translateDialog) return;
+  const closeDialog = () => {
+    translateDialog.close();
+    if (translateError) translateError.textContent = '';
+  };
+  if (translateClose) translateClose.onclick = closeDialog;
+  if (translateCancel) translateCancel.onclick = closeDialog;
+
+  document.querySelectorAll('.lang-chip').forEach(chip => {
+    chip.onclick = () => {
+      document.querySelectorAll('.lang-chip').forEach(c => c.classList.remove('is-selected'));
+      chip.classList.add('is-selected');
+      const codeInput = $('#translate-target-code');
+      const nameInput = $('#translate-target-name');
+      if (codeInput) codeInput.value = chip.dataset.code;
+      if (nameInput) nameInput.value = chip.dataset.name;
+    };
+  });
+
+  if (translateForm) {
+    translateForm.onsubmit = e => {
+      e.preventDefault();
+      const targetMid = translateForm.dataset.meetingId;
+      if (!targetMid) return;
+      const code = $('#translate-target-code')?.value || 'en';
+      const name = $('#translate-target-name')?.value || 'English';
+
+      // 1. Close dialog immediately as requested by user
+      closeDialog();
+      dismissedTranslationByMeeting[targetMid] = false;
+      try { localStorage.removeItem(`saamba-active-tab-${targetMid}`); } catch(_) {}
+
+      // 2. Set active thread-scoped translation with loading state
+      activeTranslationByMeeting[targetMid] = {
+        code,
+        name,
+        status: 'loading',
+        error: null,
+        data: translationsCache[`${targetMid}:${code}`] || null
+      };
+
+      // 3. Immediately re-render with active translation tab and loading state
+      current = null;
+      openMeeting(targetMid, false, `trans-${code}`);
+
+      // 4. If already in memory cache, mark ready immediately
+      if (translationsCache[`${targetMid}:${code}`]) {
+        activeTranslationByMeeting[targetMid].status = 'ready';
+        activeTranslationByMeeting[targetMid].data = translationsCache[`${targetMid}:${code}`];
+        current = null;
+        openMeeting(targetMid, false, `trans-${code}`);
+        return;
+      }
+
+      // 5. Asynchronously call translation endpoint
+      api(`/api/meetings/${targetMid}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language_code: code, language_name: name })
+      }).then(result => {
+        translationsCache[`${targetMid}:${code}`] = result;
+        if (activeTranslationByMeeting[targetMid]?.code === code) {
+          activeTranslationByMeeting[targetMid] = {
+            code,
+            name,
+            status: 'ready',
+            error: null,
+            data: result
+          };
+          if (current === targetMid) {
+            current = null;
+            openMeeting(targetMid, false, `trans-${code}`);
+          }
+          showToast(`Conversation translated into ${name}.`);
+        }
+      }).catch(err => {
+        if (activeTranslationByMeeting[targetMid]?.code === code) {
+          activeTranslationByMeeting[targetMid] = {
+            code,
+            name,
+            status: 'error',
+            error: err.message || 'Translation failed.',
+            data: null
+          };
+          if (current === targetMid) {
+            current = null;
+            openMeeting(targetMid, false, `trans-${code}`);
+          }
+        }
+      });
+    };
+  }
+}
+let pendingRewriteAction = null;
+function initRewriteDialog() {
+  const rewriteDialog = $('#rewrite-dialog');
+  const rewriteForm = $('#rewrite-form');
+  const rewriteClose = $('#close-rewrite-dialog');
+  const rewriteCancel = $('#rewrite-cancel');
+  if (!rewriteDialog) return;
+  const closeDialog = () => {
+    rewriteDialog.close();
+    pendingRewriteAction = null;
+  };
+  if (rewriteClose) rewriteClose.onclick = closeDialog;
+  if (rewriteCancel) rewriteCancel.onclick = closeDialog;
+  if (rewriteForm) {
+    rewriteForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const fn = pendingRewriteAction;
+      closeDialog();
+      if (fn) await fn();
+    };
+  }
+}
+initRewriteDialog();
+
+let pendingStopAction = null;
+function initStopConfirmDialog() {
+  const dialog = $('#stop-confirm-dialog');
+  const closeBtn = $('#close-stop-confirm-dialog');
+  const cancelBtn = $('#stop-confirm-cancel');
+  const form = $('#stop-confirm-form');
+  if (!dialog) return;
+  const close = () => {
+    dialog.close();
+    pendingStopAction = null;
+  };
+  if (closeBtn) closeBtn.onclick = close;
+  if (cancelBtn) cancelBtn.onclick = close;
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const action = pendingStopAction;
+      close();
+      if (action) await action();
+    };
+  }
+}
+initStopConfirmDialog();
+
+function openTranslateModal(meetingId) {
+  const translateDialog = $('#translate-dialog');
+  const translateForm = $('#translate-form');
+  const translateError = $('#translate-error');
+  if (!translateDialog) return;
+  translateForm.dataset.meetingId = meetingId;
+  if (translateError) translateError.textContent = '';
+
+  const activeTrans = activeTranslationByMeeting[meetingId];
+  const targetCode = activeTrans?.code || 'en';
+  document.querySelectorAll('.lang-chip').forEach(chip => {
+    chip.classList.toggle('is-selected', chip.dataset.code === targetCode);
+  });
+  const codeInput = $('#translate-target-code');
+  const nameInput = $('#translate-target-name');
+  if (codeInput) codeInput.value = targetCode;
+  const selectedChip = document.querySelector(`.lang-chip[data-code="${targetCode}"]`);
+  if (nameInput && selectedChip) nameInput.value = selectedChip.dataset.name;
+
+  translateDialog.showModal();
+}
+initTranslateDialog();
 const esc = v => String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const time = n => { n=Math.floor(Number(n)||0);return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
+const time = n => {
+  n = Math.floor(Number(n) || 0);
+  const s = n % 60;
+  const m = Math.floor(n / 60) % 60;
+  const h = Math.floor(n / 3600);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${Math.floor(n / 60)}:${String(s).padStart(2, '0')}`;
+};
 const date = s => new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 const busyStatus = s => ['queued','transcribing','summarizing'].includes(s);
 const statusText = s => ({queued:'Getting ready',transcribing:'Creating transcript',summarizing:'Creating summary',recording:'Recording',ready:'Ready',error:'Needs attention','needs setup':'Setup needed'}[s]||s);
-const icon = name => ({rewrite:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5 10a7 7 0 0 1 12-3l3 5M19 14a7 7 0 0 1-12 3l-3-5"/></svg>', share:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M5 13v6h14v-6"/></svg>',delete:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5"/></svg>',mail:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>',link:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l2-2"/></svg>',file:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h6"/></svg>',chevron:'<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>'}[name]);
+const icon = name => ({rewrite:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5 10a7 7 0 0 1 12-3l3 5M19 14a7 7 0 0 1-12 3l-3-5"/></svg>', share:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M5 13v6h14v-6"/></svg>',delete:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13M10 11v5m4-5v5"/></svg>',mail:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>',link:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-2 2M14 11a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l2-2"/></svg>',file:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h6"/></svg>',chevron:'<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>',translate:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>'}[name]);
 const spinner = () => '<span class="spinner" aria-hidden="true"></span>';
 const statusChip = (s,notes=false) => `<span class="status-chip ${busyStatus(s)?'is-busy':''} ${s==='error'?'is-error':''}">${busyStatus(s)?spinner():''}${esc(s==='error'&&notes?'Notes saved · last attempt failed':statusText(s))}${busyStatus(s)?'…':''}</span>`;
-const activity = (title,detail) => `<div class="activity" role="status">${spinner()}<div><strong>${esc(title)}</strong><p>${esc(detail)}</p></div></div>`;
+const activity = (title,detail,canStop=false) => `<div class="activity" role="status">${spinner()}<div><strong>${esc(title)}</strong><p>${esc(detail)}</p></div>${canStop?`<button type="button" class="subtle-button stop-activity-btn" id="stop-activity-btn" title="Stop processing and revert">Stop</button>`:''}</div>`;
 const inline = value => esc(value).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g,'<em>$1</em>');
 const speakerDisplayName = spk => {
   if (spk == null) return '';
@@ -151,21 +566,24 @@ function summarySections(m) {
 }
 function summaryContent(m) {
   if(m.status==='queued')return activity('Getting things ready','Your recording is saved.');
-  if(m.status==='transcribing')return activity('Creating your transcript','Follow along in the Transcript tab.');
-  if(m.status==='summarizing')return activity('Creating your English summary',m.summary_preview?`Draft sections ready: ${m.summary_preview.completed} of ${m.summary_preview.total}. The final summary may change.`:'Working through the transcript. Draft sections will appear as they are ready.')+(m.summary_preview?`<div class="draft-label">DRAFT · WORK IN PROGRESS</div><div class="summary-text">${markdown(m.summary_preview.content)}</div>`:'');
+  if(m.status==='transcribing')return activity('Creating your transcript','Follow along in the Transcript tab.')+(m.transcript_preview?`<div class="draft-label">STREAMING TRANSCRIPT</div><div class="transcript-stream-preview"><pre>${esc(m.transcript_preview)}</pre></div>`:'');
+  if(m.status==='summarizing'){
+    return activity('Creating your English summary', 'Generating summary, key points, and action items in real-time…', true) +
+      `<div class="live-stream-box"><div class="draft-badge"><span class="live-pulse"></span> STREAMING SUMMARY</div><div id="stream-summary-text" class="summary-text">${m.summary_preview?markdown(m.summary_preview.content):''}</div></div>`;
+  }
   if(m.status==='recording'&&!m.summary)return '<p class="muted">The summary can be created after the recording ends.</p>';
   if(m.summary)return `<div class="summary-text">${summarySections(m)}</div>`;
-  if(m.status==='error')return '<p class="muted">The summary could not be created. See the message above for details.</p>';
+  if(m.status==='error')return '<p class="notice is-error">'+(m.error ? esc(m.error) : 'The summary could not be created.')+'</p>';
   return `<p class="muted">${m.transcript.length?'Your transcript is available. Choose Create summary to make an English summary.':'Create a transcript first to make a summary.'}</p>`;
 }
 
 function getMeetingSuggestions(m) {
   if (!m || !m.summary) {
     return [
-      'What were the key takeaways from this meeting?',
+      'Draft a follow-up email',
       'What action items were assigned?',
-      'Draft a follow-up email based on this meeting.'
-    ];
+      'What were the key takeaways from this meeting?'
+    ].sort((a, b) => a.length - b.length);
   }
   const suggestions = [];
   const summary = m.summary;
@@ -207,7 +625,7 @@ function getMeetingSuggestions(m) {
     suggestions.push('Draft a follow-up email to attendees');
   }
 
-  return suggestions.slice(0, 3);
+  return suggestions.slice(0, 3).sort((a, b) => a.length - b.length);
 }
 
 function renderCustomSelect(containerId, options, initialValue, onSelect) {
@@ -262,66 +680,357 @@ function renderCustomSelect(containerId, options, initialValue, onSelect) {
 
 async function api(url,options){const r=await fetch(url,options),v=await r.json();if(!r.ok)throw Error(v.error||'Something went wrong');return v;}
 async function refresh(){
-  const meetings=await api('/api/meetings');$('#count').textContent=String(meetings.length);$('#count').setAttribute('aria-label',`${meetings.length} ${meetings.length===1?'meeting':'meetings'}`);
+  const allMeetings=await api('/api/meetings');
+  renderWorkspaces(allMeetings);
+  updateActiveWorkspaceUI();
+  let meetings = allMeetings;
+  if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+    const ids = workspaceMeetings[activeWorkspaceId] || [];
+    meetings = allMeetings.filter(m => ids.includes(m.id));
+  }
+  const countEl = $('#count');
+  if (countEl) {
+    countEl.textContent=String(meetings.length);
+    countEl.setAttribute('aria-label',`${meetings.length} ${meetings.length===1?'meeting':'meetings'}`);
+  }
   if(!selected&&meetings.length)selected=meetings[0].id;
-  if(!meetings.length){$('#detail').innerHTML='<div class="empty"><div class="empty-icon">♫</div><h2>Make room for the conversation.</h2><p>Import a recording to bring your notes, transcript, and audio together.</p><button class="primary" id="empty-import">Import your first meeting</button></div>';$('#empty-import').onclick=()=>$('#import-dialog').showModal();}
-  $('#meetings').innerHTML=meetings.length?meetings.map(m=>`<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">♫</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`).join(''):'<div class="list-empty">No meetings yet.<br>Start with a recording.</div>';
+  if(selected&&!meetings.some(m=>m.id===selected)){
+    selected=meetings.length?meetings[0].id:null;
+  }
+  if(!meetings.length){
+    const wsName = (workspaces.find(w => w.id === activeWorkspaceId) || {}).name || 'workspace';
+    $('#detail').innerHTML=`<div class="empty"><div class="empty-icon">♫</div><h2>${activeWorkspaceId==='default'?'Make room for the conversation.':`No meetings in ${esc(wsName)} yet.`}</h2><p>${activeWorkspaceId==='default'?'Import a recording to bring your notes, transcript, and audio together.':'Import a new recording while this workspace is selected to add meetings here.'}</p><button class="primary" id="empty-import">Import a meeting</button></div>`;
+    $('#empty-import').onclick=()=>$('#import-dialog').showModal();
+  }
+  const meetingsEl = $('#meetings');
+  const libEl = document.querySelector('.library');
+  if (libEl) libEl.classList.toggle('is-empty', meetings.length === 0);
+  if (meetingsEl) {
+    meetingsEl.classList.toggle('is-empty', meetings.length === 0);
+    meetingsEl.innerHTML = meetings.length ? meetings.map(m => {
+      const isVideo = m.mime && m.mime.startsWith('video/');
+      const meetingIconHtml = isVideo
+        ? `<svg class="meeting-media-icon video-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>`
+        : `<span class="meeting-audio-symbol">♫</span>`;
+      return `<button class="meeting ${selected===m.id?'selected':''}" data-id="${esc(m.id)}" title="${esc(m.title)}"><span class="meeting-icon">${meetingIconHtml}</span><span class="meeting-copy"><strong>${esc(m.title)}</strong><small>${esc(date(m.created_at))}</small></span></button>`;
+    }).join('') : `<div class="list-empty">Nothing in this workspace.<br>Start with something.</div>`;
+  }
   document.querySelectorAll('.meeting').forEach(b=>b.onclick=()=>openMeeting(b.dataset.id));
   if(selected&&!editing)await openMeeting(selected,false);
 }
-function transcriptActivity(m){if(m.status==='transcribing')return activity('Creating your transcript','More passages will appear here as they are ready.');if(m.status==='recording')return activity('Listening for speech','New transcript segments will appear here as they are ready.');return m.transcript.length?'':'<p class="muted">No transcript yet.</p>';}
-async function openMeeting(id,rerender=true){
+function transcriptActivity(m){
+  if(m.status==='transcribing'){
+    return activity('Creating your transcript','Transcribing speech and identifying participants in real-time…',true) +
+      `<div class="live-stream-box"><div class="draft-badge"><span class="live-pulse"></span> STREAMING TRANSCRIPT</div><pre id="stream-transcript-text" class="stream-text">${m.transcript_preview?esc(m.transcript_preview):''}</pre></div>`;
+  }
+  if(m.status==='recording')return activity('Listening for speech','New transcript segments will appear here as they are ready.');
+  return m.transcript.length?'':'<p class="muted">No transcript yet.</p>';
+}
+
+let activeEventSource = null;
+
+function connectMeetingStream(mid) {
+  if (activeEventSource) {
+    if (activeEventSource._meetingId === mid) return;
+    activeEventSource.close();
+    activeEventSource = null;
+  }
+  const es = new EventSource(`/api/meetings/${encodeURIComponent(mid)}/events`);
+  es._meetingId = mid;
+  activeEventSource = es;
+
+  es.addEventListener('transcript_chunk', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      const pre = $('#stream-transcript-text');
+      if (pre) {
+        pre.textContent += data.text;
+        pre.scrollTop = pre.scrollHeight;
+      }
+    } catch (_) {}
+  });
+
+  es.addEventListener('summary_chunk', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      const container = $('#stream-summary-text');
+      if (container) {
+        container._rawText = (container._rawText || '') + data.text;
+        container.innerHTML = markdown(container._rawText);
+        container.scrollTop = container.scrollHeight;
+      }
+    } catch (_) {}
+  });
+
+  es.addEventListener('live_chunk', () => {
+    if (current === mid) refresh();
+  });
+
+  es.addEventListener('transcript_done', () => {
+    if (current === mid) refresh();
+  });
+
+  es.addEventListener('summary_done', () => {
+    if (current === mid) refresh();
+  });
+
+  es.addEventListener('status', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.status === 'ready' || data.status === 'error') {
+        es.close();
+        if (activeEventSource === es) activeEventSource = null;
+        if (current === mid) refresh();
+      }
+    } catch (_) {}
+  });
+}
+
+async function openMeeting(id,rerender=true,targetTab=null){
+  if(current!==id){
+    mediaCollapsed=false;
+    try{localStorage.setItem('saamba-media-collapsed','false');}catch(_){}
+  }
   selected=id;const m=await api(`/api/meetings/${id}`);if(rerender){await refresh();return;}
+  if (busyStatus(m.status) || m.status === 'recording') {
+    connectMeetingStream(id);
+  } else if (activeEventSource && activeEventSource._meetingId !== id) {
+    activeEventSource.close();
+    activeEventSource = null;
+  }
   if(!chats[id]){const messages=await api(`/api/meetings/${id}/chat`);if(selected!==id)return;chats[id]={messages,scope:'this',collapsed:false,question:''};}
-  const version=JSON.stringify([m.id,m.title,m.status,m.error,m.summary,m.summary_preview,m.transcript,m.mime,m.action_items]);if(current===id&&lastVersion===version)return;lastVersion=version;
-  const same=current===id,oldPlayer=$('#player'),position=same?oldPlayer?.currentTime||0:0,playing=same&&oldPlayer&&!oldPlayer.paused;
-  const previousTab=same&&document.querySelector('.tab.active')?.dataset.tab; const activeTab=previousTab||(m.status==='recording'?'transcript':'summary');
-  const searchTerm=same?($('#search')?.value||''):'';const oldScroll=same?($('#notes-scroll')?.scrollTop||0):0;current=id;
-  const canRewrite=!busyStatus(m.status)&&m.status!=='recording';
-  const video=m.mime.startsWith('video/');
-  const totalActions=m.action_items?.length||0;
-  const checkedActions=m.action_items?.filter(a=>a.checked).length||0;
-  const actionCounterText=totalActions>0?`${checkedActions}/${totalActions}`:'0';
-  const uniqueSpeakers=[]; const seenSpeakers=new Set();
-  for(const s of m.transcript){
-    if(s.speaker!=null){
+
+  // Translated transcripts are hidden by default upon refresh/open, and opened on-demand
+
+  const activeTrans = activeTranslationByMeeting[id] || null;
+  const transVersion = activeTrans ? `${activeTrans.code}:${activeTrans.status}:${activeTrans.data ? 'ready' : 'empty'}` : 'none';
+  const version = JSON.stringify([m.id, m.title, m.status, m.error, m.summary, m.summary_preview, m.transcript, m.mime, m.action_items, transVersion]);
+  if (current === id && lastVersion === version && !targetTab) return;
+  lastVersion = version;
+  const same = current === id, oldPlayer = $('#player'), position = same ? oldPlayer?.currentTime || 0 : 0, playing = same && oldPlayer && !oldPlayer.paused;
+  const previousTab = same && document.querySelector('.tab.active')?.dataset.tab;
+  const savedTab = (() => { try { return localStorage.getItem(`saamba-active-tab-${id}`); } catch(_) { return null; } })();
+  const validSavedTab = savedTab && (savedTab === 'summary' || savedTab === 'actions' || savedTab === 'transcript' || (activeTrans && savedTab === `trans-${activeTrans.code}`)) ? savedTab : null;
+  const activeTab = targetTab || previousTab || validSavedTab || (m.status === 'recording' ? 'transcript' : 'summary');
+  const searchTerm = same ? ($('#search')?.value || '') : '';
+  const oldScroll = same ? ($('#notes-scroll')?.scrollTop || 0) : 0;
+  current = id;
+  const canRewrite = !busyStatus(m.status) && m.status !== 'recording';
+  const video = m.mime.startsWith('video/');
+  const totalActions = m.action_items?.length || 0;
+  const checkedActions = m.action_items?.filter(a => a.checked).length || 0;
+  const actionCounterText = totalActions > 0 ? `${checkedActions}/${totalActions}` : '0';
+  const uniqueSpeakers = [];
+  const seenSpeakers = new Set();
+  for (const s of m.transcript) {
+    if (s.speaker != null) {
       const name = speakerDisplayName(s.speaker);
-      if(!seenSpeakers.has(name)){
+      if (!seenSpeakers.has(name)) {
         seenSpeakers.add(name);
         uniqueSpeakers.push(s.speaker);
       }
     }
   }
-  const speakerBar='';
+  const speakerBar = '';
   const editIcon = `<svg class="speaker-edit-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`;
-  const segments=m.transcript.map((s,idx)=>`<button class="segment" data-time="${Number(s.start)||0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker==null?'':`<span class="speaker-tag" data-speaker="${esc(s.speaker)}" data-index="${idx}" title="Click to rename or reassign speaker"><strong>${esc(speakerDisplayName(s.speaker))}</strong><span class="speaker-edit-btn" aria-hidden="true">${editIcon}</span></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
-  $('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button disabled>${icon('mail')}Send to email</button><button disabled>${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap" ${activeTab==='transcript'?'':'hidden'}><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options">⋮</button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button><button type="button" id="menu-translate" disabled title="Coming soon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Translate</button></div></div></div><div id="search-wrap" class="search-wrap" ${activeTab==='transcript'?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div></div></section></div></div><aside class="media-pane"><div class="media-heading"><h3>Return to the moment</h3>${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?spinner():'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg>'} ${downloads.has(id)?'Downloading…':'Download'}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}</div>${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
+  const segments = m.transcript.map((s, idx) => `<button class="segment" data-time="${Number(s.start) || 0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker == null ? '' : `<span class="speaker-tag" data-speaker="${esc(s.speaker)}" data-index="${idx}" title="Click to rename or reassign speaker"><strong>${esc(speakerDisplayName(s.speaker))}</strong><span class="speaker-edit-btn" aria-hidden="true">${editIcon}</span></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
+
+  let translationTabsHtml = '';
+  let translationPanesHtml = '';
+  if (activeTrans) {
+    const tabId = `trans-${activeTrans.code}`;
+    const isTabActive = activeTab === tabId;
+    const isLoading = activeTrans.status === 'loading';
+    const isError = activeTrans.status === 'error';
+
+    translationTabsHtml = `<button class="tab translation-tab ${isTabActive ? 'active' : ''}" data-tab="${esc(tabId)}" title="Translated transcript into ${esc(activeTrans.name)}">${esc(activeTrans.name)}${isLoading ? ' ' + spinner() : ''} <span class="tab-close" data-close-tab="true" title="Close translation tab" role="button" aria-label="Close tab">×</span></button>`;
+
+    let paneContent = '';
+    if (isLoading) {
+      paneContent = `<div class="activity" role="status">${spinner()}<div><strong>Translating conversation into ${esc(activeTrans.name)}…</strong><p>Generating translated transcript segments with audio synchronization.</p></div></div>`;
+    } else if (isError) {
+      paneContent = `<p class="notice is-error">${esc(activeTrans.error)}</p>`;
+    } else {
+      const transSegments = (activeTrans.data?.transcript || []).map(s => `<button class="segment" data-time="${Number(s.start) || 0}"><span class="segment-time">${time(s.start)}</span><span class="segment-body">${s.speaker == null ? '' : `<span class="speaker-tag" data-speaker="${esc(s.speaker)}"><strong>${esc(speakerDisplayName(s.speaker))}</strong></span>`}<span>${esc(s.text)}</span></span></button>`).join('');
+      paneContent = `<div class="segments">${transSegments}</div>`;
+    }
+    translationPanesHtml = `<div id="${esc(tabId)}" class="tab-content" ${isTabActive ? '' : 'hidden'}>${paneContent}</div>`;
+  }
+
+
+$('#detail').innerHTML=`<div class="notes-card"><div class="detail-header"><div class="detail-meta"><span class="meeting-date"><svg class="date-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:3px"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${esc(date(m.created_at))}</span>${busyStatus(m.status)?`<button type="button" class="subtle-button stop-btn" id="stop-processing-btn" title="Stop processing and revert to saved notes"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right:4px"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop</button>`:''}${canRewrite?`<div class="share-menu"><button class="subtle-button" id="rewrite-toggle" aria-expanded="false">${icon('rewrite')} Rewrite ${icon('chevron')}</button><div class="share-options" id="rewrite-options" hidden><button id="make-summary">${icon('rewrite')}${m.summary?'Rewrite':'Create'} summary</button><button id="make-transcript">${icon('file')}${m.transcript.length?'Rewrite':'Create'} transcript</button></div></div>`:''}<div class="share-menu"><button class="subtle-button" id="share-toggle" aria-expanded="false">${icon('share')} Share ${icon('chevron')}</button><div class="share-options" id="share-options" hidden><button type="button" id="share-email-btn">${icon('mail')}Send to email</button><button type="button" id="share-link-btn">${icon('link')}Copy link</button></div></div><div class="delete-menu"><button class="subtle-button delete-button" id="delete-toggle" aria-label="Delete meeting" aria-expanded="false" ${!canRewrite?'disabled':''}>${icon('delete')}</button><div class="delete-popover" id="delete-popover" hidden><p>Do you really want to delete?</p><button id="delete-next" type="button">Continue</button></div></div>${statusChip(m.status,!!m.summary&&m.transcript.length>0)}</div><div class="title-group"><button id="meeting-title" class="meeting-title" title="Click to edit meeting name" aria-label="Edit meeting name">${esc(m.title)}</button></div></div>${m.error?`<p class="notice">${esc(m.error)}</p>`:''}<div class="meeting-workspace"><section class="notes-pane"><div class="tabs"><button class="tab ${activeTab==='summary'?'active':''}" data-tab="summary">Summary ${m.status==='summarizing'?spinner():''}</button><button class="tab action-tab ${activeTab==='actions'?'active':''}" data-tab="actions">Action items <span class="action-count">${actionCounterText}</span></button><div class="transcript-tab-wrapper"><button class="tab ${activeTab==='transcript'?'active':''}" data-tab="transcript">${m.status==='recording'?'Live transcript':'Transcript'} ${m.status==='transcribing'?spinner():''}</button><div class="transcript-menu-wrap" id="transcript-menu-wrap"><button type="button" class="transcript-more-btn" id="transcript-more-btn" aria-label="Transcript options" title="Transcript options"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button><div class="transcript-dropdown" id="transcript-dropdown" hidden><button type="button" id="menu-edit-speakers"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>Edit speakers</button>${(m.translations && m.translations.length > 0) ? `<div class="transcript-submenu-wrap" id="menu-translate-wrap"><button type="button" id="menu-translate" class="menu-item-with-submenu" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg><span>Translate</span><svg class="submenu-arrow" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto"><path d="m9 18 6-6-6-6"/></svg></button><div class="transcript-side-dropdown" id="translate-side-dropdown"><button type="button" id="menu-translate-new"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New translation…</span></button><div class="transcript-dropdown-divider"></div><div class="transcript-dropdown-label">Saved</div>${m.translations.map(t => `<button type="button" class="menu-open-translation" data-code="${esc(t.language_code)}" data-name="${esc(t.language_name)}"><span>${esc(t.language_name)}</span></button>`).join('')}</div></div>` : `<button type="button" id="menu-translate"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>Translate</button>`}<div class="transcript-dropdown-divider"></div><div class="transcript-dropdown-label">Export transcript</div><button type="button" id="menu-download-txt"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Text (.txt)</button><button type="button" id="menu-download-md"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M7 15V9l3 3 3-3v6"/><path d="m18 12-2 3-2-3"/></svg>Markdown (.md)</button><button type="button" id="menu-download-pdf"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF (.pdf)</button></div></div></div>${translationTabsHtml}<div id="search-wrap" class="search-wrap" ${activeTab==='transcript'||activeTab.startsWith('trans-')?'':'hidden'}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="search" class="search" placeholder="Search transcript" aria-label="Search transcript"></div></div>${m.transcript.length && m.transcript.every(s=>s.speaker==null)?`<p class="speaker-note" id="speaker-note" ${activeTab==='transcript'?'':'hidden'}>Speaker identification is not available for this recording.</p>`:''}<div class="notes-scroll" id="notes-scroll"><div id="summary" class="tab-content" ${['summary','actions'].includes(activeTab)?'':'hidden'}>${summaryContent(m)}</div><div id="transcript" class="tab-content" ${activeTab==='transcript'?'':'hidden'}>${speakerBar}<div id="segments">${segments}${transcriptActivity(m)}</div></div>${translationPanesHtml}</div></section></div></div><aside class="media-pane" id="media-pane"><div class="media-heading"><h3>Return to the moment</h3><div class="media-actions">${m.status!=='recording'?`<div class="share-menu download-menu"><button type="button" id="download-toggle" class="download-toggle" aria-expanded="false" ${downloads.has(id)?'disabled':''}><span class="download-label">${downloads.has(id)?(spinner()+' '+(downloadProgress[id]||'Preparing…')):('<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg> Download')}</span><span class="download-chevron">${icon('chevron')}</span></button><div class="share-options" id="download-options" hidden><button type="button" data-download="mp4" ${video?'':'disabled'}>Video · MP4</button><button type="button" data-download="webm" ${video?'':'disabled'}>Video · WebM</button><button type="button" data-download="mp3">Audio · MP3</button><button type="button" data-download="audio-webm">Audio · WebM</button></div></div>`:''}<button id="media-collapse-btn" type="button" class="subtle-button media-collapse-btn" aria-label="Collapse media player" aria-expanded="true" title="Collapse media player"><svg class="media-chevron-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button></div></div><div class="media-body" id="media-body">${m.status==='recording'?'<p class="notice">Recording in progress. Audio playback is available after you stop.</p><button class="retry" id="recover-live">Finish saved recording</button>':`${video?'':'<div class="waveform" aria-hidden="true">'+Array.from({length:42},(_,i)=>`<i style="height:${10+((i*23+19)%37)}px"></i>`).join('')+'</div>'}<${video?'video':'audio'} id="player" controls preload="metadata" src="/api/meetings/${esc(id)}/audio"></${video?'video':'audio'}>${video?'':'<p class="hint">Audio recording. Video was not saved for this meeting.</p>'}`}</div></aside><section class="ask-panel" id="ask-panel"><div class="ask-head"><div class="ask-title"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span>Ask Saamba</span></div><button id="ask-collapse" type="button" aria-label="Collapse Ask Saamba" aria-expanded="true">${icon('chevron')}</button></div><div id="ask-body"><div class="ask-content"><div class="suggestions" id="suggestions"><div class="suggestions-intro">Try these:</div><div class="suggestions-list">${getMeetingSuggestions(m).map(q=>`<button type="button" class="suggestion-pill" data-question="${esc(q)}"><svg class="suggestion-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="suggestion-text">${esc(q)}</span></button>`).join('')}</div></div><div class="chat-messages" aria-live="polite"></div></div><form id="ask-form"><button id="ask-expand" type="button" class="ask-expand-brand" aria-label="Expand Ask Saamba" aria-expanded="false"><svg class="ask-ai-icon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><polygon points="9,2 16,11 9,20 2,11"/><polygon points="17,4 22,9 17,14 12,9" opacity="0.85"/></svg> <span class="ask-expand-label">Ask Saamba</span></button><input id="ask-input" type="text" maxlength="2000" placeholder="Ask about your meetings…" aria-label="Ask Saamba" required><div class="ask-controls"><div class="share-menu scope-menu"><button type="button" class="subtle-button" id="ask-scope-toggle" aria-expanded="false">This call ${icon('chevron')}</button><div class="share-options" id="ask-scope-options" hidden><button type="button" data-scope="this">This call</button><button type="button" data-scope="mine">My meetings</button><button type="button" disabled>Team calls</button><button type="button" disabled>All calls</button></div></div><button class="ask-send" type="submit" aria-label="Send question"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></div></section>`;
   const title=$('#meeting-title');title.onclick=()=>{
     editing=true;const input=document.createElement('input');input.className='title-input';input.value=m.title;input.maxLength=200;input.setAttribute('aria-label','Meeting name');title.replaceWith(input);input.focus();input.setSelectionRange(input.value.length,input.value.length);let done=false;
-    const save=async()=>{if(done)return;done=true;const value=input.value.trim();try{if(value&&value!==m.title)await api(`/api/meetings/${id}/rename`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:value})});}catch(e){alert(e.message);}finally{editing=false;current=null;refresh();}};
+    const save=async()=>{if(done)return;done=true;const value=input.value.trim();try{if(value&&value!==m.title)await api(`/api/meetings/${id}/rename`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:value})});}catch(e){showToast(e.message||String(e));}finally{editing=false;current=null;refresh();}};
     input.onblur=save;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape'){input.value=m.title;input.blur();}};
   };
   for(const name of ['share','rewrite','download']){const toggle=$('#'+name+'-toggle'),menu=$('#'+name+'-options');if(toggle)toggle.onclick=()=>{const opening=menu.hidden;document.querySelectorAll('.share-options').forEach(x=>x.hidden=true);document.querySelectorAll('[aria-expanded]').forEach(x=>x.setAttribute('aria-expanded','false'));menu.hidden=!opening;toggle.setAttribute('aria-expanded',String(opening));};}
+  const shareLinkBtn = $('#share-link-btn');
+  if (shareLinkBtn) {
+    shareLinkBtn.onclick = () => {
+      $('#share-options').hidden = true;
+      $('#share-toggle')?.setAttribute('aria-expanded', 'false');
+      const shareUrl = `${window.location.origin}/share/${id}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast('Snapshot link copied to clipboard!');
+      }).catch(() => {
+        prompt('Copy snapshot link:', shareUrl);
+      });
+    };
+  }
+  const shareEmailBtn = $('#share-email-btn');
+  if (shareEmailBtn) {
+    shareEmailBtn.onclick = () => {
+      $('#share-options').hidden = true;
+      $('#share-toggle')?.setAttribute('aria-expanded', 'false');
+      const shareUrl = `${window.location.origin}/share/${id}`;
+      const subject = encodeURIComponent(`Meeting Notes: ${m.title}`);
+      const body = encodeURIComponent(`Hi,\n\nHere are the notes from our meeting "${m.title}":\n\nRead-only Snapshot: ${shareUrl}\n\nSummary:\n${m.summary || '(Summary in progress)'}\n\nGenerated by Saamba.`);
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    };
+  }
   document.querySelectorAll('[data-download]').forEach(button=>button.onclick=async()=>{
     if(downloads.has(id))return;
     const format=button.dataset.download;downloads.add(id);$('#download-options').hidden=true;
-    const toggle=$('#download-toggle');toggle.disabled=true;toggle.setAttribute('aria-expanded','false');toggle.querySelector('.download-label').innerHTML=spinner()+' Downloading…';
+    const updateLabel=(text)=>{
+      downloadProgress[id]=text;
+      const cur=document.querySelector('#download-toggle .download-label');
+      if(cur)cur.innerHTML=spinner()+' '+text;
+    };
+    const toggle=$('#download-toggle');
+    if(toggle){toggle.disabled=true;toggle.setAttribute('aria-expanded','false');}
+    updateLabel('Preparing…');
     try{
       const response=await fetch(`/api/meetings/${encodeURIComponent(id)}/download?format=${encodeURIComponent(format)}`);
       if(!response.ok){let message='Could not prepare the download.';try{message=(await response.json()).error||message;}catch(_){}throw Error(message);}
-      const blob=await response.blob();const url=URL.createObjectURL(blob);const link=document.createElement('a');
-      link.href=url;link.download=(m.title.replace(/[\\/\x00-\x1f\x7f]/g,' ').trim().slice(0,120)||'Meeting')+(format==='audio-webm'?'.webm':'.'+format);
+      const totalHeader=response.headers.get('content-length')||response.headers.get('x-total-bytes');
+      const total=parseInt(totalHeader||'0',10);
+      let loaded=0;
+      const reader=response.body.getReader();
+      const chunks=[];
+      while(true){
+        const {done,value}=await reader.read();
+        if(done)break;
+        chunks.push(value);
+        loaded+=value.length;
+        const mbLoaded=(loaded/(1024*1024)).toFixed(1);
+        if(total>0){
+          const pct=Math.min(100,Math.round((loaded/total)*100));
+          const mbTotal=(total/(1024*1024)).toFixed(1);
+          updateLabel(`Downloading ${pct}% (${mbLoaded}/${mbTotal}MB)`);
+        } else {
+          updateLabel(`Downloading ${mbLoaded}MB`);
+        }
+      }
+      const blob=new Blob(chunks,{type:response.headers.get('content-type')||'application/octet-stream'});
+      const url=URL.createObjectURL(blob);const link=document.createElement('a');
+      link.href=url;
+      let filename=(m.title.replace(/[\\/\x00-\x1f\x7f]/g,' ').trim().slice(0,120)||'Meeting')+(format==='audio-webm'?'.webm':'.'+format);
+      const disp=response.headers.get('content-disposition');
+      if(disp&&disp.includes("filename*=UTF-8''")){
+        try{filename=decodeURIComponent(disp.split("filename*=UTF-8''")[1].split(';')[0]);}catch(_){}
+      }
+      link.download=filename;
       document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-    }catch(error){showToast(error.message);}finally{downloads.delete(id);if(current===id){const t=$('#download-toggle');if(t){t.disabled=false;t.querySelector('.download-label').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg> Download';}}}
+    }catch(error){showToast(error.message);}finally{downloads.delete(id);delete downloadProgress[id];if(current===id){const t=$('#download-toggle');if(t){t.disabled=false;const l=t.querySelector('.download-label');if(l)l.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 18v3h16v-3"/></svg> Download';}}}
   });
   const deleteToggle=$('#delete-toggle'),deletePopover=$('#delete-popover');
   deleteToggle.onclick=()=>{deletePopover.hidden=!deletePopover.hidden;deleteToggle.setAttribute('aria-expanded',String(!deletePopover.hidden));};
   $('#delete-next').onclick=()=>{deletePopover.hidden=true;deleteToggle.setAttribute('aria-expanded','false');$('#delete-error').textContent='';$('#delete-dialog').showModal();};
   $('#delete-form').onsubmit=async e=>{e.preventDefault();$('#delete-yes').disabled=true;try{await api(`/api/meetings/${id}/delete`,{method:'POST'});$('#delete-dialog').close();selected=null;current=null;lastVersion=null;$('#detail').innerHTML='<div class="empty"><h2>Choose a meeting.</h2><p>Select a conversation from your library.</p></div>';await refresh();}catch(err){$('#delete-error').textContent=err.message;}finally{$('#delete-yes').disabled=false;}};
-  for(const [button,action] of [['make-transcript','transcript'],['make-summary','summary']]){const el=$('#'+button);if(el)el.onclick=async()=>{if(action==='transcript'&&m.summary&&!confirm('A new transcript will remove the current summary. Continue?'))return;try{await api(`/api/meetings/${id}/${action}`,{method:'POST'});current=null;refresh();}catch(e){alert(e.message);}};}
-  if($('#recover-live'))$('#recover-live').onclick=async()=>{if(capture&&capture.id===id){alert('Use Stop recording to finish the active meeting.');return;}try{await api(`/api/live/${id}/finish`,{method:'POST'});current=null;refresh();}catch(e){alert(e.message);}};
+  for(const [button,action] of [['make-summary','summary'],['make-transcript','transcript']]){const el=$('#'+button);if(el)el.onclick=async()=>{
+    $('#rewrite-options').hidden=true;$('#rewrite-toggle')?.setAttribute('aria-expanded','false');
+    const execute=async()=>{try{await api(`/api/meetings/${id}/${action}`,{method:'POST'});current=null;refresh();}catch(e){showToast(e.message||String(e));}};
+    if(action==='transcript'&&m.summary){pendingRewriteAction=execute;const rd=$('#rewrite-dialog');if(rd)rd.showModal();else await execute();}
+    else{await execute();}
+  };}
+  if($('#recover-live'))$('#recover-live').onclick=async()=>{if(capture&&capture.id===id){showToast('Use Stop recording to finish the active meeting.');return;}try{await api(`/api/live/${id}/finish`,{method:'POST'});current=null;refresh();}catch(e){showToast(e.message||String(e));}};
+  document.querySelectorAll('#stop-processing-btn, #stop-activity-btn').forEach(btn => {
+    btn.onclick = () => {
+      pendingStopAction = async () => {
+        btn.disabled = true;
+        btn.textContent = 'Stopping…';
+        try {
+          await api(`/api/meetings/${id}/stop`, {method: 'POST'});
+          showToast('Processing stopped. Reverted to previous notes.');
+          current = null;
+          await refresh();
+        } catch(err) {
+          showToast(err.message || 'Could not stop processing.');
+          btn.disabled = false;
+          btn.textContent = 'Stop';
+        }
+      };
+      const dialog = $('#stop-confirm-dialog');
+      if (dialog) dialog.showModal();
+      else pendingStopAction();
+    };
+  });
   const search=$('#search');search.value=searchTerm;search.oninput=()=>document.querySelectorAll('.segment').forEach(x=>x.hidden=!x.textContent.toLowerCase().includes(search.value.toLowerCase()));search.dispatchEvent(new Event('input'));
-  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const isTranscript=b.dataset.tab==='transcript';const action=b.dataset.tab==='actions';document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab-content').forEach(x=>x.hidden=x.id!==(action?'summary':b.dataset.tab));$('#search-wrap').hidden=!isTranscript;const menuWrap=$('#transcript-menu-wrap');if(menuWrap)menuWrap.hidden=!isTranscript;const drop=$('#transcript-dropdown');if(drop)drop.hidden=true;const note=$('#speaker-note');if(note)note.hidden=!isTranscript;if(action){const target=$('#action-section');if(target)$('#notes-scroll').scrollTop=target.offsetTop-$('#notes-scroll').offsetTop;else showToast('No action items are available yet.');}else $('#notes-scroll').scrollTop=0;});
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=(e)=>{
+    if(e.target.closest('.tab-close'))return;
+    const tab=b.dataset.tab;
+    if(!tab.startsWith('trans-')){
+      try { localStorage.setItem(`saamba-active-tab-${id}`, tab); } catch(_) {}
+    }
+    const isOriginalTranscript=b.dataset.tab==='transcript';
+    const isAnyTranscript=isOriginalTranscript||(b.dataset.tab&&b.dataset.tab.startsWith('trans-'));
+    const action=b.dataset.tab==='actions';
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));
+    document.querySelectorAll('.tab-content').forEach(x=>x.hidden=x.id!==(action?'summary':b.dataset.tab));
+    $('#search-wrap').hidden=!isAnyTranscript;
+    const drop=$('#transcript-dropdown');
+    if(drop)drop.hidden=true;
+    const note=$('#speaker-note');
+    if(note)note.hidden=!isOriginalTranscript;
+    if(action){
+      const target=$('#action-section');
+      if(target)$('#notes-scroll').scrollTop=target.offsetTop-$('#notes-scroll').offsetTop;
+      else showToast('No action items are available yet.');
+    }else $('#notes-scroll').scrollTop=0;
+  });
+  const menuTranslateNew = $('#menu-translate-new');
+  if (menuTranslateNew) {
+    menuTranslateNew.onclick = e => {
+      e.stopPropagation();
+      if (moreDrop) moreDrop.hidden = true;
+      openTranslateModal(id);
+    };
+  }
+  document.querySelectorAll('.menu-open-translation').forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const code = btn.dataset.code;
+      const name = btn.dataset.name;
+      if (moreDrop) moreDrop.hidden = true;
+      if (!translationsCache[`${id}:${code}`]) {
+        try {
+          const transData = await api(`/api/meetings/${id}/translations/${code}`);
+          translationsCache[`${id}:${code}`] = transData;
+        } catch (_) {}
+      }
+      activeTranslationByMeeting[id] = {
+        code,
+        name,
+        status: 'ready',
+        error: null,
+        data: translationsCache[`${id}:${code}`] || null
+      };
+      dismissedTranslationByMeeting[id] = false;
+      current = null;
+      openMeeting(id, false, `trans-${code}`);
+    };
+  });
+  document.querySelectorAll('.tab-close[data-close-tab]').forEach(closeBtn=>{
+    closeBtn.onclick=(e)=>{
+      e.stopPropagation();
+      dismissedTranslationByMeeting[id]=true;
+      activeTranslationByMeeting[id]=null;
+      try { localStorage.removeItem(`saamba-active-tab-${id}`); } catch(_) {}
+      current=null;
+      openMeeting(id,false,'transcript');
+    };
+  });
   document.querySelectorAll('[data-action]').forEach(box=>box.onchange=async()=>{
     box.closest('.action-row')?.classList.toggle('is-checked', box.checked);const desired=box.checked;box.disabled=true;try{await api(`/api/meetings/${id}/action-check`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:box.dataset.action,checked:desired})});const item=m.action_items.find(a=>a.key===box.dataset.action);if(item)item.checked=desired;const total=m.action_items.length;const checked=m.action_items.filter(a=>a.checked).length;$('.action-count').textContent=`${checked}/${total}`;$('.action-count').setAttribute('aria-label',`${checked} of ${total} completed`);lastVersion=JSON.stringify([m.id,m.title,m.status,m.error,m.summary,m.summary_preview,m.transcript,m.mime,m.action_items]);}catch(e){box.checked=!desired;showToast(e.message);}finally{box.disabled=false;}});
   document.querySelectorAll('.copy-section').forEach(button=>button.onclick=async()=>{const section=button.closest('.summary-section');try{const copy=section.cloneNode(true);copy.querySelectorAll('button').forEach(el=>el.remove());await navigator.clipboard.writeText(copy.innerText.trim());showToast('Section copied.');}catch(e){showToast('Could not copy this section.');}});
@@ -391,12 +1100,15 @@ async function openMeeting(id,rerender=true){
     }
   });
   const moreBtn=$('#transcript-more-btn'),moreDrop=$('#transcript-dropdown');
+  const moreWrap=$('#transcript-menu-wrap');
   if(moreBtn&&moreDrop){
     moreBtn.onclick=e=>{
       e.stopPropagation();
       const open=moreDrop.hidden;
       document.querySelectorAll('.share-options, .transcript-dropdown').forEach(x=>{if(x!==moreDrop)x.hidden=true;});
+      document.querySelectorAll('.transcript-menu-wrap').forEach(w=>w.classList.remove('is-open'));
       moreDrop.hidden=!open;
+      if(moreWrap) moreWrap.classList.toggle('is-open', open);
     };
   }
   const menuEditSpk=$('#menu-edit-speakers');
@@ -407,6 +1119,152 @@ async function openMeeting(id,rerender=true){
       openSpeakerEditor({mode:'menu'});
     };
   }
+  const menuTranslate=$('#menu-translate');
+  if(menuTranslate){
+    menuTranslate.onclick=e=>{
+      e.stopPropagation();
+      const wrap = $('#menu-translate-wrap');
+      if (wrap) {
+        wrap.classList.toggle('is-open');
+        const isOpen = wrap.classList.contains('is-open');
+        menuTranslate.setAttribute('aria-expanded', String(isOpen));
+      } else {
+        if(moreDrop)moreDrop.hidden=true;
+        openTranslateModal(id);
+      }
+    };
+  }
+  const handleTranscriptExport = (format) => {
+    if(moreDrop) moreDrop.hidden = true;
+    if(moreWrap) moreWrap.classList.remove('is-open');
+
+    let exportSegments = m.transcript || [];
+    let langSuffix = '';
+
+    if(activeTab && activeTab.startsWith('trans-')){
+      const langCode = activeTab.slice(6);
+      const transData = translationsCache[`${id}:${langCode}`]?.transcript;
+      if(transData && transData.length > 0){
+        exportSegments = transData;
+        const langName = activeTranslationByMeeting[id]?.name || langCode;
+        langSuffix = ` (${langName})`;
+      }
+    }
+
+    if(!exportSegments || exportSegments.length === 0){
+      showToast('No transcript available to export.');
+      return;
+    }
+
+    const cleanTitle = (m.title || 'Meeting').replace(/[\\/\x00-\x1f\x7f]+/g, ' ').trim().slice(0, 120);
+
+    if(format === 'pdf'){
+      const printWindow = window.open('', '_blank');
+      if(!printWindow){
+        showToast('Please allow popups to export PDF');
+        return;
+      }
+      const rowsHtml = exportSegments.map(s => {
+        const timestamp = time(Number(s.start) || 0);
+        const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
+        return `<div class="transcript-row"><div class="row-meta"><span class="timestamp">[${esc(timestamp)}]</span> <strong class="speaker">${esc(spk)}:</strong></div><p class="text">${esc(s.text || '')}</p></div>`;
+      }).join('');
+
+      printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${esc(cleanTitle)} - Transcript</title>
+  <style>
+    @page { margin: 20mm 15mm; size: A4; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; line-height: 1.5; padding: 24px; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 4px; color: #1a382b; font-family: Georgia, serif; }
+    .meta { font-size: 13px; color: #666; margin-bottom: 24px; border-bottom: 1px solid #e5e5e5; padding-bottom: 12px; }
+    .transcript-row { margin-bottom: 16px; page-break-inside: avoid; }
+    .row-meta { font-size: 13px; margin-bottom: 4px; display: flex; gap: 8px; align-items: baseline; }
+    .timestamp { font-family: ui-monospace, monospace; font-size: 12px; color: #888; background: #f3f3f3; padding: 2px 6px; border-radius: 4px; }
+    .speaker { color: #1a382b; font-weight: 600; }
+    .text { margin: 0; font-size: 14.5px; color: #222; white-space: pre-wrap; line-height: 1.6; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>${esc(cleanTitle)}</h1>
+  <div class="meta">Date: ${esc(date(m.created_at))} ${langSuffix ? `· Translation: ${esc(langSuffix.trim())}` : ''} · ${exportSegments.length} segments</div>
+  <div class="transcript-body">${rowsHtml}</div>
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 200); };<\/script>
+</body>
+</html>`);
+      printWindow.document.close();
+      showToast('Opening PDF print preview…');
+      return;
+    }
+
+    if(format === 'md'){
+      const mdLines = [
+        `# ${m.title || 'Meeting'}`,
+        `*Date: ${date(m.created_at)}*${langSuffix ? ` · *Translation: ${langSuffix.trim()}*` : ''}`,
+        `*Segments: ${exportSegments.length}*`,
+        '',
+        '---',
+        ''
+      ];
+      for(const s of exportSegments){
+        const timestamp = time(Number(s.start) || 0);
+        const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
+        mdLines.push(`**[${timestamp}] ${spk}:**`);
+        mdLines.push(s.text || '');
+        mdLines.push('');
+      }
+      const fileContent = mdLines.join('\n');
+      const blob = new Blob([fileContent], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${cleanTitle} - Transcript${langSuffix}.md`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      showToast('Markdown transcript downloaded');
+      return;
+    }
+
+    // Default TXT
+    const textLines = [
+      `Meeting: ${m.title || 'Meeting'}`,
+      `Date: ${date(m.created_at)}`,
+      langSuffix ? `Translation: ${langSuffix.trim()}` : null,
+      `Segments: ${exportSegments.length}`,
+      '------------------------------------------------------------',
+      ''
+    ].filter(Boolean);
+    for(const s of exportSegments){
+      const timestamp = time(Number(s.start) || 0);
+      const spk = s.speaker != null ? speakerDisplayName(s.speaker) : 'Speaker';
+      textLines.push(`[${timestamp}] ${spk}:`);
+      textLines.push(s.text || '');
+      textLines.push('');
+    }
+    const fileContent = textLines.join('\n');
+    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${cleanTitle} - Transcript${langSuffix}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast('Text transcript downloaded');
+  };
+
+  const btnTxt = $('#menu-download-txt');
+  if(btnTxt) btnTxt.onclick = e => { e.stopPropagation(); handleTranscriptExport('txt'); };
+  const btnMd = $('#menu-download-md');
+  if(btnMd) btnMd.onclick = e => { e.stopPropagation(); handleTranscriptExport('md'); };
+  const btnPdf = $('#menu-download-pdf');
+  if(btnPdf) btnPdf.onclick = e => { e.stopPropagation(); handleTranscriptExport('pdf'); };
   if(speakerForm)speakerForm.onsubmit=async e=>{
     e.preventDefault();if(!activeSpeakerTarget)return;
     let payload;
@@ -442,46 +1300,146 @@ async function openMeeting(id,rerender=true){
   const chatPanel=$('#ask-panel'),chatInput=$('#ask-input'),chatScope=$('#ask-scope-toggle'),scopeMenu=$('#ask-scope-options'),chatMessages=$('.chat-messages');
   const chatContent=$('.ask-content'),suggestions=$('.suggestions');
   const renderChat=()=>{suggestions.hidden=!!chat.messages.length||!!chatInput.value.trim();chatMessages.innerHTML=chat.messages.map(x=>`<div class="chat-message ${esc(x.role)}">${x.role==='assistant'?markdown(x.text):esc(x.text)}</div>`).join('');chatContent.scrollTop=chatContent.scrollHeight;};
-  const setCollapsed=collapsed=>{chat.collapsed=collapsed;chatPanel.classList.toggle('is-collapsed',collapsed);$('#ask-collapse').setAttribute('aria-expanded',String(!collapsed));$('#ask-expand').setAttribute('aria-expanded',String(!collapsed));scopeMenu.hidden=true;chatScope.setAttribute('aria-expanded','false');};
-  setCollapsed(chat.collapsed);$('#ask-collapse').onclick=()=>setCollapsed(true);$('#ask-expand').onclick=()=>setCollapsed(false);
+  let expandTimer=null;
+  const setCollapsed=(collapsed,animate=true,autoFocus=false)=>{
+    chat.collapsed=collapsed;
+    clearTimeout(expandTimer);
+    if(!collapsed){
+      if(animate){
+        chatPanel.classList.add('is-expanding');
+        chatPanel.classList.remove('is-collapsed');
+        expandTimer=setTimeout(()=>{
+          chatPanel.classList.remove('is-expanding');
+          if(autoFocus||document.activeElement===chatInput){chatInput.focus();}
+        },40);
+      }else{
+        chatPanel.classList.remove('is-expanding');
+        chatPanel.classList.remove('is-collapsed');
+      }
+      $('#ask-collapse').setAttribute('aria-expanded','true');
+      $('#ask-expand').setAttribute('aria-expanded','true');
+      scopeMenu.hidden=true;
+      chatScope.setAttribute('aria-expanded','false');
+    }else{
+      chatPanel.classList.remove('is-expanding');
+      chatPanel.classList.add('is-collapsed');
+      $('#ask-collapse').setAttribute('aria-expanded','false');
+      $('#ask-expand').setAttribute('aria-expanded','false');
+      scopeMenu.hidden=true;
+      chatScope.setAttribute('aria-expanded','false');
+    }
+  };
+  setCollapsed(chat.collapsed,false);
+  $('#ask-collapse').onclick=()=>setCollapsed(true,true);
+  $('#ask-expand').onclick=()=>setCollapsed(false,true,true);
   const updateScope=()=>{chatScope.innerHTML=(chat.scope==='mine'?'My meetings':'This call')+' '+icon('chevron');};updateScope();
-  chatScope.onclick=()=>{if(chat.collapsed)setCollapsed(false);const opening=scopeMenu.hidden;document.querySelectorAll('.share-options').forEach(x=>x.hidden=true);document.querySelectorAll('[aria-expanded]').forEach(x=>{if(x!==$('#ask-collapse')&&x!==$('#ask-expand'))x.setAttribute('aria-expanded','false');});scopeMenu.hidden=!opening;chatScope.setAttribute('aria-expanded',String(opening));};
+  chatScope.onclick=()=>{if(chat.collapsed)setCollapsed(false,true);const opening=scopeMenu.hidden;document.querySelectorAll('.share-options').forEach(x=>x.hidden=true);document.querySelectorAll('[aria-expanded]').forEach(x=>{if(x!==$('#ask-collapse')&&x!==$('#ask-expand'))x.setAttribute('aria-expanded','false');});scopeMenu.hidden=!opening;chatScope.setAttribute('aria-expanded',String(opening));};
   scopeMenu.querySelectorAll('[data-scope]').forEach(option=>option.onclick=()=>{chat.scope=option.dataset.scope;updateScope();scopeMenu.hidden=true;chatScope.setAttribute('aria-expanded','false');});
-  chatInput.value=chat.question;chatInput.onfocus=()=>{if(chat.collapsed)setCollapsed(false);};chatInput.oninput=()=>{chat.question=chatInput.value;suggestions.hidden=!!chat.messages.length||!!chat.question.trim();};renderChat();
+  chatInput.value=chat.question;chatInput.onfocus=()=>{if(chat.collapsed)setCollapsed(false,true,true);};chatInput.oninput=()=>{chat.question=chatInput.value;suggestions.hidden=!!chat.messages.length||!!chat.question.trim();};renderChat();
   document.querySelectorAll('[data-question]').forEach(b=>b.onclick=()=>{chatInput.value=b.dataset.question;chat.question=chatInput.value;suggestions.hidden=true;chatInput.focus();});
-  $('#ask-form').onsubmit=async e=>{e.preventDefault();if(chat.collapsed)setCollapsed(false);const question=chatInput.value.trim();if(!question||chat.pending)return;chat.pending=true;chat.messages.push({role:'user',text:question});chatInput.value='';chat.question='';renderChat();const send=$('.ask-send');send.disabled=true;try{const response=await api('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,scope:chat.scope,meeting_id:id})});chat.messages.push({role:'assistant',text:response.answer});}catch(err){chat.messages.push({role:'assistant',text:err.message});}finally{chat.pending=false;if(current===id){send.disabled=false;renderChat();}}};
-  const player=$('#player');if(player){if(position)player.currentTime=position;if(playing)player.play().catch(()=>{});let active=null;const updateWave=()=>{const progress=Number.isFinite(player.duration)&&player.duration>0?player.currentTime/player.duration:0;document.querySelectorAll('.waveform i').forEach((bar,i,all)=>bar.classList.toggle('played',(i+0.5)/all.length<=progress));};player.addEventListener('seeked',updateWave);player.addEventListener('loadedmetadata',updateWave);player.addEventListener('timeupdate',()=>{updateWave();if(player.paused||$('#transcript').hidden)return;const all=[...document.querySelectorAll('.segment')];let target=null;for(const item of all){if(Number(item.dataset.time)<=player.currentTime)target=item;else break;}if(target!==active){if(active)active.classList.remove('is-playing');active=target;if(active){active.classList.add('is-playing');if(!active.hidden){const scroller=$('#notes-scroll');const top=active.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-(scroller.clientHeight-active.offsetHeight)/2;scroller.scrollTo({top,behavior:'smooth'});}}}});document.querySelectorAll('.segment').forEach(b=>b.onclick=()=>{player.currentTime=Number(b.dataset.time);player.play().catch(()=>{});});}
+  $('#ask-form').onsubmit=async e=>{e.preventDefault();if(chat.collapsed)setCollapsed(false,true);const question=chatInput.value.trim();if(!question||chat.pending)return;chat.pending=true;chat.messages.push({role:'user',text:question});chatInput.value='';chat.question='';renderChat();const send=$('.ask-send');send.disabled=true;try{const response=await api('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question,scope:chat.scope,meeting_id:id})});chat.messages.push({role:'assistant',text:response.answer});}catch(err){chat.messages.push({role:'assistant',text:err.message});}finally{chat.pending=false;if(current===id){send.disabled=false;renderChat();}}};
+  const player=$('#player');if(player){if(position)player.currentTime=position;if(playing)player.play().catch(()=>{});let active=null;const updateWave=()=>{const progress=Number.isFinite(player.duration)&&player.duration>0?player.currentTime/player.duration:0;document.querySelectorAll('.waveform i').forEach((bar,i,all)=>bar.classList.toggle('played',(i+0.5)/all.length<=progress));};player.addEventListener('seeked',updateWave);player.addEventListener('loadedmetadata',updateWave);player.addEventListener('timeupdate',()=>{updateWave();const activeContent=document.querySelector('.tab-content:not([hidden])');if(player.paused||!activeContent||activeContent.id==='summary')return;const all=[...activeContent.querySelectorAll('.segment')];let target=null;for(const item of all){if(Number(item.dataset.time)<=player.currentTime)target=item;else break;}if(target!==active){if(active)active.classList.remove('is-playing');active=target;if(active){active.classList.add('is-playing');if(!active.hidden){const scroller=$('#notes-scroll');const top=active.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-(scroller.clientHeight-active.offsetHeight)/2;scroller.scrollTo({top,behavior:'smooth'});}}}});document.querySelectorAll('.segment').forEach(b=>b.onclick=()=>{player.currentTime=Number(b.dataset.time);player.play().catch(()=>{});});}
+  syncMediaPane();
+  const mediaCollapseBtn = $('#media-collapse-btn');
+  if (mediaCollapseBtn) {
+    mediaCollapseBtn.onclick = (e) => {
+      e.stopPropagation();
+      mediaCollapsed = !mediaCollapsed;
+      try { localStorage.setItem('saamba-media-collapsed', String(mediaCollapsed)); } catch (_) {}
+      syncMediaPane();
+    };
+  }
+  const mediaPane = $('#media-pane');
+  if (mediaPane) {
+    mediaPane.onclick = (e) => {
+      if (!mediaCollapsed) return;
+      if (e.target.closest('.download-menu') || e.target.closest('#media-collapse-btn')) return;
+      mediaCollapsed = false;
+      try { localStorage.setItem('saamba-media-collapsed', 'false'); } catch (_) {}
+      syncMediaPane();
+    };
+  }
   $('#notes-scroll').scrollTop=oldScroll;
 }
 const audioInput=$('#audio'),fileClearRow=$('#file-clear-row'),fileChosenName=$('#file-chosen-name'),fileRemoveBtn=$('#file-remove-btn');
+let titleManuallyEdited=false;
+const titleInput=$('#title');
+if(titleInput){titleInput.oninput=()=>{titleManuallyEdited=titleInput.value.trim().length>0;};}
 function updateFileSelection(){
   const file=audioInput&&audioInput.files&&audioInput.files[0];
   if(file){if(fileChosenName)fileChosenName.textContent=file.name;if(fileClearRow)fileClearRow.hidden=false;}
   else{if(fileChosenName)fileChosenName.textContent='';if(fileClearRow)fileClearRow.hidden=true;}
 }
 $('#import-button').onclick=$('#empty-import').onclick=()=>{updateFileSelection();$('#import-dialog').showModal();};
-$('#close-dialog').onclick=()=>{$('#import-dialog').close();$('#upload-form').reset();updateFileSelection();};
-if(fileRemoveBtn){fileRemoveBtn.onclick=()=>{if(audioInput){audioInput.value='';updateFileSelection();const curr=$('#title').value.trim();if(curr.startsWith('Meeting · ')||audioInput.dataset.autoTitle===curr)$('#title').value='';}};}
+$('#close-dialog').onclick=()=>{$('#import-dialog').close();$('#upload-form').reset();titleManuallyEdited=false;if(audioInput)delete audioInput.dataset.autoTitle;updateFileSelection();};
+if(fileRemoveBtn){
+  fileRemoveBtn.onclick=()=>{
+    if(audioInput){
+      audioInput.value='';
+      updateFileSelection();
+      $('#title').value='';
+      titleManuallyEdited=false;
+      delete audioInput.dataset.autoTitle;
+    }
+  };
+}
 $('#audio').onchange=e=>{
   updateFileSelection();
-  const currentTitle=$('#title').value.trim();
-  const file=e.target.files[0];
+  const file=e.target.files&&e.target.files[0];
   if(!file)return;
-  if(currentTitle)return;
-  const rawBase=file.name.replace(/\.[^.]+$/, "").trim();
-  const cleaned=rawBase.replace(/[_-]+/g, " ").trim();
-  const isGeneric=/^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
-  let newTitle='';
-  if(isGeneric||!cleaned){
-    const today=new Date().toLocaleDateString(undefined, {month: "short", day: "numeric", year: "numeric"});
-    newTitle="Meeting · "+today;
-  }else{
-    newTitle=cleaned.charAt(0).toUpperCase()+cleaned.slice(1);
+  const currentTitle=$('#title').value.trim();
+  const isAutoAssigned=!titleManuallyEdited||!currentTitle||currentTitle.startsWith('Meeting · ')||(audioInput&&audioInput.dataset.autoTitle===currentTitle);
+  if(isAutoAssigned){
+    const rawBase=file.name.replace(/\.[^.]+$/, "").trim();
+    const cleaned=rawBase.replace(/[_-]+/g, " ").trim();
+    const isGeneric=/^(video|audio|recording|meeting|screen\s*recording|untitled|track|output|zoom\s*\d*|media|file)(\s*\d+)?$/i.test(cleaned);
+    let newTitle='';
+    if(isGeneric||!cleaned){
+      const today=new Date().toLocaleDateString(undefined, {month: "short", day: "numeric", year: "numeric"});
+      newTitle="Meeting · "+today;
+    }else{
+      newTitle=cleaned.charAt(0).toUpperCase()+cleaned.slice(1);
+    }
+    $('#title').value=newTitle;
+    if(audioInput)audioInput.dataset.autoTitle=newTitle;
+    titleManuallyEdited=false;
   }
-  $('#title').value=newTitle;
-  e.target.dataset.autoTitle=newTitle;
 };
-$('#upload-form').onsubmit=async e=>{e.preventDefault();const file=$('#audio').files[0];if(!file)return;$('#submit').disabled=true;$('#submit').textContent='Importing…';$('#upload-error').textContent='';try{const m=await api('/api/meetings',{method:'POST',headers:{'Content-Type':file.type||'application/octet-stream','X-Meeting-Title':encodeURIComponent($('#title').value)},body:file});$('#import-dialog').close();e.target.reset();updateFileSelection();selected=m.id;current=null;await refresh();}catch(err){$('#upload-error').textContent=err.message;}finally{$('#submit').disabled=false;$('#submit').textContent='Import meeting';}};
+$('#upload-form').onsubmit=async e=>{
+  e.preventDefault();
+  const file=$('#audio').files[0];
+  if(!file)return;
+  $('#submit').disabled=true;
+  $('#submit').textContent='Importing…';
+  $('#upload-error').textContent='';
+  try{
+    const m=await api('/api/meetings',{
+      method:'POST',
+      headers:{'Content-Type':file.type||'application/octet-stream','X-Meeting-Title':encodeURIComponent($('#title').value)},
+      body:file
+    });
+    $('#import-dialog').close();
+    e.target.reset();
+    titleManuallyEdited=false;
+    if(audioInput)delete audioInput.dataset.autoTitle;
+    updateFileSelection();
+    selected=m.id;
+    if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+      if (!workspaceMeetings[activeWorkspaceId]) workspaceMeetings[activeWorkspaceId] = [];
+      if (!workspaceMeetings[activeWorkspaceId].includes(m.id)) {
+        workspaceMeetings[activeWorkspaceId].push(m.id);
+        try { localStorage.setItem('saamba-workspace-meetings', JSON.stringify(workspaceMeetings)); } catch (_) {}
+      }
+    }
+    current=null;
+    await refresh();
+  }catch(err){
+    $('#upload-error').textContent=err.message;
+  }finally{
+    $('#submit').disabled=false;
+    $('#submit').textContent='Import meeting';
+  }
+};
 refresh().catch(e=>$('#meetings').textContent=e.message);setInterval(()=>refresh().catch(()=>{}),5000);
 
 $('#delete-cancel').onclick=()=>$('#delete-dialog').close();
@@ -490,7 +1448,18 @@ document.addEventListener('click',e=>{
     document.querySelectorAll('.custom-select-options').forEach(x=>x.hidden=true);
     document.querySelectorAll('.custom-select-trigger').forEach(x=>x.setAttribute('aria-expanded','false'));
   }
-  if(!e.target.closest('.share-menu')&&!e.target.closest('.transcript-menu-wrap')){document.querySelectorAll('.share-options, .transcript-dropdown').forEach(x=>x.hidden=true);document.querySelectorAll('#share-toggle,#rewrite-toggle,#ask-scope-toggle,#download-toggle').forEach(x=>x.setAttribute('aria-expanded','false'));}
+  if(!e.target.closest('.share-menu')&&!e.target.closest('.transcript-menu-wrap')){
+    document.querySelectorAll('.share-options, .transcript-dropdown').forEach(x=>x.hidden=true);
+    document.querySelectorAll('.transcript-menu-wrap').forEach(w=>w.classList.remove('is-open'));
+  document.querySelectorAll('#share-toggle,#rewrite-toggle,#ask-scope-toggle,#download-toggle').forEach(x=>x.setAttribute('aria-expanded','false'));
+  }
   if(!e.target.closest('.delete-menu')){const pop=$('#delete-popover');if(pop)pop.hidden=true;const toggle=$('#delete-toggle');if(toggle)toggle.setAttribute('aria-expanded','false');}
   if(!e.target.closest('.notes-card, .media-pane, dialog')){const player=$('#player');if(player&&!player.paused)player.pause();}
+});
+document.querySelectorAll('dialog').forEach(dialog => {
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) {
+      dialog.close();
+    }
+  });
 });

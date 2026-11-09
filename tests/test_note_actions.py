@@ -25,17 +25,17 @@ class NoteActionsTests(unittest.TestCase):
         server.DATA,server.DB=self.old;self.temp.cleanup()
     def row(self):
         with server.connect() as db:return dict(db.execute('SELECT * FROM meetings WHERE id=?',('test',)).fetchone())
-    @patch.dict(os.environ,{'GROQ_API_KEY':'synthetic'})
+    @patch.dict(os.environ,{'GROQ_API_KEY':'synthetic','GEMINI_API_KEY':''})
     def test_summary_only_keeps_transcript(self):
         with patch('groq_pipeline.summarize',return_value='new summary'),patch('groq_pipeline.transcribe_segment') as transcribe:
             server.create_notes('test','summary')
         self.assertEqual(json.loads(self.row()['transcript'])[0]['text'],'old synthetic');self.assertEqual(self.row()['summary'],'new summary');transcribe.assert_not_called()
-    @patch.dict(os.environ,{'GROQ_API_KEY':'synthetic'})
+    @patch.dict(os.environ,{'GROQ_API_KEY':'synthetic','GEMINI_API_KEY':''})
     def test_failed_retranscription_preserves_existing_work(self):
         with patch('groq_pipeline.duration',return_value=10),patch('groq_pipeline.transcribe_segment',side_effect=groq_pipeline.ProcessingError('synthetic error')):
             server.create_notes('test','both')
         row=self.row();self.assertEqual(row['status'],'error');self.assertEqual(json.loads(row['transcript'])[0]['text'],'old synthetic');self.assertEqual(row['summary'],'old summary')
-    @patch.dict(os.environ,{'GROQ_API_KEY':'synthetic'})
+    @patch.dict(os.environ,{'GROQ_API_KEY':'synthetic','GEMINI_API_KEY':''})
     def test_transcript_only_replaces_transcript_and_invalidates_summary(self):
         with patch('groq_pipeline.duration',return_value=10),patch('groq_pipeline.transcribe_segment',return_value=[{'start':0,'text':'new synthetic'}]):
             server.create_notes('test','transcript')

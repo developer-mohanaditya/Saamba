@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import groq_pipeline
+import gemini_pipeline
 
 executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='saamba-live')
 locks = {}
@@ -81,20 +82,40 @@ def add_video(server, mid, index, body):
 
 
 def transcribe(server, mid, index):
-    key = os.environ.get('GROQ_API_KEY')
-    if not key: return
+    gemini_key = os.environ.get('GEMINI_API_KEY')
+    groq_key = os.environ.get('GROQ_API_KEY')
+    if not gemini_key and not groq_key: return
     with server.connect() as db:
         chunk = db.execute('SELECT * FROM live_chunks WHERE meeting_id=? AND chunk_index=?', (mid,index)).fetchone()
         elapsed = db.execute('SELECT COALESCE(SUM(1.0*frames/sample_rate),0) FROM live_chunks WHERE meeting_id=? AND chunk_index<?', (mid,index)).fetchone()[0]
-    try:
-        local_segments = groq_pipeline.transcribe_segment(server.DATA / chunk['filename'], 0, key)
-        segments = [dict(s, start=s['start'] + elapsed) for s in local_segments]
+    if not chunk: return
+    chunk_path = server.DATA / chunk['filename']
+    if not chunk_path.exists(): return
+
+    segments = []
+    if gemini_key:
+        try:
+            text = gemini_pipeline.transcribe_chunk(chunk_path, gemini_key)
+            if text:
+                segments = [{'start': round(elapsed, 2), 'speaker': None, 'text': text}]
+        except Exception:
+            pass
+    if not segments and groq_key:
+        try:
+            local_segments = groq_pipeline.transcribe_segment(chunk_path, 0, groq_key)
+            segments = [dict(s, start=round(s['start'] + elapsed, 2)) for s in local_segments]
+        except Exception:
+            pass
+
+    if segments:
         with server.connect() as db:
             db.execute('INSERT OR REPLACE INTO transcript_chunks VALUES (?,?,?)', (mid,index,json.dumps(segments)))
             rows=db.execute('SELECT segments FROM transcript_chunks WHERE meeting_id=? ORDER BY chunk_index',(mid,)).fetchall()
             combined=[segment for row in rows for segment in json.loads(row['segments'])]
             db.execute('UPDATE meetings SET transcript=?, error=NULL WHERE id=?',(json.dumps(combined),mid))
-    except groq_pipeline.ProcessingError:
+        if hasattr(server, 'event_hub'):
+            server.event_hub.broadcast(mid, 'live_chunk', {'segments': segments, 'chunk_index': index, 'total': len(combined)})
+    elif not gemini_key and groq_key:
         server.update(mid, error='Live transcription is delayed. Audio is saved; processing will retry after the meeting.')
 
 
@@ -168,6 +189,26 @@ def finish_processing(server,mid):
     segments=[s for row in rows for s in json.loads(row['segments'])]
     with server.connect() as db: db.execute('DELETE FROM summary_preview WHERE meeting_id=?',(mid,))
     server.update(mid,status='summarizing',transcript=json.dumps(segments),error=None)
+    if hasattr(server, 'event_hub'):
+        server.event_hub.broadcast(mid, 'status', {'status': 'summarizing'})
+    gemini_key = os.environ.get('GEMINI_API_KEY')
+    if gemini_key:
+        try:
+            summary = gemini_pipeline.summarize(segments, gemini_key, on_chunk=lambda c: server.publish_summary_chunk(mid, c) if hasattr(server, 'publish_summary_chunk') else None)
+            server.update(mid, status='ready', summary=summary, error=None)
+            if hasattr(server, 'clear_previews'):
+                server.clear_previews(mid)
+            if hasattr(server, 'event_hub'):
+                server.event_hub.broadcast(mid, 'summary_done', {'summary': summary})
+                server.event_hub.broadcast(mid, 'status', {'status': 'ready'})
+            return
+        except Exception as exc:
+            server.update(mid, status='error', error=str(exc))
+            if hasattr(server, 'clear_previews'):
+                server.clear_previews(mid)
+            if hasattr(server, 'event_hub'):
+                server.event_hub.broadcast(mid, 'error', {'error': str(exc)})
+            return
     try:
         request_get,request_set=server.summary_request_cache(mid)
         summary=groq_pipeline.summarize(segments,os.environ['GROQ_API_KEY'],request_get=request_get,request_set=request_set,on_partial=server.summary_preview_callback(mid))

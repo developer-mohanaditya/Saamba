@@ -28,7 +28,7 @@ class ResumeTests(unittest.TestCase):
                     if start == 60 and calls.count(60) == 1:
                         raise groq_pipeline.ProcessingError('rate limit')
                     return [{'start':start,'speaker':None,'text':'synthetic'}]
-                with patch.dict(os.environ, {'GROQ_API_KEY':'test-only'}), patch('groq_pipeline.duration',return_value=90), patch('groq_pipeline.transcribe_segment',side_effect=transcribe), patch('groq_pipeline.summarize',return_value='synthetic summary'):
+                with patch.dict(os.environ, {'GROQ_API_KEY':'test-only', 'GEMINI_API_KEY': ''}), patch('groq_pipeline.duration',return_value=90), patch('groq_pipeline.transcribe_segment',side_effect=transcribe), patch('groq_pipeline.summarize',return_value='synthetic summary'):
                     server.process('test')
                     with server.connect() as db:
                         self.assertEqual(db.execute('SELECT status FROM meetings').fetchone()[0],'error')
