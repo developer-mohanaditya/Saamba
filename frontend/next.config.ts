@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   basePath: '/v2',
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/v2',
+        basePath: false,
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return {
       beforeFiles: [],
