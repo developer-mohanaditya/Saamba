@@ -114,6 +114,7 @@ export function Modals({
     setSelectedMeetingId,
     meetings,
     activeWorkspaceId,
+    user,
   } = useAppStore();
 
   const [wsName, setWsName] = useState('');
@@ -162,6 +163,9 @@ export function Modals({
       };
       if (activeWorkspaceId && activeWorkspaceId !== 'default') {
         headers['X-Workspace-Id'] = activeWorkspaceId;
+      }
+      if (user?.id) {
+        headers['X-User-Id'] = user.id;
       }
 
       const res = await fetch('/api/meetings', {

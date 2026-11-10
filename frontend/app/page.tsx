@@ -134,6 +134,41 @@ export default function Home() {
     };
   }, [selectedMeetingId]);
 
+  // Live auto-polling while active meeting is processing (queued, transcribing, summarizing)
+  useEffect(() => {
+    if (!currentMeeting) return;
+    if (currentMeeting.status === 'ready' || currentMeeting.status === 'error') return;
+
+    let mounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const updated = await getMeeting(currentMeeting.id);
+        if (!mounted || !updated) return;
+        setCurrentMeeting(updated);
+        setMeetings(
+          useAppStore.getState().meetings.map((m) =>
+            m.id === updated.id
+              ? {
+                  ...m,
+                  title: updated.title,
+                  status: updated.status,
+                  has_summary: Boolean(updated.summary && updated.summary.trim().length > 0),
+                  has_transcript: Boolean(updated.transcript && updated.transcript.length > 0),
+                }
+              : m
+          )
+        );
+      } catch (err) {
+        console.error('Active meeting polling error:', err);
+      }
+    }, 2000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [currentMeeting?.id, currentMeeting?.status]);
+
   const handleStartTranslation = async (code: string, name: string) => {
     if (!currentMeeting) return;
     setActiveTranslation({

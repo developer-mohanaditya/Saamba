@@ -138,6 +138,12 @@ export function MeetingDetail({
 
   const summaryHtml = currentMeeting.summary
     ? summarySections(currentMeeting)
+    : currentMeeting.status === 'transcribing'
+    ? '<div class="activity" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>Transcribing meeting audio…</strong><p>AI is converting speech to text. Notes will generate automatically.</p></div></div>'
+    : currentMeeting.status === 'summarizing'
+    ? '<div class="activity" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>Generating AI summary & action items…</strong><p>Analyzing key points, decisions, and follow-ups from the transcript.</p></div></div>'
+    : currentMeeting.status === 'queued'
+    ? '<div class="activity" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>Upload complete — Queued for processing</strong><p>Transcription will begin shortly.</p></div></div>'
     : '<p class="muted">Summary will appear once transcription finishes.</p>';
 
   const handleExport = (format: 'txt' | 'md' | 'pdf') => {
@@ -286,8 +292,10 @@ export function MeetingDetail({
               <div className="share-options" id="rewrite-options">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     setRewriteOpen(false);
+                    await fetch(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/summary`, { method: 'POST' }).catch(() => {});
+                    setCurrentMeeting({ ...currentMeeting, status: 'summarizing' });
                   }}
                 >
                   <span dangerouslySetInnerHTML={{ __html: icon('rewrite') }} />
@@ -295,8 +303,10 @@ export function MeetingDetail({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     setRewriteOpen(false);
+                    await fetch(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/transcript`, { method: 'POST' }).catch(() => {});
+                    setCurrentMeeting({ ...currentMeeting, status: 'transcribing' });
                   }}
                 >
                   <span dangerouslySetInnerHTML={{ __html: icon('file') }} />

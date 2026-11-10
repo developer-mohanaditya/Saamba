@@ -57,7 +57,7 @@ export function AuthModal() {
           setToastMessage(`✓ Welcome back, ${data.user.email}!`);
         }
       } else {
-        const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/v2` : undefined;
+        const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,

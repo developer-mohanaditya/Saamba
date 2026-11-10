@@ -4,7 +4,6 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:24917';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  basePath: '/v2',
   experimental: {
     proxyClientMaxBodySize: '2gb',
     proxyTimeout: 300_000,
@@ -12,9 +11,13 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
-        source: '/',
-        destination: '/v2',
-        basePath: false,
+        source: '/v2',
+        destination: '/',
+        permanent: false,
+      },
+      {
+        source: '/v2/:path*',
+        destination: '/:path*',
         permanent: false,
       },
     ];
@@ -23,11 +26,6 @@ const nextConfig: NextConfig = {
     return {
       beforeFiles: [],
       afterFiles: [
-        {
-          source: '/api/:path*',
-          destination: `${BACKEND_URL}/api/:path*`,
-          basePath: false,
-        },
         {
           source: '/api/:path*',
           destination: `${BACKEND_URL}/api/:path*`,
