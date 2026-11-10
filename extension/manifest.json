@@ -5,7 +5,10 @@
   "description": "Detect when you join Google Meet and offer Saamba recording controls.",
   "host_permissions": [
     "https://meet.google.com/*",
-    "http://127.0.0.1:24917/*"
+    "https://saamba.profeshare.ai/*",
+    "http://127.0.0.1:24917/*",
+    "http://localhost:24917/*",
+    "http://localhost:3001/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -23,7 +26,10 @@
     },
     {
       "matches": [
-        "http://127.0.0.1:24917/*"
+        "https://saamba.profeshare.ai/*",
+        "http://127.0.0.1:24917/*",
+        "http://localhost:24917/*",
+        "http://localhost:3001/*"
       ],
       "js": [
         "saamba-bridge.js"

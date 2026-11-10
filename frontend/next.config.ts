@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:24917';
+
 const nextConfig: NextConfig = {
+  output: 'standalone',
   basePath: '/v2',
   experimental: {
     proxyClientMaxBodySize: '2gb',
@@ -22,12 +25,12 @@ const nextConfig: NextConfig = {
       afterFiles: [
         {
           source: '/api/:path*',
-          destination: 'http://127.0.0.1:24917/api/:path*',
+          destination: `${BACKEND_URL}/api/:path*`,
           basePath: false,
         },
         {
           source: '/api/:path*',
-          destination: 'http://127.0.0.1:24917/api/:path*',
+          destination: `${BACKEND_URL}/api/:path*`,
         },
       ],
       fallback: [],

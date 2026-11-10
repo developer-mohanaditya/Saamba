@@ -1,11 +1,43 @@
-const appPattern = 'http://127.0.0.1:24917/*';
+const appPatterns = [
+  'https://saamba.profeshare.ai/*',
+  'http://127.0.0.1:24917/*',
+  'http://localhost:24917/*',
+  'http://localhost:3001/*'
+];
+
+function isAppUrl(url) {
+  if (!url) return false;
+  return url.startsWith('https://saamba.profeshare.ai/') ||
+         url.startsWith('http://127.0.0.1:24917/') ||
+         url.startsWith('http://localhost:24917/') ||
+         url.startsWith('http://localhost:3001/');
+}
+
 function isMeetingUrl(url) {
   try { const u=new URL(url); return u.hostname==='meet.google.com' && /^\/(?:meet\/)?[a-z]{3}-[a-z]{4}-[a-z]{3}\/?$/i.test(u.pathname); }
   catch (_) { return false; }
 }
+
+async function queryAllAppTabs() {
+  const found = [];
+  const seen = new Set();
+  for (const pattern of appPatterns) {
+    try {
+      const tabs = await chrome.tabs.query({url: pattern});
+      for (const t of tabs) {
+        if (!seen.has(t.id)) {
+          seen.add(t.id);
+          found.push(t);
+        }
+      }
+    } catch (_) {}
+  }
+  return found;
+}
+
 async function notifyApps(type, meetingTabId) {
-  const apps=await chrome.tabs.query({url:appPattern});
-  let delivered=0;
+  const apps = await queryAllAppTabs();
+  let delivered = 0;
   for(const tab of apps) { try { await chrome.tabs.sendMessage(tab.id,{type,meetingTabId}); delivered++; } catch (_) {} }
   return delivered;
 }
@@ -16,7 +48,7 @@ async function joined(tab) {
   catch (_) { return false; }
 }
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  if (sender.tab?.id && sender.url?.startsWith('http://127.0.0.1:24917/') && message.type === 'request-tab-capture') {
+  if (sender.tab?.id && isAppUrl(sender.url) && message.type === 'request-tab-capture') {
     (async()=>{
       try {
         if(!Number.isInteger(message.meetingTabId)) throw Error('Invalid meeting');
@@ -29,7 +61,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     })();
     return true;
   }
-  if (sender.tab?.id && sender.url?.startsWith('http://127.0.0.1:24917/') && message.type === 'recording-status') {
+  if (sender.tab?.id && isAppUrl(sender.url) && message.type === 'recording-status') {
     if(Number.isInteger(message.meetingTabId) && typeof message.recording==='boolean') chrome.tabs.sendMessage(message.meetingTabId,{type:'recording-status',recording:message.recording}).catch(()=>{});
     return;
   }
@@ -41,7 +73,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.url?.startsWith('https://meet.google.com/')) {
     if (message.type === 'joined-meeting') notifyApps('meeting-detected',sender.tab.id).catch(()=>{});
     if (message.type === 'meeting-ended') notifyEnd(sender.tab.id).catch(()=>{});
-  } else if (sender.url?.startsWith('http://127.0.0.1:24917/') && message.type === 'saamba-ready') {
+  } else if (isAppUrl(sender.url) && message.type === 'saamba-ready') {
     chrome.tabs.query({url:'https://meet.google.com/*'}).then(tabs=> {
       for(const tab of tabs) if(tab.id && isMeetingUrl(tab.url)) chrome.tabs.sendMessage(sender.tab.id,{type:'meeting-detected',meetingTabId:tab.id}).catch(()=>{});
     }).catch(()=>{});
@@ -62,9 +94,9 @@ async function startFromMeet(tab) {
   }
   let stage='app';
   try {
-    let apps = await chrome.tabs.query({url: appPattern});
+    let apps = await queryAllAppTabs();
     let app = apps.find(t => new URL(t.url).searchParams.get('meetTab') === String(tab.id)) || apps[0];
-    if (!app) app = await chrome.tabs.create({url:`http://127.0.0.1:24917/?meeting=detected&meetTab=${tab.id}`, active:false});
+    if (!app) app = await chrome.tabs.create({url:`https://saamba.profeshare.ai/?meeting=detected&meetTab=${tab.id}`, active:false});
     // Wait for the bridge before obtaining a short-lived stream ID.
     let ready = false;
     for (let i=0; i<30 && !ready; i++) {
@@ -80,7 +112,7 @@ async function startFromMeet(tab) {
   } catch (_) {
     await chrome.tabs.sendMessage(tab.id,{type:'capture-start-error',reason:stage}).catch(()=>{});
     // Show a user-visible error in Saamba without exposing recording data.
-    const apps=await chrome.tabs.query({url:appPattern});
+    const apps=await queryAllAppTabs();
     const app=apps.find(t=>new URL(t.url).searchParams.get('meetTab')===String(tab.id)) || apps[0];
     if(app) await chrome.tabs.sendMessage(app.id,{type:'capture-error'}).catch(()=>{});
     return false;

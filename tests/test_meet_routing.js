@@ -8,7 +8,10 @@ vm.runInNewContext(fs.readFileSync('extension/background.js','utf8'),{chrome,URL
  assert(sent.some(x=>x[0]===1&&x[1].type==='meeting-detected'&&x[1].meetingTabId===42));assert.equal(created.length,0);
  sent.length=0;updated(42,{url:'https://meet.google.com/abc-defg-hij'});await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-detected'));
  sent.length=0;handler({type:'saamba-ready'},{tab:{id:1},url:'http://127.0.0.1:24917/'});await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-detected'));
- sent.length=0;let response;assert.equal(handler({type:'request-tab-capture',meetingTabId:42},{tab:{id:1},url:'http://127.0.0.1:24917/'},value=>response=value),true);await new Promise(setImmediate);assert(response.ok);assert(sent.some(x=>x[1].type==='start-tab-capture'));
+ sent.length=0;handler({type:'saamba-ready'},{tab:{id:1},url:'https://saamba.profeshare.ai/'});await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-detected'));
+ sent.length=0;let response;assert.equal(handler({type:'request-tab-capture',meetingTabId:42},{tab:{id:1},url:'https://saamba.profeshare.ai/'},value=>response=value),true);await new Promise(setImmediate);assert(response.ok);assert(sent.some(x=>x[1].type==='start-tab-capture'));
+ sent.length=0;handler({type:'saamba-ready'},{tab:{id:1},url:'http://localhost:3001/'});await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-detected'));
+ sent.length=0;let responseNext;assert.equal(handler({type:'request-tab-capture',meetingTabId:42},{tab:{id:1},url:'http://localhost:3001/'},value=>responseNext=value),true);await new Promise(setImmediate);assert(responseNext.ok);assert(sent.some(x=>x[1].type==='start-tab-capture'));
  sent.length=0;removed(42);await new Promise(setImmediate);assert(sent.some(x=>x[1].type==='meeting-ended'&&x[1].meetingTabId===42));
  joined=false;sent.length=0;await action({id:42,url:'https://meet.google.com/abc-defg-hij'});assert(!sent.some(x=>x[1].type==='start-tab-capture'));joined=true;
  sent.length=0;await action({id:42,url:'https://meet.google.com/'});assert(!sent.some(x=>x[1].type==='start-tab-capture'));
