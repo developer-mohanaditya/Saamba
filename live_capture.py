@@ -166,6 +166,10 @@ def finish(server, mid, video_count=0):
             finally:
                 combined.unlink(missing_ok=True)
         server.update(mid,status='queued',error=None)
+        if getattr(server, 'storage', None) and server.storage.is_configured:
+            final_file = output_path if video_saved else target
+            if final_file.exists():
+                executor.submit(server.storage.upload_file, final_file, final_file.name)
     executor.submit(finish_processing,server,mid)
     return {'video_saved': video_saved}
 

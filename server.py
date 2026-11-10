@@ -14,7 +14,7 @@ import tempfile
 
 from fastapi import FastAPI, Request, Response, HTTPException, status, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, StreamingResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -32,6 +32,21 @@ def _load_env():
                     if k and k not in os.environ:
                         os.environ[k] = v
 _load_env()
+
+from storage_r2 import storage
+
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+supabase_client = None
+DEFAULT_USER_ID = '99dc2206-2063-4d4f-ab6e-991ec3952099'
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        from supabase import create_client
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"Warning: Could not initialize Supabase client: {e}")
+
+
 
 DATA = Path(os.environ.get('SAAMBA_DATA_DIR', ROOT / 'data')).expanduser()
 DATA.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -180,6 +195,20 @@ def action_items(summary, checks=None):
 def update(mid, **values):
     with connect() as db:
         db.execute('UPDATE meetings SET ' + ', '.join(f'{k}=?' for k in values) + ' WHERE id=?', (*values.values(), mid))
+    if supabase_client:
+        try:
+            sb_values = {}
+            for k, v in values.items():
+                if k == 'transcript' and isinstance(v, str):
+                    try:
+                        sb_values[k] = json.loads(v)
+                    except Exception:
+                        sb_values[k] = v
+                else:
+                    sb_values[k] = v
+            supabase_client.table('meetings').update(sb_values).eq('id', mid).execute()
+        except Exception as e:
+            print(f"Warning: Supabase update failed for meeting {mid}: {e}")
 
 def request_json(url, data, headers):
     req = urllib.request.Request(url, data=data, headers={'User-Agent': 'Saamba/0.1 (meeting assistant; API client)', **headers}, method='POST')
@@ -439,6 +468,16 @@ def delete_meeting(mid):
         finally:
             db.close()
         shutil.rmtree(trash)
+        if storage.is_configured:
+            try:
+                storage.delete_file(row['filename'])
+            except Exception:
+                pass
+        if supabase_client:
+            try:
+                supabase_client.table('meetings').delete().eq('id', mid).execute()
+            except Exception:
+                pass
 
 def render_snapshot_html(m):
     title = m.get('title') or 'Meeting'
@@ -1701,14 +1740,30 @@ async def download_recording(mid: str, format: Optional[str] = None):
 
 @app.get('/api/meetings/{mid}/audio')
 async def get_meeting_audio(mid: str):
+    row = None
     with connect() as db:
-        row = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+        r = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+        if r:
+            row = dict(r)
+    if not row and supabase_client:
+        try:
+            res = supabase_client.table('meetings').select('*').eq('id', mid).single().execute()
+            if res.data:
+                row = res.data
+        except Exception:
+            pass
     if not row:
         return JSONResponse({'error': 'Meeting not found'}, status_code=404)
-    file_path = DATA / row['filename']
-    if not file_path.exists():
-        return JSONResponse({'error': 'Audio file not found'}, status_code=404)
-    return FileResponse(file_path, media_type=row['mime'])
+    filename = row.get('filename') or f'{mid}.wav'
+    mime = row.get('mime') or 'audio/wav'
+    file_path = DATA / filename
+    if file_path.exists():
+        return FileResponse(file_path, media_type=mime)
+    if storage.is_configured:
+        presigned = storage.generate_presigned_url(filename)
+        if presigned:
+            return RedirectResponse(presigned, status_code=307)
+    return JSONResponse({'error': 'Audio file not found'}, status_code=404)
 
 # --- Meeting Actions & Modifications ---
 
@@ -1755,6 +1810,32 @@ async def upload_meeting(request: Request):
             if ws_id and ws_id != 'default':
                 db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
             db.commit()
+
+        if supabase_client:
+            try:
+                user_id = request.headers.get('x-user-id') or DEFAULT_USER_ID
+                now_iso = datetime.now(timezone.utc).isoformat()
+                supabase_client.table('meetings').upsert({
+                    'id': mid,
+                    'user_id': user_id,
+                    'title': title,
+                    'created_at': now_iso,
+                    'filename': name,
+                    'mime': mime,
+                    'status': 'queued'
+                }).execute()
+                ws_id = request.headers.get('x-workspace-id')
+                if ws_id and ws_id != 'default':
+                    supabase_client.table('workspace_meetings').upsert({
+                        'workspace_id': ws_id,
+                        'meeting_id': mid,
+                        'user_id': user_id
+                    }).execute()
+            except Exception as e:
+                print(f"Warning: Supabase upload meeting sync failed: {e}")
+
+        if storage.is_configured and target_path.exists():
+            threading.Thread(target=storage.upload_file, args=(target_path, name), daemon=True).start()
     except Exception:
         target_path.unlink(missing_ok=True)
         return JSONResponse({'error': 'Upload failed'}, status_code=400)
@@ -1771,6 +1852,27 @@ async def live_start(request: Request):
         with connect() as db:
             db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
             db.commit()
+    if supabase_client:
+        try:
+            user_id = request.headers.get('x-user-id') or DEFAULT_USER_ID
+            now_iso = datetime.now(timezone.utc).isoformat()
+            supabase_client.table('meetings').upsert({
+                'id': mid,
+                'user_id': user_id,
+                'title': title or 'Live meeting',
+                'created_at': now_iso,
+                'filename': f'{mid}.wav',
+                'mime': 'audio/wav',
+                'status': 'recording'
+            }).execute()
+            if ws_id and ws_id != 'default':
+                supabase_client.table('workspace_meetings').upsert({
+                    'workspace_id': ws_id,
+                    'meeting_id': mid,
+                    'user_id': user_id
+                }).execute()
+        except Exception as e:
+            print(f"Warning: Supabase live start sync failed: {e}")
     return {'id': mid}
 
 @app.post('/api/live/{mid}/chunk')
