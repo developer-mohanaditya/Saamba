@@ -77,8 +77,9 @@ export function Header({
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null);
-      if (session?.user && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+      const currentUser = session?.user || null;
+      setUser(currentUser);
+      if (currentUser && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
         if (isVerificationRedirect || event === 'USER_UPDATED') {
           setToastMessage('✓ Email verified successfully! Welcome to Saamba.');
           setAuthModalOpen(false);
@@ -87,6 +88,16 @@ export function Header({
           } catch (_) {}
           playAlert('detected');
         }
+      } else if (event === 'SIGNED_OUT' || !currentUser) {
+        setUser(null);
+        useAppStore.getState().setMeetings([]);
+        useAppStore.getState().setSelectedMeetingId(null);
+        useAppStore.getState().setCurrentMeeting(null);
+        useAppStore.getState().setChatMessages([]);
+        useAppStore.getState().setActiveTranslation(null);
+        useAppStore.getState().setWorkspaces([{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }]);
+        useAppStore.getState().setWorkspaceMeetings({ default: [] });
+        useAppStore.getState().setActiveWorkspaceId('default');
       }
     });
 

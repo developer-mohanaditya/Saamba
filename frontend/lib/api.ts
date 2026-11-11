@@ -26,47 +26,36 @@ export async function getWorkspaces(): Promise<{
 }> {
   // If authenticated with Supabase, query Supabase workspaces directly
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    const { data: wsRows, error: wsErr } = await supabase
-      .from('workspaces')
-      .select('*')
-      .order('is_default', { ascending: false });
-
-    if (!wsErr && wsRows && wsRows.length > 0) {
-      const { data: wmRows } = await supabase.from('workspace_meetings').select('workspace_id, meeting_id');
-      const wmMap: Record<string, string[]> = {};
-      (wmRows || []).forEach((row: any) => {
-        if (!wmMap[row.workspace_id]) wmMap[row.workspace_id] = [];
-        wmMap[row.workspace_id].push(row.meeting_id);
-      });
-
-      return {
-        workspaces: wsRows.map((w: any) => ({
-          id: w.id,
-          name: w.name,
-          icon: w.icon || 'briefcase',
-          isDefault: Boolean(w.is_default),
-        })),
-        workspaceMeetings: wmMap,
-      };
-    }
+  if (!sessionData.session?.user) {
+    return {
+      workspaces: [{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }],
+      workspaceMeetings: { default: [] },
+    };
   }
 
-  // Fallback to local server API
-  try {
-    const data = await fetchJson<any>('/api/workspaces');
-    if (data?.workspaces) {
-      return {
-        workspaces: data.workspaces.map((w: any) => ({
-          id: w.id,
-          name: w.name,
-          icon: w.icon || 'briefcase',
-          isDefault: Boolean(w.isDefault || w.is_default),
-        })),
-        workspaceMeetings: data.workspaceMeetings || data.workspace_meetings || {},
-      };
-    }
-  } catch (_) {}
+  const { data: wsRows, error: wsErr } = await supabase
+    .from('workspaces')
+    .select('*')
+    .order('is_default', { ascending: false });
+
+  if (!wsErr && wsRows && wsRows.length > 0) {
+    const { data: wmRows } = await supabase.from('workspace_meetings').select('workspace_id, meeting_id');
+    const wmMap: Record<string, string[]> = {};
+    (wmRows || []).forEach((row: any) => {
+      if (!wmMap[row.workspace_id]) wmMap[row.workspace_id] = [];
+      wmMap[row.workspace_id].push(row.meeting_id);
+    });
+
+    return {
+      workspaces: wsRows.map((w: any) => ({
+        id: w.id,
+        name: w.name,
+        icon: w.icon || 'briefcase',
+        isDefault: Boolean(w.is_default),
+      })),
+      workspaceMeetings: wmMap,
+    };
+  }
 
   return {
     workspaces: [{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }],
@@ -76,68 +65,64 @@ export async function getWorkspaces(): Promise<{
 
 export async function createWorkspace(ws: { name: string; icon: string }): Promise<Workspace> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    const newWs = {
-      id: `ws-${Date.now()}`,
-      name: ws.name,
-      icon: ws.icon,
-      is_default: false,
-    };
-    const { data, error } = await supabase.from('workspaces').insert([newWs]).select().single();
-    if (!error && data) {
-      return {
-        id: data.id,
-        name: data.name,
-        icon: data.icon,
-        isDefault: Boolean(data.is_default),
-      };
-    }
+  if (!sessionData.session?.user) {
+    throw new Error('Please sign in to create a workspace.');
   }
 
-  return fetchJson('/api/workspaces', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(ws),
-  });
+  const newWs = {
+    id: `ws-${Date.now()}`,
+    name: ws.name,
+    icon: ws.icon,
+    is_default: false,
+    user_id: sessionData.session.user.id,
+  };
+  const { data, error } = await supabase.from('workspaces').insert([newWs]).select().single();
+  if (!error && data) {
+    return {
+      id: data.id,
+      name: data.name,
+      icon: data.icon,
+      isDefault: Boolean(data.is_default),
+    };
+  }
+  throw new Error(error?.message || 'Failed to create workspace.');
 }
 
 export async function deleteWorkspace(id: string): Promise<{ status: string }> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    await supabase.from('workspaces').delete().eq('id', id);
-    return { status: 'ok' };
+  if (!sessionData.session?.user) {
+    throw new Error('Please sign in to delete a workspace.');
   }
-  return fetchJson(`/api/workspaces/${id}`, { method: 'DELETE' });
+  await supabase.from('workspaces').delete().eq('id', id);
+  return { status: 'ok' };
 }
 
 export async function getMeetings(): Promise<Meeting[]> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    const { data, error } = await supabase
-      .from('meetings')
-      .select('id, title, created_at, status, error, mime, summary, transcript')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      return data.map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        created_at: m.created_at,
-        status: m.status,
-        error: m.error,
-        mime: m.mime,
-        has_summary: Boolean(m.summary && m.summary.trim().length > 0),
-        has_transcript: Boolean(m.transcript && Array.isArray(m.transcript) && m.transcript.length > 0),
-      }));
-    }
-  }
-
-  // Fallback to local server API
-  try {
-    return await fetchJson<Meeting[]>('/api/meetings');
-  } catch (_) {
+  if (!sessionData.session?.user) {
+    // Unauthenticated visitors have no access to private meetings
     return [];
   }
+
+  const { data, error } = await supabase
+    .from('meetings')
+    .select('id, title, created_at, status, error, mime, summary, transcript')
+    .order('created_at', { ascending: false });
+
+  if (!error && data) {
+    return data.map((m: any) => ({
+      id: m.id,
+      title: m.title,
+      created_at: m.created_at,
+      status: m.status,
+      error: m.error,
+      mime: m.mime,
+      has_summary: Boolean(m.summary && m.summary.trim().length > 0),
+      has_transcript: Boolean(m.transcript && Array.isArray(m.transcript) && m.transcript.length > 0),
+    }));
+  }
+
+  return [];
 }
 
 export function parseActionItems(summary: string, checks: Record<string, boolean> = {}): any[] {
@@ -207,9 +192,41 @@ export async function getMeeting(id: string): Promise<Meeting> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user?.id;
 
+  if (!userId) {
+    throw new Error('Please sign in to view this meeting.');
+  }
+
+  // 1. First look up the meeting scoped to the authenticated user from Supabase
+  const { data: m, error } = await supabase.from('meetings').select('*').eq('id', id).single();
+  if (!error && m) {
+    const { data: checksData } = await supabase.from('action_checks').select('*').eq('meeting_id', id);
+    const { data: transData } = await supabase.from('meeting_translations').select('language_code, language_name, created_at').eq('meeting_id', id);
+
+    const checks: Record<string, boolean> = {};
+    (checksData || []).forEach((c: any) => {
+      checks[c.item_key] = Boolean(c.checked);
+    });
+
+    return {
+      id: m.id,
+      title: m.title,
+      created_at: m.created_at,
+      filename: m.filename,
+      mime: m.mime,
+      status: m.status,
+      error: m.error,
+      transcript: m.transcript || [],
+      summary: m.summary || '',
+      action_items: parseActionItems(m.summary || '', checks),
+      translations: transData || [],
+      has_summary: Boolean(m.summary && m.summary.trim().length > 0),
+      has_transcript: Boolean(m.transcript && Array.isArray(m.transcript) && m.transcript.length > 0),
+    };
+  }
+
+  // 2. Fallback to server API with authenticated user header
   try {
-    const headers: Record<string, string> = {};
-    if (userId) headers['X-User-Id'] = userId;
+    const headers: Record<string, string> = { 'X-User-Id': userId };
     const data = await fetchJson<any>(`/api/meetings/${encodeURIComponent(id)}`, { headers });
     if (data && data.id) {
       if (!data.action_items || data.action_items.length === 0) {
@@ -219,108 +236,71 @@ export async function getMeeting(id: string): Promise<Meeting> {
     }
   } catch (_) {}
 
-  if (userId) {
-    const { data: m, error } = await supabase.from('meetings').select('*').eq('id', id).single();
-    if (!error && m) {
-      const { data: checksData } = await supabase.from('action_checks').select('*').eq('meeting_id', id);
-      const { data: transData } = await supabase.from('meeting_translations').select('language_code, language_name, created_at').eq('meeting_id', id);
-
-      const checks: Record<string, boolean> = {};
-      (checksData || []).forEach((c: any) => {
-        checks[c.item_key] = Boolean(c.checked);
-      });
-
-      return {
-        id: m.id,
-        title: m.title,
-        created_at: m.created_at,
-        filename: m.filename,
-        mime: m.mime,
-        status: m.status,
-        error: m.error,
-        transcript: m.transcript || [],
-        summary: m.summary || '',
-        action_items: parseActionItems(m.summary || '', checks),
-        translations: transData || [],
-        has_summary: Boolean(m.summary && m.summary.trim().length > 0),
-        has_transcript: Boolean(m.transcript && Array.isArray(m.transcript) && m.transcript.length > 0),
-      };
-    }
-  }
-
   throw new Error('Please sign in to view this meeting.');
 }
 
 export async function renameMeeting(id: string, title: string): Promise<{ title: string }> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    await supabase.from('meetings').update({ title }).eq('id', id);
-    return { title };
+  if (!sessionData.session?.user) {
+    throw new Error('Please sign in to rename this meeting.');
   }
-  return fetchJson(`/api/meetings/${id}/rename`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title }),
-  });
+  await supabase.from('meetings').update({ title }).eq('id', id);
+  return { title };
 }
 
 export async function deleteMeeting(id: string): Promise<{ ok: boolean }> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    await supabase.from('meetings').delete().eq('id', id);
-    return { ok: true };
+  if (!sessionData.session?.user) {
+    throw new Error('Please sign in to delete this meeting.');
   }
-  return fetchJson(`/api/meetings/${id}/delete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
+  await supabase.from('meetings').delete().eq('id', id);
+  return { ok: true };
 }
 
 export async function getChatMessages(id: string): Promise<ChatMessage[]> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('meeting_id', id)
-      .order('created_at', { ascending: true });
-    if (data && data.length > 0) {
-      return data.map((d: any) => ({
-        id: d.id,
-        role: d.role,
-        content: d.content || d.text || '',
-        text: d.content || d.text || '',
-        scope: d.scope || 'this',
-        created_at: d.created_at,
-      }));
-    }
+  if (!sessionData.session?.user) {
+    return [];
   }
-  const rows = await fetchJson<any[]>(`/api/meetings/${id}/chat`).catch(() => []);
-  return (rows || []).map((r: any) => ({
-    id: r.id,
-    role: r.role,
-    content: r.content || r.text || '',
-    text: r.content || r.text || '',
-    scope: r.scope || 'this',
-    created_at: r.created_at,
-  }));
+  const { data } = await supabase
+    .from('chat_messages')
+    .select('*')
+    .eq('meeting_id', id)
+    .order('created_at', { ascending: true });
+  if (data && data.length > 0) {
+    return data.map((d: any) => ({
+      id: d.id,
+      role: d.role,
+      content: d.content || d.text || '',
+      text: d.content || d.text || '',
+      scope: d.scope || 'this',
+      created_at: d.created_at,
+    }));
+  }
+  return [];
 }
 
 export async function sendChatMessage(mid: string, question: string, scope: 'this' | 'mine' = 'this'): Promise<{ answer: string }> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user?.id;
+  if (!userId) {
+    throw new Error('Please sign in to ask questions about your meetings.');
+  }
+
   const res = await fetchJson<{ answer: string }>('/api/ask', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Id': userId,
+    },
     body: JSON.stringify({ meeting_id: mid, question, scope }),
   });
 
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session?.user) {
-      await supabase.from('chat_messages').insert([
-        { meeting_id: mid, role: 'user', content: question, scope },
-        { meeting_id: mid, role: 'assistant', content: res.answer, scope }
-      ]);
-    }
+    await supabase.from('chat_messages').insert([
+      { meeting_id: mid, role: 'user', content: question, scope, user_id: userId },
+      { meeting_id: mid, role: 'assistant', content: res.answer, scope, user_id: userId }
+    ]);
   } catch (e) {
     console.warn('Failed to sync chat message to Supabase:', e);
   }
@@ -330,31 +310,30 @@ export async function sendChatMessage(mid: string, question: string, scope: 'thi
 
 export async function toggleActionItem(mid: string, key: string, checked: boolean): Promise<{ ok: boolean }> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    await supabase.from('action_checks').upsert([{
-      meeting_id: mid,
-      item_key: key,
-      checked,
-    }]);
-    return { ok: true };
+  const userId = sessionData.session?.user?.id;
+  if (!userId) {
+    throw new Error('Please sign in to update action items.');
   }
-  return fetchJson(`/api/meetings/${mid}/action-check`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key, checked }),
-  });
+  await supabase.from('action_checks').upsert([{
+    meeting_id: mid,
+    item_key: key,
+    checked,
+    user_id: userId,
+  }]);
+  return { ok: true };
 }
 
 export async function getTranslation(mid: string, langCode: string): Promise<MeetingTranslation> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
-    const { data } = await supabase
-      .from('meeting_translations')
-      .select('*')
-      .eq('meeting_id', mid)
-      .eq('language_code', langCode)
-      .single();
-    if (data) return data;
+  if (!sessionData.session?.user) {
+    throw new Error('Please sign in to view translations.');
   }
+  const { data } = await supabase
+    .from('meeting_translations')
+    .select('*')
+    .eq('meeting_id', mid)
+    .eq('language_code', langCode)
+    .single();
+  if (data) return data;
   return fetchJson(`/api/meetings/${mid}/translations/${langCode}`);
 }

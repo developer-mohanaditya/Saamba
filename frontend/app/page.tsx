@@ -55,6 +55,18 @@ export default function Home() {
   useEffect(() => {
     let mounted = true;
     async function loadData() {
+      // If user is not authenticated, strictly clear all private state and exit
+      if (!user) {
+        setMeetings([]);
+        setSelectedMeetingId(null);
+        setCurrentMeeting(null);
+        setChatMessages([]);
+        setActiveTranslation(null);
+        setWorkspaces([{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }]);
+        setWorkspaceMeetings({ default: [] });
+        return;
+      }
+
       try {
         const [wsData, meetingList] = await Promise.all([
           getWorkspaces().catch(() => ({ workspaces: [], workspaceMeetings: {} })),
@@ -97,8 +109,9 @@ export default function Home() {
 
   // Fetch full meeting details when selectedMeetingId changes
   useEffect(() => {
-    if (!selectedMeetingId) {
+    if (!selectedMeetingId || !user) {
       setCurrentMeeting(null);
+      setChatMessages([]);
       return;
     }
     let active = true;
@@ -136,7 +149,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [selectedMeetingId]);
+  }, [selectedMeetingId, user]);
 
   // Live auto-polling while active meeting is processing (queued, transcribing, summarizing)
   useEffect(() => {

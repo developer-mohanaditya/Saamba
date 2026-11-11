@@ -28,8 +28,14 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
     toggleLibrary,
     setActiveWorkspaceId,
     meetings,
+    setMeetings,
     selectedMeetingId,
     setSelectedMeetingId,
+    setCurrentMeeting,
+    setChatMessages,
+    setActiveTranslation,
+    setWorkspaces,
+    setWorkspaceMeetings,
     user,
     setUser,
     setAuthModalOpen,
@@ -57,6 +63,14 @@ export function Sidebar({ onCreateWorkspace, onRecord, onImport, isRecording }: 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setMeetings([]);
+    setSelectedMeetingId(null);
+    setCurrentMeeting(null);
+    setChatMessages([]);
+    setActiveTranslation(null);
+    setWorkspaces([{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }]);
+    setWorkspaceMeetings({ default: [] });
+    setActiveWorkspaceId('default');
   };
 
   const userInitial = user?.email ? user.email.slice(0, 1).toUpperCase() : 'U';
