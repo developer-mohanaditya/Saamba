@@ -2233,6 +2233,54 @@ select:focus-visible,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.oauth-container {
+  margin-bottom: 14px;
+}
+
+.oauth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #ccd6cc;
+  border-radius: 8px;
+  color: var(--ink, #17251c);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.oauth-button:hover {
+  background: #f7f9f6;
+  border-color: #28543b;
+  box-shadow: 0 1px 4px rgba(23, 42, 30, 0.08);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 12px 0 16px;
+  color: #7a8c7e;
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e1e8df;
+}
+
+.auth-divider span {
+  padding: 0 10px;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;

@@ -5,6 +5,8 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useAppStore } from '../lib/store';
 import { icon } from './Icons';
+import { getMeetingMediaUrl } from '../lib/api';
+import { supabase } from '../lib/supabaseClient';
 
 export interface MediaPaneHandle {
   seekTo: (seconds: number) => void;
@@ -16,9 +18,33 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
     const [downloadOpen, setDownloadOpen] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState('');
+    const [mediaSrc, setMediaSrc] = useState<string>('');
     const downloadMenuRef = useRef<HTMLDivElement | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+
+    // Fetch presigned or authenticated media URL whenever active meeting changes
+    useEffect(() => {
+      if (!currentMeeting?.id) {
+        setMediaSrc('');
+        return;
+      }
+      let active = true;
+      getMeetingMediaUrl(currentMeeting.id)
+        .then((res) => {
+          if (active && res.url) {
+            setMediaSrc(res.url);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setMediaSrc(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/audio`);
+          }
+        });
+      return () => {
+        active = false;
+      };
+    }, [currentMeeting?.id]);
 
     // Outside click dismissal for download menu
     useEffect(() => {
@@ -53,8 +79,14 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
       setDownloadProgress('Preparing…');
 
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch(
-          `/api/meetings/${encodeURIComponent(currentMeeting.id)}/download?format=${encodeURIComponent(format)}`
+          `/api/meetings/${encodeURIComponent(currentMeeting.id)}/download?format=${encodeURIComponent(format)}`,
+          { headers }
         );
         if (!response.ok) {
           let message = 'Could not prepare the download.';
@@ -234,7 +266,7 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
               id="player"
               controls
               preload="metadata"
-              src={`/api/meetings/${encodeURIComponent(currentMeeting.id)}/audio`}
+              src={mediaSrc || `/api/meetings/${encodeURIComponent(currentMeeting.id)}/audio`}
             />
           ) : (
             <audio
@@ -242,7 +274,7 @@ export const MediaPane = forwardRef<MediaPaneHandle, { meetingId?: string }>(
               id="player"
               controls
               preload="metadata"
-              src={`/api/meetings/${encodeURIComponent(currentMeeting.id)}/audio`}
+              src={mediaSrc || `/api/meetings/${encodeURIComponent(currentMeeting.id)}/audio`}
             />
           )}
 

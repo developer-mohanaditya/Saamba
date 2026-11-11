@@ -12,11 +12,12 @@ import wave
 import subprocess
 import tempfile
 
-from fastapi import FastAPI, Request, Response, HTTPException, status, Query
+from fastapi import FastAPI, Request, Response, HTTPException, status, Query, Depends, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, StreamingResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from auth_security import get_current_user, get_optional_user, verify_supabase_token
 
 ROOT = Path(__file__).parent
 
@@ -1164,6 +1165,29 @@ class Handler(BaseHTTPRequestHandler):
 
 app = FastAPI(title="Saamba API", docs_url="/docs", redoc_url="/redoc")
 
+from collections import defaultdict
+_endpoint_rate_limits = defaultdict(list)
+
+def check_rate_limit(key: str, max_requests: int = 30, window_seconds: float = 60.0) -> bool:
+    """Sliding-window rate limiter per key (IP, user_id, or action)."""
+    now = time.time()
+    cutoff = now - window_seconds
+    _endpoint_rate_limits[key] = [t for t in _endpoint_rate_limits[key] if t > cutoff]
+    if len(_endpoint_rate_limits[key]) >= max_requests:
+        return False
+    _endpoint_rate_limits[key].append(now)
+    return True
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """Inject standard defense-in-depth HTTP security headers."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 @app.middleware("http")
 async def verify_origin_middleware(request: Request, call_next):
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
@@ -1458,41 +1482,97 @@ async def sync_workspaces(request: Request):
 # --- Meetings Queries ---
 
 @app.get('/api/meetings')
-async def list_meetings():
+async def list_meetings(user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    if supabase_client:
+        try:
+            res = supabase_client.table('meetings').select(
+                'id,title,created_at,status,error,mime,summary,transcript'
+            ).eq('user_id', user_id).order('created_at', desc=True).execute()
+            if res.data is not None:
+                return [
+                    {
+                        "id": m["id"],
+                        "title": m["title"],
+                        "created_at": m["created_at"],
+                        "status": m["status"],
+                        "error": m["error"],
+                        "mime": m["mime"],
+                        "has_summary": bool(m.get("summary")),
+                        "has_transcript": bool(m.get("transcript") and len(m.get("transcript")) > 0),
+                    }
+                    for m in res.data
+                ]
+        except Exception as e:
+            pass
+
     with connect() as db:
-        rows = [dict(x) for x in db.execute(
-            "SELECT id,title,created_at,status,error,mime,"
-            "CASE WHEN summary IS NOT NULL AND summary != '' THEN 1 ELSE 0 END AS has_summary,"
-            "CASE WHEN transcript IS NOT NULL AND transcript != '[]' THEN 1 ELSE 0 END AS has_transcript "
-            "FROM meetings ORDER BY created_at DESC"
-        )]
+        cols = [c[1] for c in db.execute("PRAGMA table_info(meetings)").fetchall()]
+        if 'user_id' in cols:
+            rows = [dict(x) for x in db.execute(
+                "SELECT id,title,created_at,status,error,mime,"
+                "CASE WHEN summary IS NOT NULL AND summary != '' THEN 1 ELSE 0 END AS has_summary,"
+                "CASE WHEN transcript IS NOT NULL AND transcript != '[]' THEN 1 ELSE 0 END AS has_transcript "
+                "FROM meetings WHERE user_id=? ORDER BY created_at DESC", (user_id,)
+            )]
+        else:
+            rows = []
     return rows
 
 @app.get('/api/meetings/{mid}')
-async def get_meeting(mid: str):
+async def get_meeting(mid: str, user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    row = None
+    if supabase_client:
+        try:
+            res = supabase_client.table('meetings').select('*').eq('id', mid).eq('user_id', user_id).single().execute()
+            if res.data:
+                row = res.data
+        except Exception:
+            pass
+
+    if not row:
+        with connect() as db:
+            cols = [c[1] for c in db.execute("PRAGMA table_info(meetings)").fetchall()]
+            if 'user_id' in cols:
+                r = db.execute('SELECT * FROM meetings WHERE id=? AND user_id=?', (mid, user_id)).fetchone()
+            else:
+                r = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+            if r:
+                row = dict(r)
+
+    if not row:
+        return JSONResponse({'error': 'Meeting not found'}, status_code=404)
+
     with connect() as db:
-        row = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
-        if not row:
-            return JSONResponse({'error': 'Meeting not found'}, status_code=404)
-        row = dict(row)
         preview = db.execute('SELECT content,completed,total FROM summary_preview WHERE meeting_id=?', (mid,)).fetchone()
         t_preview = db.execute('SELECT content FROM transcript_preview WHERE meeting_id=?', (mid,)).fetchone()
         checks = {r['item_key']: r['checked'] for r in db.execute('SELECT item_key,checked FROM action_checks WHERE meeting_id=?', (mid,))}
         trans_list = [dict(r) for r in db.execute('SELECT language_code, language_name, created_at FROM meeting_translations WHERE meeting_id=? ORDER BY created_at ASC', (mid,))]
     
-    row['action_items'] = action_items(row['summary'], checks)
-    row['summary_preview'] = dict(preview) if preview and row['status'] == 'summarizing' else None
-    row['transcript_preview'] = t_preview['content'] if t_preview and row['status'] == 'transcribing' else None
+    row['action_items'] = action_items(row.get('summary') or '', checks)
+    row['summary_preview'] = dict(preview) if preview and row.get('status') == 'summarizing' else None
+    row['transcript_preview'] = t_preview['content'] if t_preview and row.get('status') == 'transcribing' else None
     row['translations'] = trans_list
-    row['transcript'] = json.loads(row['transcript'] or '[]')
+    if isinstance(row.get('transcript'), str):
+        row['transcript'] = json.loads(row['transcript'] or '[]')
+    elif not row.get('transcript'):
+        row['transcript'] = []
     row.pop('filename', None)
     return row
 
 @app.get('/api/meetings/{mid}/chat')
-async def get_meeting_chat(mid: str):
+async def get_meeting_chat(mid: str, user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    if supabase_client:
+        try:
+            res = supabase_client.table('chat_messages').select('*').eq('meeting_id', mid).eq('user_id', user_id).order('created_at').execute()
+            if res.data is not None and len(res.data) > 0:
+                return [{"role": r["role"], "text": r.get("content") or r.get("text") or "", "scope": r.get("scope", "this")} for r in res.data]
+        except Exception:
+            pass
+
     with connect() as db:
-        if not db.execute('SELECT 1 FROM meetings WHERE id=?', (mid,)).fetchone():
-            return JSONResponse({'error': 'Meeting not found.'}, status_code=404)
         messages = [dict(r) for r in db.execute(
             'SELECT role,content AS text,scope FROM chat_messages WHERE meeting_id=? ORDER BY id',
             (mid,)
@@ -1680,9 +1760,27 @@ async def download_transcript(mid: str, format: str = 'txt'):
         )
 
 @app.get('/api/meetings/{mid}/download')
-async def download_recording(mid: str, format: Optional[str] = None):
-    with connect() as db:
-        row = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+async def download_recording(mid: str, format: Optional[str] = None, user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    row = None
+    if supabase_client:
+        try:
+            res = supabase_client.table('meetings').select('*').eq('id', mid).eq('user_id', user_id).single().execute()
+            if res.data:
+                row = res.data
+        except Exception:
+            pass
+
+    if not row:
+        with connect() as db:
+            cols = [c[1] for c in db.execute("PRAGMA table_info(meetings)").fetchall()]
+            if 'user_id' in cols:
+                r = db.execute('SELECT * FROM meetings WHERE id=? AND user_id=?', (mid, user_id)).fetchone()
+            else:
+                r = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+            if r:
+                row = dict(r)
+
     if not row:
         return JSONResponse({'error': 'Meeting not found'}, status_code=404)
     if row['status'] == 'recording':
@@ -1764,29 +1862,94 @@ async def download_recording(mid: str, format: Optional[str] = None):
     except (OSError, subprocess.SubprocessError):
         return JSONResponse({'error': 'Could not prepare the download.'}, status_code=500)
 
-@app.get('/api/meetings/{mid}/audio')
-async def get_meeting_audio(mid: str):
+@app.get('/api/meetings/{mid}/media-url')
+async def get_meeting_media_url(mid: str, user: dict = Depends(get_current_user)):
+    """Generate short-lived presigned URL or authenticated stream path for verified meeting owner."""
+    user_id = user["id"]
     row = None
-    with connect() as db:
-        r = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
-        if r:
-            row = dict(r)
-    if not row and supabase_client:
+    if supabase_client:
         try:
-            res = supabase_client.table('meetings').select('*').eq('id', mid).single().execute()
+            res = supabase_client.table('meetings').select('*').eq('id', mid).eq('user_id', user_id).single().execute()
             if res.data:
                 row = res.data
         except Exception:
             pass
+
+    if not row:
+        with connect() as db:
+            cols = [c[1] for c in db.execute("PRAGMA table_info(meetings)").fetchall()]
+            if 'user_id' in cols:
+                r = db.execute('SELECT * FROM meetings WHERE id=? AND user_id=?', (mid, user_id)).fetchone()
+            else:
+                r = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+            if r:
+                row = dict(r)
+
     if not row:
         return JSONResponse({'error': 'Meeting not found'}, status_code=404)
+
+    filename = row.get('filename') or f'{mid}.wav'
+    mime = row.get('mime') or 'audio/wav'
+
+    if storage.is_configured:
+        presigned = storage.get_presigned_download_url(filename, expires_in=900)
+        if presigned:
+            return {'url': presigned, 'expires_in': 900, 'mime': mime}
+
+    return {'url': f'/api/meetings/{mid}/audio', 'expires_in': 900, 'mime': mime}
+
+@app.get('/api/meetings/{mid}/audio')
+async def get_meeting_audio(
+    mid: str,
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None)
+):
+    auth_token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        auth_token = authorization.split(" ", 1)[1].strip()
+    elif token:
+        auth_token = token
+
+    if not auth_token:
+        # Require authentication to stream media
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token required to stream media",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    user = await verify_supabase_token(auth_token)
+    user_id = user["id"]
+
+    row = None
+    if supabase_client:
+        try:
+            res = supabase_client.table('meetings').select('*').eq('id', mid).eq('user_id', user_id).single().execute()
+            if res.data:
+                row = res.data
+        except Exception:
+            pass
+
+    if not row:
+        with connect() as db:
+            cols = [c[1] for c in db.execute("PRAGMA table_info(meetings)").fetchall()]
+            if 'user_id' in cols:
+                r = db.execute('SELECT * FROM meetings WHERE id=? AND user_id=?', (mid, user_id)).fetchone()
+            else:
+                r = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+            if r:
+                row = dict(r)
+
+    if not row:
+        return JSONResponse({'error': 'Meeting not found'}, status_code=404)
+
     filename = row.get('filename') or f'{mid}.wav'
     mime = row.get('mime') or 'audio/wav'
     file_path = DATA / filename
     if file_path.exists():
         return FileResponse(file_path, media_type=mime)
     if storage.is_configured:
-        presigned = storage.generate_presigned_url(filename)
+        presigned = storage.get_presigned_download_url(filename, expires_in=900)
         if presigned:
             return RedirectResponse(presigned, status_code=307)
     return JSONResponse({'error': 'Audio file not found'}, status_code=404)
@@ -1794,14 +1957,20 @@ async def get_meeting_audio(mid: str):
 # --- Meeting Actions & Modifications ---
 
 @app.post('/api/meetings/prepare-upload')
-async def prepare_upload(request: Request):
-    """Generates direct presigned R2 upload URL for large files, bypassing Cloudflare proxy limits."""
+async def prepare_upload(request: Request, user: dict = Depends(get_current_user)):
+    """Generates direct presigned R2 upload URL for large files, with rate limiting and user scoping."""
+    user_id = user["id"]
+    if not check_rate_limit(f"upload:{user_id}", max_requests=15, window_seconds=60.0):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Upload rate limit reached. Please wait before uploading more files."
+        )
+
     body = await request.json()
     title = body.get('title', 'Meeting').strip()[:200] or 'Meeting'
     mime = body.get('mime', 'application/octet-stream').split(';')[0].strip()
     mid = uuid.uuid4().hex
     name = mid + '.audio'
-    user_id = request.headers.get('x-user-id') or DEFAULT_USER_ID
     ws_id = request.headers.get('x-workspace-id')
 
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -2090,7 +2259,15 @@ async def update_action_check(mid: str, payload: Dict[str, Any]):
     return {'ok': True}
 
 @app.post('/api/ask')
-async def ask_question(request: Request):
+async def ask_question(request: Request, user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    if not check_rate_limit(f"ask:{user_id}", max_requests=25, window_seconds=60.0):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a minute before submitting further questions.",
+            headers={"Retry-After": "60"}
+        )
+
     try:
         payload = await request.json()
     except Exception:

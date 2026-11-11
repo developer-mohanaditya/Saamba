@@ -81,7 +81,7 @@ class R2Storage:
             logger.error(f"Failed to delete {object_key} from R2: {e}")
             return False
 
-    def generate_presigned_url(self, object_key: str, expires_in: int = 3600) -> Optional[str]:
+    def generate_presigned_url(self, object_key: str, expires_in: int = 900) -> Optional[str]:
         if not self.is_configured:
             return None
         try:
@@ -93,6 +93,10 @@ class R2Storage:
         except Exception as e:
             logger.error(f"Failed to generate presigned URL for {object_key}: {e}")
             return None
+
+    def get_presigned_download_url(self, object_key: str, expires_in: int = 900) -> Optional[str]:
+        """Generate short-lived (15 min default) presigned URL for secure streaming and playback."""
+        return self.generate_presigned_url(object_key, expires_in=expires_in)
 
     def generate_upload_url(self, object_key: str, content_type: str = "application/octet-stream", expires_in: int = 3600) -> Optional[str]:
         if not self.is_configured:

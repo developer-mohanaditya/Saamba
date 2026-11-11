@@ -6,18 +6,31 @@ import { supabase } from './supabaseClient';
 const API_BASE = ''; // relative to same origin, or proxies to 127.0.0.1:24917
 
 export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    ...(init?.headers as Record<string, string>),
+  };
+
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${url}`, {
     ...init,
-    headers: {
-      'Accept': 'application/json',
-      ...init?.headers,
-    },
+    headers,
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || `HTTP ${res.status}: Failed to fetch`);
+    throw new Error(data.detail || data.error || `HTTP ${res.status}: Failed to fetch`);
   }
   return data as T;
+}
+
+export async function getMeetingMediaUrl(mid: string): Promise<{ url: string; expires_in: number; mime: string }> {
+  return fetchJson<{ url: string; expires_in: number; mime: string }>(`/api/meetings/${encodeURIComponent(mid)}/media-url`);
 }
 
 export async function getWorkspaces(): Promise<{
