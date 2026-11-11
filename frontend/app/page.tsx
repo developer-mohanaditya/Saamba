@@ -47,6 +47,7 @@ export default function Home() {
   const [translateModalOpen, setTranslateModalOpen] = useState(false);
   const [recordingActive, setRecordingActive] = useState(false);
   const [recordStatus, setRecordStatus] = useState('');
+  const [detectedMeetTab, setDetectedMeetTab] = useState<number | null>(null);
 
   const mediaPaneRef = useRef<MediaPaneHandle>(null);
 
@@ -294,6 +295,75 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [toastMessage, setToastMessage]);
 
+  // Chrome Extension bridge listener for Google Meet auto-detection
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleExtensionMsg = async (event: MessageEvent) => {
+      if (
+        event.source !== window ||
+        event.origin !== location.origin ||
+        event.data?.source !== 'saamba-meeting-detector'
+      ) {
+        return;
+      }
+
+      if (event.data.type === 'meeting-detected') {
+        const tabId = Number(event.data.meetingTabId);
+        if (tabId && !isRecording()) {
+          setDetectedMeetTab(tabId);
+          setRecordStatus('Google Meet detected — click "Capture this meeting" to begin.');
+        }
+        return;
+      }
+
+      if (event.data.type === 'start-tab-capture') {
+        if (isRecording()) return;
+        setDetectedMeetTab(null);
+        setRecordingActive(true);
+        setRecordStatus('Connecting to Google Meet tab capture…');
+        try {
+          await startRecording({
+            workspaceId: useAppStore.getState().activeWorkspaceId,
+            extensionStream: event.data,
+            onStatus: (st) => setRecordStatus(st),
+            onCreated: async (id) => {
+              const list = await getMeetings();
+              setMeetings(list);
+              setSelectedMeetingId(id);
+            },
+          });
+        } catch (err: any) {
+          setRecordingActive(false);
+          setRecordStatus('');
+          alert(err.message || 'Could not start recording from extension.');
+        }
+        return;
+      }
+
+      if (event.data.type === 'stop-recording') {
+        if (isRecording()) {
+          handleToggleRecord();
+        }
+        return;
+      }
+
+      if (event.data.type === 'meeting-ended') {
+        const endedId = Number(event.data.meetingTabId);
+        if (detectedMeetTab === endedId) {
+          setDetectedMeetTab(null);
+        }
+        if (isRecording()) {
+          handleToggleRecord();
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('message', handleExtensionMsg);
+    return () => window.removeEventListener('message', handleExtensionMsg);
+  }, [detectedMeetTab]);
+
   return (
     <div
       className={`app layout-sidebar ${
@@ -313,6 +383,52 @@ export default function Home() {
           onRecord={handleToggleRecord}
           onImport={() => setImportModalOpen(true)}
         />
+
+        {detectedMeetTab && !recordingActive && (
+          <div
+            id="meeting-prompt"
+            className="meeting-prompt"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 16px',
+              background: '#eef6f1',
+              borderRadius: '8px',
+              margin: '8px 24px',
+              border: '1px solid #c0dfcc',
+            }}
+          >
+            <span style={{ fontSize: '13px', color: '#1a382b', fontWeight: 600 }}>
+              Google Meet detected
+            </span>
+            <button
+              type="button"
+              className="primary"
+              style={{ padding: '4px 12px', fontSize: '12px' }}
+              onClick={() => {
+                window.postMessage(
+                  {
+                    source: 'saamba-app',
+                    type: 'request-tab-capture',
+                    meetingTabId: detectedMeetTab,
+                  },
+                  location.origin
+                );
+              }}
+            >
+              Capture this meeting
+            </button>
+            <button
+              type="button"
+              className="subtle-button"
+              style={{ padding: '4px 8px', fontSize: '12px' }}
+              onClick={() => setDetectedMeetTab(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         <p id="record-status" role="status">
           {recordStatus}

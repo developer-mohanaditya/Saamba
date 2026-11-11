@@ -73,6 +73,7 @@ export interface RecordingSession {
   context: AudioContext;
   node: AudioWorkletNode;
   recorder?: MediaRecorder | null;
+  meetingTabId?: number | null;
   stopping: boolean;
   captureStopped: boolean;
   outbox: Array<{ payload: ArrayBuffer; index: number }>;
@@ -94,10 +95,12 @@ export function isRecording(): boolean {
 
 export async function startRecording({
   workspaceId,
+  extensionStream,
   onStatus,
   onCreated,
 }: {
   workspaceId?: string;
+  extensionStream?: any;
   onStatus?: (status: string) => void;
   onCreated?: (meetingId: string) => void;
 }): Promise<string> {
@@ -111,8 +114,18 @@ export async function startRecording({
   let screen: MediaStream | null = null;
   let sharedTitle = '';
 
-  // Attempt screen/tab capture if getDisplayMedia is available
-  if (navigator.mediaDevices.getDisplayMedia) {
+  // Use Chrome extension stream if provided, otherwise standard getDisplayMedia
+  if (extensionStream && extensionStream.streamId) {
+    const source = {
+      chromeMediaSource: 'tab',
+      chromeMediaSourceId: extensionStream.streamId,
+    };
+    screen = await (navigator.mediaDevices.getUserMedia as any)({
+      audio: { mandatory: source },
+      video: { mandatory: source },
+    });
+    sharedTitle = extensionStream.title || '';
+  } else if (navigator.mediaDevices.getDisplayMedia) {
     try {
       screen = await navigator.mediaDevices.getDisplayMedia({
         video: true,
@@ -317,6 +330,20 @@ export async function startRecording({
     });
   }
 
+  const meetingTabId = extensionStream?.meetingTabId ? Number(extensionStream.meetingTabId) : null;
+  session.meetingTabId = meetingTabId;
+  if (meetingTabId && typeof window !== 'undefined') {
+    window.postMessage(
+      {
+        source: 'saamba-app',
+        type: 'recording-status',
+        meetingTabId,
+        recording: true,
+      },
+      location.origin
+    );
+  }
+
   activeSession = session;
   playAlert('start');
   onStatus?.(
@@ -368,6 +395,17 @@ export async function stopRecording({
       throw new Error('Could not finish saving the recording.');
     }
     const result = await response.json();
+    if (session.meetingTabId && typeof window !== 'undefined') {
+      window.postMessage(
+        {
+          source: 'saamba-app',
+          type: 'recording-status',
+          meetingTabId: session.meetingTabId,
+          recording: false,
+        },
+        location.origin
+      );
+    }
     playAlert('stop');
     activeSession = null;
     onStatus?.(
