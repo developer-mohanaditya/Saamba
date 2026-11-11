@@ -57,12 +57,13 @@ export function MeetingDetail({
   const streamTranscriptRef = useRef<HTMLPreElement | null>(null);
   const streamSummaryRef = useRef<HTMLDivElement | null>(null);
 
-  // Live SSE streaming connection when meeting is processing
+  // Live SSE streaming connection when meeting is processing or recording
   useEffect(() => {
     if (!currentMeeting?.id) return;
     const isBusy =
       currentMeeting.status === 'transcribing' ||
       currentMeeting.status === 'summarizing' ||
+      currentMeeting.status === 'recording' ||
       currentMeeting.status === 'queued';
     if (!isBusy) {
       setStreamingTranscript('');
@@ -71,6 +72,38 @@ export function MeetingDetail({
     }
 
     const es = new EventSource(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/events`);
+
+    es.addEventListener('init', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data?.transcript_preview) {
+          setStreamingTranscript(data.transcript_preview);
+        }
+        if (data?.summary_preview) {
+          setStreamingSummary(data.summary_preview);
+        }
+      } catch (_) {}
+    });
+
+    es.addEventListener('live_chunk', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data?.segments && Array.isArray(data.segments)) {
+          const cur = useAppStore.getState().currentMeeting;
+          if (cur) {
+            const mapped = data.segments.map((seg: any) => ({
+              ...seg,
+              speaker: seg.speaker != null ? seg.speaker : 'Speaker 1',
+            }));
+            const existing = cur.transcript || [];
+            setCurrentMeeting({
+              ...cur,
+              transcript: [...existing, ...mapped],
+            });
+          }
+        }
+      } catch (_) {}
+    });
 
     es.addEventListener('transcript_chunk', (e: MessageEvent) => {
       try {
@@ -164,6 +197,19 @@ export function MeetingDetail({
     return () => document.removeEventListener('click', handleOutsideClick);
   }, [shareOpen, rewriteOpen, deletePopoverOpen, transcriptMenuOpen]);
 
+  const actionItems = currentMeeting?.action_items || [];
+  const totalActions = actionItems.length;
+  const checkedActions = actionItems.filter(
+    (a) => (localChecks[a.key] !== undefined ? localChecks[a.key] : a.checked)
+  ).length;
+  const actionCounterText = totalActions > 0 ? `${checkedActions}/${totalActions}` : '0';
+
+  useEffect(() => {
+    if (currentMeeting && totalActions === 0 && activeTab === 'actions') {
+      setActiveTab('summary');
+    }
+  }, [currentMeeting, totalActions, activeTab, setActiveTab]);
+
   if (!currentMeeting) {
     return (
       <div className="empty">
@@ -176,13 +222,6 @@ export function MeetingDetail({
       </div>
     );
   }
-
-  const actionItems = currentMeeting.action_items || [];
-  const totalActions = actionItems.length;
-  const checkedActions = actionItems.filter(
-    (a) => (localChecks[a.key] !== undefined ? localChecks[a.key] : a.checked)
-  ).length;
-  const actionCounterText = totalActions > 0 ? `${checkedActions}/${totalActions}` : '0';
 
   const handleSaveTitle = async () => {
     const trimmed = titleValue.trim();
@@ -550,17 +589,16 @@ export function MeetingDetail({
                 <span className="tab-busy-spinner" aria-hidden="true" />
               )}
             </button>
-            <button
-              type="button"
-              className={`tab action-tab ${activeTab === 'actions' ? 'active' : ''}`}
-              data-tab="actions"
-              onClick={() => setActiveTab('actions')}
-            >
-              Action items <span className="action-count">{actionCounterText}</span>
-              {(currentMeeting.status === 'transcribing' || currentMeeting.status === 'summarizing') && totalActions === 0 && (
-                <span className="tab-busy-spinner" aria-hidden="true" />
-              )}
-            </button>
+            {totalActions > 0 && (
+              <button
+                type="button"
+                className={`tab action-tab ${activeTab === 'actions' ? 'active' : ''}`}
+                data-tab="actions"
+                onClick={() => setActiveTab('actions')}
+              >
+                Action items <span className="action-count">{actionCounterText}</span>
+              </button>
+            )}
             <div className="transcript-tab-wrapper">
               <button
                 type="button"
@@ -849,28 +887,19 @@ export function MeetingDetail({
                     dangerouslySetInnerHTML={{ __html: summaryHtml }}
                   />
                 ) : currentMeeting.status === 'summarizing' ? (
-                  <>
-                    <div className="activity" role="status">
-                      <span className="spinner" aria-hidden="true" />
-                      <div>
-                        <strong>Creating your English summary…</strong>
-                        <p>Generating summary, key points, and action items in real-time…</p>
-                      </div>
+                  <div className="live-stream-box">
+                    <div className="draft-badge">
+                      <span className="live-pulse" /> STREAMING SUMMARY
                     </div>
-                    <div className="live-stream-box">
-                      <div className="draft-badge">
-                        <span className="live-pulse" /> STREAMING SUMMARY
-                      </div>
-                      <div
-                        id="stream-summary-text"
-                        ref={streamSummaryRef}
-                        className="summary-text"
-                        dangerouslySetInnerHTML={{
-                          __html: markdown(streamingSummary || 'Analyzing transcript and extracting key points…'),
-                        }}
-                      />
-                    </div>
-                  </>
+                    <div
+                      id="stream-summary-text"
+                      ref={streamSummaryRef}
+                      className="summary-text"
+                      dangerouslySetInnerHTML={{
+                        __html: markdown(streamingSummary || 'Analyzing transcript and extracting key points…'),
+                      }}
+                    />
+                  </div>
                 ) : currentMeeting.status === 'transcribing' ? (
                   <div className="activity" role="status">
                     <div>
@@ -990,23 +1019,14 @@ export function MeetingDetail({
             {activeTab === 'transcript' && (
               <div id="transcript" className="tab-content">
                 {currentMeeting.status === 'transcribing' && (
-                  <>
-                    <div className="activity" role="status">
-                      <span className="spinner" aria-hidden="true" />
-                      <div>
-                        <strong>Creating your transcript…</strong>
-                        <p>Transcribing speech and identifying participants in real-time…</p>
-                      </div>
+                  <div className="live-stream-box" style={{ marginBottom: '16px' }}>
+                    <div className="draft-badge">
+                      <span className="live-pulse" /> STREAMING TRANSCRIPT
                     </div>
-                    <div className="live-stream-box" style={{ marginBottom: '16px' }}>
-                      <div className="draft-badge">
-                        <span className="live-pulse" /> STREAMING TRANSCRIPT
-                      </div>
-                      <pre id="stream-transcript-text" ref={streamTranscriptRef} className="stream-text">
-                        {streamingTranscript || 'Listening for speech…'}
-                      </pre>
-                    </div>
-                  </>
+                    <pre id="stream-transcript-text" ref={streamTranscriptRef} className="stream-text">
+                      {streamingTranscript || 'Listening for speech…'}
+                    </pre>
+                  </div>
                 )}
                 <div id="segments">
                   {filteredSegments.length === 0 ? (
@@ -1024,36 +1044,34 @@ export function MeetingDetail({
                       >
                         <span className="segment-time">{time(s.start)}</span>
                         <span className="segment-body">
-                          {s.speaker != null && (
-                            <span
-                              className="speaker-tag"
-                              data-speaker={s.speaker}
-                              data-index={idx}
-                              title="Click to rename or reassign speaker"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onOpenSpeakerDialog) onOpenSpeakerDialog(String(s.speaker ?? ''), idx);
-                              }}
-                            >
-                              <strong>{speakerDisplayName(s.speaker)}</strong>
-                              <span className="speaker-edit-btn" aria-hidden="true">
-                                <svg
-                                  className="speaker-edit-icon"
-                                  viewBox="0 0 24 24"
-                                  width="12"
-                                  height="12"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  aria-hidden="true"
-                                >
-                                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                </svg>
-                              </span>
+                          <span
+                            className="speaker-tag"
+                            data-speaker={s.speaker ?? 'Speaker 1'}
+                            data-index={idx}
+                            title="Click to rename or reassign speaker"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onOpenSpeakerDialog) onOpenSpeakerDialog(String(s.speaker ?? 'Speaker 1'), idx);
+                            }}
+                          >
+                            <strong>{speakerDisplayName(s.speaker ?? 'Speaker 1')}</strong>
+                            <span className="speaker-edit-btn" aria-hidden="true">
+                              <svg
+                                className="speaker-edit-icon"
+                                viewBox="0 0 24 24"
+                                width="12"
+                                height="12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                              </svg>
                             </span>
-                          )}
+                          </span>
                           <span>{s.text}</span>
                         </span>
                       </button>
@@ -1067,12 +1085,10 @@ export function MeetingDetail({
             {isTransTab && activeTranslation && (
               <div id={`trans-${activeTranslation.code}`} className="tab-content">
                 {activeTranslation.status === 'loading' && (
-                  <div className="activity" role="status">
-                    <span className="spinner" aria-hidden="true" />
-                    <div>
-                      <strong>Translating conversation into {activeTranslation.name}…</strong>
-                      <p>Generating translated transcript segments with audio synchronization.</p>
-                    </div>
+                  <div className="translation-loading-placeholder" style={{ padding: '28px 4px', opacity: 0.65 }}>
+                    <div style={{ height: '14px', width: '55%', background: 'var(--line)', borderRadius: '4px', marginBottom: '14px' }} />
+                    <div style={{ height: '14px', width: '80%', background: 'var(--line)', borderRadius: '4px', marginBottom: '14px' }} />
+                    <div style={{ height: '14px', width: '40%', background: 'var(--line)', borderRadius: '4px' }} />
                   </div>
                 )}
 
@@ -1095,11 +1111,9 @@ export function MeetingDetail({
                         >
                           <span className="segment-time">{time(s.start)}</span>
                           <span className="segment-body">
-                            {s.speaker != null && (
-                              <span className="speaker-tag" data-speaker={s.speaker}>
-                                <strong>{speakerDisplayName(s.speaker)}</strong>
-                              </span>
-                            )}
+                            <span className="speaker-tag" data-speaker={s.speaker ?? 'Speaker 1'}>
+                              <strong>{speakerDisplayName(s.speaker ?? 'Speaker 1')}</strong>
+                            </span>
                             <span>{s.text}</span>
                           </span>
                         </button>

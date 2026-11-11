@@ -52,7 +52,22 @@ export async function getWorkspaces(): Promise<{
     }
   }
 
-  // Guest / Unauthenticated: clean empty workspace, no mock data
+  // Fallback to local server API
+  try {
+    const data = await fetchJson<any>('/api/workspaces');
+    if (data?.workspaces) {
+      return {
+        workspaces: data.workspaces.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          icon: w.icon || 'briefcase',
+          isDefault: Boolean(w.isDefault || w.is_default),
+        })),
+        workspaceMeetings: data.workspaceMeetings || data.workspace_meetings || {},
+      };
+    }
+  } catch (_) {}
+
   return {
     workspaces: [{ id: 'default', name: 'My meetings', icon: 'users', isDefault: true }],
     workspaceMeetings: { default: [] },
@@ -117,8 +132,12 @@ export async function getMeetings(): Promise<Meeting[]> {
     }
   }
 
-  // Guest / Unauthenticated: return empty list, no mock data injected
-  return [];
+  // Fallback to local server API
+  try {
+    return await fetchJson<Meeting[]>('/api/meetings');
+  } catch (_) {
+    return [];
+  }
 }
 
 export function parseActionItems(summary: string, checks: Record<string, boolean> = {}): any[] {
@@ -147,6 +166,14 @@ export function parseActionItems(summary: string, checks: Record<string, boolean
     const item = stripped.match(/^[-*]\s+(?:\[[ xX]\]\s*)?(.+)/);
     if (active && item) {
       let text = item[1].trim();
+      // Filter out negative filler statements so they never become fake action item checkboxes
+      if (
+        /^(?:no\s+(?:actionable\s+tasks?|action\s+items?|tasks?|next\s+steps?)|none|n\/a|not\s+applicable)\b/i.test(
+          text
+        )
+      ) {
+        continue;
+      }
       const stamp = text.match(/\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]/);
       let seconds: number | null = null;
       if (stamp) {

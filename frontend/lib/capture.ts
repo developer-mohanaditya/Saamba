@@ -107,8 +107,11 @@ export async function startRecording({
   if (activeSession) throw new Error('A recording is already in progress.');
   unlockAlertAudio();
 
-  if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-    throw new Error('Audio recording is not supported in this browser.');
+  if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia || !navigator.mediaDevices?.getDisplayMedia) {
+    throw new Error('This browser does not support meeting audio sharing. Use a supported Chrome browser.');
+  }
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+    throw new Error('This browser cannot record meeting video in the required format.');
   }
 
   let screen: MediaStream | null = null;
@@ -120,40 +123,25 @@ export async function startRecording({
       chromeMediaSource: 'tab',
       chromeMediaSourceId: extensionStream.streamId,
     };
-    try {
-      screen = await (navigator.mediaDevices.getUserMedia as any)({
-        audio: { mandatory: source },
-        video: { mandatory: source },
-      });
-    } catch (_) {
-      try {
-        screen = await (navigator.mediaDevices.getUserMedia as any)({
-          audio: { mandatory: source },
-        });
-      } catch (e) {
-        console.warn('Extension tab media capture failed, falling back to mic:', e);
-        screen = null;
-      }
-    }
+    screen = await (navigator.mediaDevices.getUserMedia as any)({
+      audio: { mandatory: source },
+      video: { mandatory: source },
+    });
     sharedTitle = extensionStream.title || '';
-  } else if (navigator.mediaDevices.getDisplayMedia) {
-    try {
-      screen = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
-      const videoTrack = screen.getVideoTracks()[0];
-      if (videoTrack) {
-        sharedTitle = (videoTrack.label || '').replace(/^Meet\s*[-–]\s*/i, '').trim();
-      }
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError' || err.name === 'NotReadableError') {
-        console.warn('Screen display media unavailable, proceeding with audio capture:', err);
-        screen = null;
-      } else {
-        throw err;
-      }
+  } else {
+    screen = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+    });
+    const videoTrack = screen.getVideoTracks()[0];
+    if (videoTrack) {
+      sharedTitle = (videoTrack.label || '').replace(/^Meet\s*[-–]\s*/i, '').trim();
     }
+  }
+
+  if (!screen || !screen.getAudioTracks().length) {
+    screen?.getTracks().forEach((t) => t.stop());
+    throw new Error('No meeting audio was shared. Select the meeting tab and enable sharing tab audio.');
   }
 
   // Get microphone
@@ -354,11 +342,7 @@ export async function startRecording({
 
   activeSession = session;
   playAlert('start');
-  onStatus?.(
-    screen
-      ? 'Recording video, meeting audio and microphone. Keep this tab open.'
-      : 'Recording microphone audio. Keep this tab open.'
-  );
+  onStatus?.('Recording video, meeting audio and microphone. Keep this tab open.');
 
   return id;
 }

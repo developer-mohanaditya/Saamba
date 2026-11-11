@@ -176,6 +176,8 @@ def action_items(summary, checks=None):
         item = re.match(r'^[-*]\s+(?:\[[ xX]\]\s*)?(.+)', stripped)
         if active and item:
             raw_text = item.group(1).strip()
+            if re.match(r'^(?:no\s+(?:actionable\s+tasks?|action\s+items?|tasks?|next\s+steps?)|none|n\/a|not\s+applicable)\b', raw_text, re.IGNORECASE):
+                continue
             stamp = re.search(r'\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]', raw_text)
             seconds = (int(stamp.group(1))*60+int(stamp.group(2)) if stamp.group(1) else float(stamp.group(3))) if stamp else None
             spk_match = re.search(r'(?:\[|\()\s*(Speaker\s*\w+|[A-Z][a-z]+)\s*(?:\]|\))', raw_text)
@@ -1529,12 +1531,27 @@ async def meeting_events(mid: str, request: Request, max_events: Optional[int] =
         return JSONResponse({'error': 'Meeting not found'}, status_code=404)
 
     initial_status = row['status']
+    t_prev = None
+    s_prev = None
+    try:
+        with connect() as db:
+            tp_row = db.execute('SELECT content FROM transcript_preview WHERE meeting_id=?', (mid,)).fetchone()
+            sp_row = db.execute('SELECT content FROM summary_preview WHERE meeting_id=?', (mid,)).fetchone()
+            if tp_row: t_prev = tp_row['content']
+            if sp_row: s_prev = sp_row['content']
+    except Exception:
+        pass
 
     async def event_generator():
         q = event_hub.subscribe(mid)
         sent = 0
         try:
-            init_data = json.dumps({'status': initial_status})
+            init_payload = {'status': initial_status}
+            if t_prev:
+                init_payload['transcript_preview'] = t_prev
+            if s_prev:
+                init_payload['summary_preview'] = s_prev
+            init_data = json.dumps(init_payload)
             yield f"event: init\ndata: {init_data}\n\n"
             sent += 1
             if max_events and sent >= max_events:

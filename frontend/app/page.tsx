@@ -312,7 +312,6 @@ export default function Home() {
         const tabId = Number(event.data.meetingTabId);
         if (tabId && !isRecording()) {
           setDetectedMeetTab(tabId);
-          setRecordStatus('Google Meet detected — click "Capture this meeting" to begin.');
         }
         return;
       }
@@ -382,53 +381,19 @@ export default function Home() {
           isRecording={recordingActive}
           onRecord={handleToggleRecord}
           onImport={() => setImportModalOpen(true)}
+          detectedMeetTab={detectedMeetTab}
+          onCaptureDetectedMeeting={(tabId) => {
+            window.postMessage(
+              {
+                source: 'saamba-app',
+                type: 'request-tab-capture',
+                meetingTabId: tabId,
+              },
+              location.origin
+            );
+          }}
+          onDismissDetectedMeeting={() => setDetectedMeetTab(null)}
         />
-
-        {detectedMeetTab && !recordingActive && (
-          <div
-            id="meeting-prompt"
-            className="meeting-prompt"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '8px 16px',
-              background: '#eef6f1',
-              borderRadius: '8px',
-              margin: '8px 24px',
-              border: '1px solid #c0dfcc',
-            }}
-          >
-            <span style={{ fontSize: '13px', color: '#1a382b', fontWeight: 600 }}>
-              Google Meet detected
-            </span>
-            <button
-              type="button"
-              className="primary"
-              style={{ padding: '4px 12px', fontSize: '12px' }}
-              onClick={() => {
-                window.postMessage(
-                  {
-                    source: 'saamba-app',
-                    type: 'request-tab-capture',
-                    meetingTabId: detectedMeetTab,
-                  },
-                  location.origin
-                );
-              }}
-            >
-              Capture this meeting
-            </button>
-            <button
-              type="button"
-              className="subtle-button"
-              style={{ padding: '4px 8px', fontSize: '12px' }}
-              onClick={() => setDetectedMeetTab(null)}
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
 
         <p id="record-status" role="status">
           {recordStatus}

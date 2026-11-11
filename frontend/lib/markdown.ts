@@ -27,7 +27,7 @@ export const inline = (value: string) =>
     .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>');
 
 export const speakerDisplayName = (spk: any) => {
-  if (spk == null) return '';
+  if (spk == null || spk === '') return 'Speaker 1';
   const s = String(spk).trim();
   if (/^speaker\s+\d+$/i.test(s)) {
     return s.charAt(0).toUpperCase() + s.slice(1);
@@ -123,9 +123,18 @@ function parseLocalActionItems(linesText: string): any[] {
   const result: any[] = [];
   for (const line of linesText.split(/\r?\n/)) {
     const stripped = line.trim();
+    if (stripped.startsWith('#')) break;
     const item = stripped.match(/^[-*]\s+(?:\[[ xX]\]\s*)?(.+)/);
     if (item) {
       let text = item[1].trim();
+      // Filter out negative filler statements so they never become fake action item checkboxes
+      if (
+        /^(?:no\s+(?:actionable\s+tasks?|action\s+items?|tasks?|next\s+steps?)|none|n\/a|not\s+applicable)\b/i.test(
+          text
+        )
+      ) {
+        continue;
+      }
       const stamp = text.match(/\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]/);
       let seconds: number | null = null;
       if (stamp) {
@@ -172,11 +181,17 @@ export function summarySections(m: any, onCitationClick?: (seconds: number) => v
     .map((part) => {
       const cleanTitle = part.title.replace(/^\d+[\.\)]\s*/, '').trim();
       const isAction = /^(action items?|next steps)\s*:?$/i.test(cleanTitle);
-      let body = markdown(part.lines.join('\n'));
 
       const actionList = (m.action_items && m.action_items.length > 0)
         ? m.action_items
         : (isAction ? parseLocalActionItems(part.lines.join('\n')) : []);
+
+      // If Action Items section has NO valid action items (or only negative boilerplate), completely omit this section!
+      if (isAction && actionList.length === 0) {
+        return '';
+      }
+
+      let body = markdown(part.lines.join('\n'));
 
       if (isAction && actionList.length > 0) {
         body =
@@ -216,5 +231,6 @@ export function summarySections(m: any, onCitationClick?: (seconds: number) => v
       const headingHtml = part.title ? `<h3>${inline(part.title)}</h3>` : '';
       return `<section class="summary-section">${headingHtml}${body}</section>`;
     })
+    .filter(Boolean)
     .join('');
 }

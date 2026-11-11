@@ -422,7 +422,7 @@ Required Sections:
 (bullet points of agreed decisions, if applicable to this meeting; omit this section if no specific decisions were made)
 
 ### Action Items
-(bullet points with actionable tasks, source timestamp [MM:SS], and speaker attribution in square brackets [Speaker N])
+(bullet points with actionable tasks, source timestamp [MM:SS], and speaker attribution in square brackets [Speaker N]. IMPORTANT: If no actionable tasks or next steps were assigned in the discussion, completely OMIT the "### Action Items" section. Do NOT write "None" or "No actionable tasks were assigned".)
 
 Transcript:
 {transcript_text}"""

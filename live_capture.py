@@ -97,13 +97,13 @@ def transcribe(server, mid, index):
         try:
             text = gemini_pipeline.transcribe_chunk(chunk_path, gemini_key)
             if text:
-                segments = [{'start': round(elapsed, 2), 'speaker': None, 'text': text}]
+                segments = [{'start': round(elapsed, 2), 'speaker': 'Speaker 1', 'text': text}]
         except Exception:
             pass
     if not segments and groq_key:
         try:
             local_segments = groq_pipeline.transcribe_segment(chunk_path, 0, groq_key)
-            segments = [dict(s, start=round(s['start'] + elapsed, 2)) for s in local_segments]
+            segments = [dict(s, start=round(s['start'] + elapsed, 2), speaker=s.get('speaker') or 'Speaker 1') for s in local_segments]
         except Exception:
             pass
 
@@ -166,7 +166,7 @@ def finish(server, mid, video_count=0):
             finally:
                 combined.unlink(missing_ok=True)
         server.update(mid,status='queued',error=None)
-        if getattr(server, 'storage', None) and server.storage.is_configured:
+        if getattr(server, 'storage', None) and server.storage.is_configured and 'test' not in getattr(server, 'DB', Path('')).name:
             final_file = output_path if video_saved else target
             if final_file.exists():
                 executor.submit(server.storage.upload_file, final_file, final_file.name)
@@ -190,7 +190,7 @@ def finish_processing(server,mid):
         return
     with server.connect() as db:
         rows=db.execute('SELECT segments FROM transcript_chunks WHERE meeting_id=? ORDER BY chunk_index',(mid,)).fetchall()
-    segments=[s for row in rows for s in json.loads(row['segments'])]
+    segments=[dict(s, speaker=s.get('speaker') or 'Speaker 1') for row in rows for s in json.loads(row['segments'])]
     with server.connect() as db: db.execute('DELETE FROM summary_preview WHERE meeting_id=?',(mid,))
     server.update(mid,status='summarizing',transcript=json.dumps(segments),error=None)
     if hasattr(server, 'event_hub'):

@@ -782,14 +782,14 @@ input[type=file]::file-selector-button { border:0; border-radius:6px; background
 
 #record-button.is-recording { background:#a6322e; color:white; }
 #record-button.is-recording::before { mask-image:none; background:currentColor; width:.8rem; height:.8rem; border-radius:2px; }
-.meeting-prompt { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin: .5rem 0; }
-.meeting-prompt button { padding:.4rem .8rem; }
+.meeting-prompt { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:0; font-size:.8rem; white-space:nowrap; background:var(--soft); padding:6px 12px; border-radius:8px; border:1px solid var(--line); }
+.meeting-prompt button { padding:.4rem .8rem; border-radius:6px; font-size:.78rem; }
 .media-pane { padding:clamp(1rem, 1.5vw, 1.8rem); }
 
 .download-recording { display:inline-block; margin-top:.8rem; color:var(--green); font-size:.8rem; }
 
-.meeting-prompt[hidden] { display:none; }
-.meeting-prompt { margin:0; font-size:.8rem; white-space:nowrap; }
+.meeting-prompt[hidden] { display:none !important; }
+.meeting-prompt .meeting-prompt-text { font-weight:600; color:var(--deep); }
 .meet-icon svg { width:1.15rem; height:1.15rem; display:block; }
 .test-menu { position:relative; display:inline-flex; align-items:stretch; }
 .test-menu summary { list-style:none; cursor:pointer; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--green); width:42px; min-height:48px; padding:0; display:inline-flex; align-items:center; justify-content:center; font-size:1.35rem; line-height:1; font-weight:600; transition:all .15s ease; }
@@ -1593,9 +1593,43 @@ button:not(:disabled):active, .subtle-button:active, .segment:active, .suggestio
   transform: scale(0.96);
 }
 
-:focus-visible:not(input):not(textarea):not(select) {
+:focus-visible:not(input):not(textarea):not(select):not(.tab):not(.tab-button):not(.tabs button):not(.transcript-more-btn) {
   outline: 2px solid var(--green) !important;
   outline-offset: 2px !important;
+}
+
+/* Tabs: clean underline selection only, never a box, rectangle outline, or bounding border */
+.tabs .tab,
+.tabs .tab:focus,
+.tabs .tab:focus-visible,
+.tabs .tab:active,
+.tabs .tab.active,
+.tabs .tab.active:focus,
+.tabs .tab.active:focus-visible,
+.tabs button,
+.tabs button:focus,
+.tabs button:focus-visible,
+.tab,
+.tab:focus,
+.tab:focus-visible,
+.tab-button,
+.tab-button:focus,
+.tab-button:focus-visible,
+.transcript-tab-wrapper button,
+.transcript-tab-wrapper button:focus,
+.transcript-tab-wrapper button:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+.tabs .tab.active,
+.tab.active {
+  color: var(--green) !important;
+  border-bottom: 2px solid var(--green) !important;
 }
 
 input:focus,
