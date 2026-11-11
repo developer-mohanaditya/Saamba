@@ -94,4 +94,17 @@ class R2Storage:
             logger.error(f"Failed to generate presigned URL for {object_key}: {e}")
             return None
 
+    def generate_upload_url(self, object_key: str, content_type: str = "application/octet-stream", expires_in: int = 3600) -> Optional[str]:
+        if not self.is_configured:
+            return None
+        try:
+            return self.client.generate_presigned_url(
+                "put_object",
+                Params={"Bucket": self.bucket, "Key": object_key, "ContentType": content_type},
+                ExpiresIn=expires_in
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate upload presigned URL for {object_key}: {e}")
+            return None
+
 storage = R2Storage()

@@ -157,32 +157,85 @@ export function Modals({
     setImportError('');
 
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': importFile.type || 'application/octet-stream',
-        'X-Meeting-Title': encodeURIComponent(importTitle.trim()),
-      };
-      if (activeWorkspaceId && activeWorkspaceId !== 'default') {
-        headers['X-Workspace-Id'] = activeWorkspaceId;
-      }
-      if (user?.id) {
-        headers['X-User-Id'] = user.id;
+      const mime = importFile.type || 'application/octet-stream';
+      const title = importTitle.trim();
+      let createdId = '';
+
+      // If file is > 80MB, use chunked upload to bypass Cloudflare's 100MB proxy limit safely
+      if (importFile.size > 80 * 1024 * 1024) {
+        const CHUNK_SIZE = 20 * 1024 * 1024; // 20 MB
+        const totalChunks = Math.ceil(importFile.size / CHUNK_SIZE);
+        let meetingId = '';
+
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, importFile.size);
+          const chunkBlob = importFile.slice(start, end);
+
+          const chunkHeaders: Record<string, string> = {
+            'Content-Type': 'application/octet-stream',
+            'X-Chunk-Index': String(i),
+            'X-Total-Chunks': String(totalChunks),
+            'X-Meeting-Title': encodeURIComponent(title),
+            'X-Meeting-Mime': mime,
+          };
+          if (meetingId) chunkHeaders['X-Meeting-Id'] = meetingId;
+          if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+            chunkHeaders['X-Workspace-Id'] = activeWorkspaceId;
+          }
+          if (user?.id) {
+            chunkHeaders['X-User-Id'] = user.id;
+          }
+
+          const chunkRes = await fetch('/api/meetings/upload-chunk', {
+            method: 'POST',
+            headers: chunkHeaders,
+            body: chunkBlob,
+          });
+
+          if (!chunkRes.ok) {
+            const err = await chunkRes.json().catch(() => ({}));
+            throw new Error(err.error || `Chunk ${i + 1}/${totalChunks} upload failed (HTTP ${chunkRes.status})`);
+          }
+
+          const chunkData = await chunkRes.json();
+          meetingId = chunkData.id;
+          if (i === totalChunks - 1) {
+            createdId = chunkData.id;
+          }
+        }
+      } else {
+        const headers: Record<string, string> = {
+          'Content-Type': mime,
+          'X-Meeting-Title': encodeURIComponent(title),
+        };
+        if (activeWorkspaceId && activeWorkspaceId !== 'default') {
+          headers['X-Workspace-Id'] = activeWorkspaceId;
+        }
+        if (user?.id) {
+          headers['X-User-Id'] = user.id;
+        }
+
+        const res = await fetch('/api/meetings', {
+          method: 'POST',
+          headers,
+          body: importFile,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Upload failed (HTTP ${res.status})`);
+        }
+
+        const created = await res.json();
+        createdId = created.id;
       }
 
-      const res = await fetch('/api/meetings', {
-        method: 'POST',
-        headers,
-        body: importFile,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `Upload failed (HTTP ${res.status})`);
-      }
-
-      const created = await res.json();
       const allMeetings = await getMeetings();
       setMeetings(allMeetings);
-      setSelectedMeetingId(created.id);
+      if (createdId) {
+        setSelectedMeetingId(createdId);
+      }
 
       setImportTitle('');
       setImportFile(null);

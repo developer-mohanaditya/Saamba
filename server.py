@@ -1767,6 +1767,139 @@ async def get_meeting_audio(mid: str):
 
 # --- Meeting Actions & Modifications ---
 
+@app.post('/api/meetings/prepare-upload')
+async def prepare_upload(request: Request):
+    """Generates direct presigned R2 upload URL for large files, bypassing Cloudflare proxy limits."""
+    body = await request.json()
+    title = body.get('title', 'Meeting').strip()[:200] or 'Meeting'
+    mime = body.get('mime', 'application/octet-stream').split(';')[0].strip()
+    mid = uuid.uuid4().hex
+    name = mid + '.audio'
+    user_id = request.headers.get('x-user-id') or DEFAULT_USER_ID
+    ws_id = request.headers.get('x-workspace-id')
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with connect() as db:
+        db.execute(
+            'INSERT INTO meetings (id,title,created_at,filename,mime,status) VALUES (?,?,?,?,?,?)',
+            (mid, title, now_iso, name, mime, 'queued')
+        )
+        if ws_id and ws_id != 'default':
+            db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
+        db.commit()
+
+    if supabase_client:
+        try:
+            supabase_client.table('meetings').upsert({
+                'id': mid,
+                'user_id': user_id,
+                'title': title,
+                'created_at': now_iso,
+                'filename': name,
+                'mime': mime,
+                'status': 'queued'
+            }).execute()
+            if ws_id and ws_id != 'default':
+                supabase_client.table('workspace_meetings').upsert({
+                    'workspace_id': ws_id,
+                    'meeting_id': mid,
+                    'user_id': user_id
+                }).execute()
+        except Exception as e:
+            print(f"Warning: Supabase prepare_upload failed: {e}")
+
+    upload_url = storage.generate_upload_url(name, content_type=mime) if storage.is_configured else None
+    return {'id': mid, 'upload_url': upload_url, 'filename': name}
+
+@app.post('/api/meetings/{mid}/start-processing')
+async def start_processing(mid: str):
+    """Triggers background processing after direct upload finishes."""
+    with connect() as db:
+        meeting = db.execute('SELECT * FROM meetings WHERE id=?', (mid,)).fetchone()
+    if not meeting:
+        return JSONResponse({'error': 'Meeting not found'}, status_code=404)
+    
+    target_path = DATA / meeting['filename']
+    if not target_path.exists() and storage.is_configured:
+        def download_and_run():
+            ok = storage.download_file(meeting['filename'], target_path)
+            if ok:
+                process(mid)
+            else:
+                update(mid, status='error', error='Failed to retrieve uploaded media from storage')
+        threading.Thread(target=download_and_run, daemon=True).start()
+    else:
+        threading.Thread(target=process, args=(mid,), daemon=True).start()
+
+    return {'status': 'processing_started', 'id': mid}
+
+@app.post('/api/meetings/upload-chunk')
+async def upload_chunk(request: Request):
+    """Handles chunked upload for files exceeding Cloudflare edge proxy limits."""
+    mid = request.headers.get('x-meeting-id')
+    if not mid:
+        mid = uuid.uuid4().hex
+
+    chunk_index = int(request.headers.get('x-chunk-index', '0'))
+    total_chunks = int(request.headers.get('x-total-chunks', '1'))
+    raw_title = request.headers.get('x-meeting-title', 'Meeting')
+    title = unquote(raw_title).strip()[:200] or 'Meeting'
+    mime = request.headers.get('x-meeting-mime', 'application/octet-stream').split(';')[0].strip()
+    user_id = request.headers.get('x-user-id') or DEFAULT_USER_ID
+    ws_id = request.headers.get('x-workspace-id')
+
+    part_path = DATA / f"{mid}.part"
+    mode = 'wb' if chunk_index == 0 else 'ab'
+
+    with part_path.open(mode) as f:
+        async for chunk in request.stream():
+            if chunk:
+                f.write(chunk)
+
+    if chunk_index == total_chunks - 1:
+        final_name = f"{mid}.audio"
+        final_path = DATA / final_name
+        if part_path.exists():
+            part_path.rename(final_path)
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with connect() as db:
+            db.execute(
+                'INSERT INTO meetings (id,title,created_at,filename,mime,status) VALUES (?,?,?,?,?,?)',
+                (mid, title, now_iso, final_name, mime, 'queued')
+            )
+            if ws_id and ws_id != 'default':
+                db.execute('INSERT OR IGNORE INTO workspace_meetings (workspace_id, meeting_id) VALUES (?, ?)', (ws_id, mid))
+            db.commit()
+
+        if supabase_client:
+            try:
+                supabase_client.table('meetings').upsert({
+                    'id': mid,
+                    'user_id': user_id,
+                    'title': title,
+                    'created_at': now_iso,
+                    'filename': final_name,
+                    'mime': mime,
+                    'status': 'queued'
+                }).execute()
+                if ws_id and ws_id != 'default':
+                    supabase_client.table('workspace_meetings').upsert({
+                        'workspace_id': ws_id,
+                        'meeting_id': mid,
+                        'user_id': user_id
+                    }).execute()
+            except Exception as e:
+                print(f"Warning: Supabase chunk upload meeting sync failed: {e}")
+
+        if storage.is_configured and final_path.exists():
+            threading.Thread(target=storage.upload_file, args=(final_path, final_name), daemon=True).start()
+
+        threading.Thread(target=process, args=(mid,), daemon=True).start()
+        return {'id': mid, 'status': 'queued', 'chunk': chunk_index, 'total': total_chunks}
+
+    return {'id': mid, 'status': 'uploading', 'chunk': chunk_index, 'total': total_chunks}
+
 @app.post('/api/meetings', status_code=201)
 async def upload_meeting(request: Request):
     content_length = request.headers.get('content-length')

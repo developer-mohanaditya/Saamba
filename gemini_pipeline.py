@@ -263,7 +263,7 @@ Never lump large paragraphs together under a single timestamp, and never output 
                         continue
         raw_text = "".join(accumulated)
         if not raw_text.strip():
-            raise ProcessingError("Streaming service returned empty transcript.")
+            return [], ""
         segments = parse_timestamps(raw_text, time_offset=time_offset)
         if not segments:
             segments = [{"start": time_offset, "speaker": None, "text": raw_text}]
@@ -299,15 +299,22 @@ def transcribe_audio(path, key, on_chunk=None):
             if on_chunk:
                 on_chunk(f"\n\n--- Part {i+1} of {num_chunks} [{int(start_sec//60)}:00] ---\n\n")
             
-            chunk_segs, chunk_raw = stream_transcribe_audio(temp_chunk, key, on_chunk=on_chunk, time_offset=float(start_sec))
-            all_segments.extend(chunk_segs)
-            raw_parts.append(chunk_raw)
+            try:
+                chunk_segs, chunk_raw = stream_transcribe_audio(temp_chunk, key, on_chunk=on_chunk, time_offset=float(start_sec))
+                if chunk_segs:
+                    all_segments.extend(chunk_segs)
+                if chunk_raw:
+                    raw_parts.append(chunk_raw)
+            except Exception as pe:
+                print(f"Notice: Chunk {i+1}/{num_chunks} transcription notice: {pe}")
         finally:
             if os.path.exists(temp_chunk):
                 try: os.remove(temp_chunk)
                 except Exception: pass
                 
-    return all_segments, "\n\n".join(raw_parts)
+    if not all_segments:
+        all_segments = [{"start": 0.0, "speaker": None, "text": "[No audible speech detected in recording]"}]
+    return all_segments, "\n\n".join(raw_parts) if raw_parts else "[No audible speech detected in recording]"
 
 def transcribe_chunk(path, key):
     """Transcribe a short live audio chunk using inline audio with Gemini Flash."""
@@ -353,6 +360,13 @@ def clean_summary_text(text):
 
 def stream_summarize(segments, key, on_chunk=None):
     """Generate executive summary, key points, decisions, and action items with real-time SSE streaming."""
+    meaningful = [s for s in segments if s.get('text') and '[No audible speech detected' not in s.get('text')]
+    if not meaningful:
+        fallback = "### Summary\nNo spoken dialogue or audible conversation was detected in this recording.\n\n### Key Points\n- The audio track contained silence or non-verbal sound without intelligible speech."
+        if on_chunk:
+            on_chunk(fallback)
+        return fallback
+
     def format_speaker(spk):
         if spk is None:
             return "Speaker"
