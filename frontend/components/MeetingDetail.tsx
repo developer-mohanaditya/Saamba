@@ -4,9 +4,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../lib/store';
-import { date, time, inline, esc, speakerDisplayName, summarySections } from '../lib/markdown';
+import { date, time, inline, esc, speakerDisplayName, summarySections, markdown } from '../lib/markdown';
 import { icon } from './Icons';
-import { toggleActionItem, renameMeeting } from '../lib/api';
+import { toggleActionItem, renameMeeting, getMeeting } from '../lib/api';
 
 interface MeetingDetailProps {
   onImport: () => void;
@@ -47,11 +47,100 @@ export function MeetingDetail({
   const [transcriptMenuOpen, setTranscriptMenuOpen] = useState(false);
   const [translateSubmenuOpen, setTranslateSubmenuOpen] = useState(false);
   const [localChecks, setLocalChecks] = useState<Record<string, boolean>>({});
+  const [streamingTranscript, setStreamingTranscript] = useState('');
+  const [streamingSummary, setStreamingSummary] = useState('');
 
   const shareMenuRef = useRef<HTMLDivElement | null>(null);
   const rewriteMenuRef = useRef<HTMLDivElement | null>(null);
   const deleteMenuRef = useRef<HTMLDivElement | null>(null);
   const transcriptMenuRef = useRef<HTMLDivElement | null>(null);
+  const streamTranscriptRef = useRef<HTMLPreElement | null>(null);
+  const streamSummaryRef = useRef<HTMLDivElement | null>(null);
+
+  // Live SSE streaming connection when meeting is processing
+  useEffect(() => {
+    if (!currentMeeting?.id) return;
+    const isBusy =
+      currentMeeting.status === 'transcribing' ||
+      currentMeeting.status === 'summarizing' ||
+      currentMeeting.status === 'queued';
+    if (!isBusy) {
+      setStreamingTranscript('');
+      setStreamingSummary('');
+      return;
+    }
+
+    const es = new EventSource(`/api/meetings/${encodeURIComponent(currentMeeting.id)}/events`);
+
+    es.addEventListener('transcript_chunk', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data?.text) {
+          setStreamingTranscript((prev) => {
+            const next = prev + data.text;
+            if (streamTranscriptRef.current) {
+              streamTranscriptRef.current.scrollTop = streamTranscriptRef.current.scrollHeight;
+            }
+            return next;
+          });
+        }
+      } catch (_) {}
+    });
+
+    es.addEventListener('summary_chunk', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data?.text) {
+          setStreamingSummary((prev) => {
+            const next = prev + data.text;
+            if (streamSummaryRef.current) {
+              streamSummaryRef.current.scrollTop = streamSummaryRef.current.scrollHeight;
+            }
+            return next;
+          });
+        }
+      } catch (_) {}
+    });
+
+    es.addEventListener('transcript_done', async () => {
+      try {
+        const updated = await getMeeting(currentMeeting.id);
+        if (updated) {
+          setCurrentMeeting(updated);
+          setMeetings(meetings.map((m) => (m.id === updated.id ? { ...m, status: updated.status } : m)));
+          setActiveTab('summary');
+        }
+      } catch (_) {}
+    });
+
+    es.addEventListener('summary_done', async () => {
+      try {
+        const updated = await getMeeting(currentMeeting.id);
+        if (updated) {
+          setCurrentMeeting(updated);
+          setMeetings(meetings.map((m) => (m.id === updated.id ? { ...m, status: updated.status } : m)));
+        }
+      } catch (_) {}
+    });
+
+    es.addEventListener('status', async (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.status === 'ready' || data.status === 'error') {
+          es.close();
+          const updated = await getMeeting(currentMeeting.id);
+          if (updated) {
+            setCurrentMeeting(updated);
+            setMeetings(meetings.map((m) => (m.id === updated.id ? { ...m, status: updated.status } : m)));
+          }
+        }
+      } catch (_) {}
+    });
+
+    return () => {
+      es.close();
+    };
+  }, [currentMeeting?.id, currentMeeting?.status]);
 
   // Outside click dismissal for all detail dropdowns
   useEffect(() => {
@@ -136,15 +225,35 @@ export function MeetingDetail({
     );
   });
 
-  const summaryHtml = currentMeeting.summary
-    ? summarySections(currentMeeting)
-    : currentMeeting.status === 'transcribing'
-    ? '<div class="activity" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>Transcribing meeting audio…</strong><p>AI is converting speech to text. Notes will generate automatically.</p></div></div>'
-    : currentMeeting.status === 'summarizing'
-    ? '<div class="activity" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>Generating AI summary & action items…</strong><p>Analyzing key points, decisions, and follow-ups from the transcript.</p></div></div>'
-    : currentMeeting.status === 'queued'
-    ? '<div class="activity" role="status"><span class="spinner" aria-hidden="true"></span><div><strong>Upload complete — Queued for processing</strong><p>Transcription will begin shortly.</p></div></div>'
-    : '<p class="muted">Summary will appear once transcription finishes.</p>';
+  const summaryHtml = currentMeeting.summary ? summarySections(currentMeeting) : '';
+
+  const handleSummaryClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const citationBtn = target.closest('[data-citation]') as HTMLElement;
+    if (citationBtn && onSeekAudio) {
+      const sec = parseFloat(citationBtn.dataset.citation || '0');
+      if (!isNaN(sec)) onSeekAudio(sec);
+      return;
+    }
+    const copyBtn = target.closest('.copy-section') as HTMLElement;
+    if (copyBtn) {
+      const section = copyBtn.closest('.summary-section');
+      if (section) {
+        const clone = section.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll('button').forEach((b) => b.remove());
+        navigator.clipboard.writeText(clone.innerText.trim());
+        alert('Section copied.');
+      }
+      return;
+    }
+    const actionBox = target.closest('input[data-action]') as HTMLInputElement;
+    if (actionBox) {
+      const key = actionBox.dataset.action;
+      if (key) {
+        handleActionToggle(key, !actionBox.checked);
+      }
+    }
+  };
 
   const handleExport = (format: 'txt' | 'md' | 'pdf') => {
     setTranscriptMenuOpen(false);
@@ -392,15 +501,6 @@ export function MeetingDetail({
               </div>
             )}
           </div>
-
-          {/* Status chip */}
-          <span
-            className={`status-chip ${
-              currentMeeting.status === 'ready' ? '' : 'is-busy'
-            }`}
-          >
-            {currentMeeting.status === 'ready' ? 'Ready' : currentMeeting.status}
-          </span>
         </div>
 
         {/* Editable Title Group */}
@@ -446,6 +546,9 @@ export function MeetingDetail({
               onClick={() => setActiveTab('summary')}
             >
               Summary
+              {currentMeeting.status === 'summarizing' && (
+                <span className="tab-busy-spinner" aria-hidden="true" />
+              )}
             </button>
             <button
               type="button"
@@ -454,6 +557,9 @@ export function MeetingDetail({
               onClick={() => setActiveTab('actions')}
             >
               Action items <span className="action-count">{actionCounterText}</span>
+              {(currentMeeting.status === 'transcribing' || currentMeeting.status === 'summarizing') && totalActions === 0 && (
+                <span className="tab-busy-spinner" aria-hidden="true" />
+              )}
             </button>
             <div className="transcript-tab-wrapper">
               <button
@@ -463,6 +569,9 @@ export function MeetingDetail({
                 onClick={() => setActiveTab('transcript')}
               >
                 Transcript
+                {currentMeeting.status === 'transcribing' && (
+                  <span className="tab-busy-spinner" aria-hidden="true" />
+                )}
               </button>
               <div
                 className={`transcript-menu-wrap ${transcriptMenuOpen ? 'is-open' : ''}`}
@@ -733,10 +842,77 @@ export function MeetingDetail({
             {/* SUMMARY TAB */}
             {activeTab === 'summary' && (
               <div id="summary" className="tab-content">
-                <div
-                  className="summary-text"
-                  dangerouslySetInnerHTML={{ __html: summaryHtml }}
-                />
+                {currentMeeting.summary ? (
+                  <div
+                    className="summary-text"
+                    onClick={handleSummaryClick}
+                    dangerouslySetInnerHTML={{ __html: summaryHtml }}
+                  />
+                ) : currentMeeting.status === 'summarizing' ? (
+                  <>
+                    <div className="activity" role="status">
+                      <span className="spinner" aria-hidden="true" />
+                      <div>
+                        <strong>Creating your English summary…</strong>
+                        <p>Generating summary, key points, and action items in real-time…</p>
+                      </div>
+                    </div>
+                    <div className="live-stream-box">
+                      <div className="draft-badge">
+                        <span className="live-pulse" /> STREAMING SUMMARY
+                      </div>
+                      <div
+                        id="stream-summary-text"
+                        ref={streamSummaryRef}
+                        className="summary-text"
+                        dangerouslySetInnerHTML={{
+                          __html: markdown(streamingSummary || 'Analyzing transcript and extracting key points…'),
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : currentMeeting.status === 'transcribing' ? (
+                  <div className="activity" role="status">
+                    <div>
+                      <strong>Transcription in progress…</strong>
+                      <p>
+                        Summary will generate automatically once transcription completes. You can watch live speech in the{' '}
+                        <button
+                          type="button"
+                          className="link-tab-button"
+                          style={{
+                            color: 'var(--green)',
+                            textDecoration: 'underline',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            font: 'inherit',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                          onClick={() => setActiveTab('transcript')}
+                        >
+                          Transcript tab
+                        </button>.
+                      </p>
+                    </div>
+                  </div>
+                ) : currentMeeting.status === 'queued' ? (
+                  <div className="activity" role="status">
+                    <div>
+                      <strong>Upload complete — Queued for processing</strong>
+                      <p>Transcription will begin shortly.</p>
+                    </div>
+                  </div>
+                ) : currentMeeting.status === 'error' ? (
+                  <p className="notice is-error">{currentMeeting.error || 'The summary could not be created.'}</p>
+                ) : (
+                  <p className="muted">
+                    {(currentMeeting.transcript || []).length
+                      ? 'Your transcript is available. Choose Create summary to make an English summary.'
+                      : 'Create a transcript first to make a summary.'}
+                  </p>
+                )}
               </div>
             )}
 
@@ -745,7 +921,16 @@ export function MeetingDetail({
               <div id="actions" className="tab-content">
                 <div className="action-list">
                   {actionItems.length === 0 ? (
-                    <p className="muted">No action items detected in this conversation.</p>
+                    currentMeeting.status === 'transcribing' || currentMeeting.status === 'summarizing' ? (
+                      <div className="activity" role="status">
+                        <div>
+                          <strong>Action items are being extracted…</strong>
+                          <p>Action items, speaker assignments, and audio links will appear once summary generation finishes.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="muted">No action items detected in this conversation.</p>
+                    )
                   ) : (
                     actionItems.map((a) => {
                       const isChecked =
@@ -804,9 +989,30 @@ export function MeetingDetail({
             {/* ORIGINAL TRANSCRIPT TAB */}
             {activeTab === 'transcript' && (
               <div id="transcript" className="tab-content">
+                {currentMeeting.status === 'transcribing' && (
+                  <>
+                    <div className="activity" role="status">
+                      <span className="spinner" aria-hidden="true" />
+                      <div>
+                        <strong>Creating your transcript…</strong>
+                        <p>Transcribing speech and identifying participants in real-time…</p>
+                      </div>
+                    </div>
+                    <div className="live-stream-box" style={{ marginBottom: '16px' }}>
+                      <div className="draft-badge">
+                        <span className="live-pulse" /> STREAMING TRANSCRIPT
+                      </div>
+                      <pre id="stream-transcript-text" ref={streamTranscriptRef} className="stream-text">
+                        {streamingTranscript || 'Listening for speech…'}
+                      </pre>
+                    </div>
+                  </>
+                )}
                 <div id="segments">
                   {filteredSegments.length === 0 ? (
-                    <p className="muted">No matching transcript segments found.</p>
+                    currentMeeting.status !== 'transcribing' && (
+                      <p className="muted">No matching transcript segments found.</p>
+                    )
                   ) : (
                     filteredSegments.map((s: any, idx: number) => (
                       <button

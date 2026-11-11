@@ -112,6 +112,40 @@ export function markdown(text: string): string {
   return html;
 }
 
+function parseLocalActionItems(linesText: string): any[] {
+  const result: any[] = [];
+  for (const line of linesText.split(/\r?\n/)) {
+    const stripped = line.trim();
+    const item = stripped.match(/^[-*]\s+(?:\[[ xX]\]\s*)?(.+)/);
+    if (item) {
+      let text = item[1].trim();
+      const stamp = text.match(/\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]/);
+      let seconds: number | null = null;
+      if (stamp) {
+        seconds = stamp[1] ? parseInt(stamp[1], 10) * 60 + parseInt(stamp[2], 10) : parseFloat(stamp[3]);
+        text = text.replace(stamp[0], ' ');
+      }
+      const spkMatch = text.match(/(?:\[|\()\s*(Speaker\s*\w+|[A-Z][a-z]+)\s*(?:\]|\))/i);
+      let speakerLabel: string | null = null;
+      if (spkMatch) {
+        speakerLabel = spkMatch[1].trim();
+        text = text.replace(spkMatch[0], ' ');
+      }
+      text = text.replace(/\s*[—–]\s*/g, ', ').replace(/\s+/g, ' ').trim();
+      if (text.endsWith(' .')) text = text.slice(0, -2) + '.';
+      text = text.replace(/\s+\.\s*$/, '.');
+      result.push({
+        key: text,
+        text,
+        checked: false,
+        start: seconds,
+        speaker: speakerLabel,
+      });
+    }
+  }
+  return result;
+}
+
 export function summarySections(m: any, onCitationClick?: (seconds: number) => void): string {
   const sections: { title: string; lines: string[] }[] = [];
   let section = { title: '', lines: [] as string[] };
@@ -133,10 +167,14 @@ export function summarySections(m: any, onCitationClick?: (seconds: number) => v
       const isAction = /^(action items?|next steps)\s*:?$/i.test(cleanTitle);
       let body = markdown(part.lines.join('\n'));
 
-      if (isAction && m.action_items?.length) {
+      const actionList = (m.action_items && m.action_items.length > 0)
+        ? m.action_items
+        : (isAction ? parseLocalActionItems(part.lines.join('\n')) : []);
+
+      if (isAction && actionList.length > 0) {
         body =
           '<div class="action-list">' +
-          m.action_items
+          actionList
             .map((a: any) => {
               let spk = a.speaker;
               let itemText = a.text || '';

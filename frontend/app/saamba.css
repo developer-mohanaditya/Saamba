@@ -2067,6 +2067,21 @@ select:focus-visible,
   border-style: solid;
 }
 
+.tab-busy-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(35, 66, 53, 0.25);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: tab-spin 0.75s linear infinite;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+@keyframes tab-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Real-time Streaming SSE Box */
 .live-stream-box {
   margin-top: 16px;

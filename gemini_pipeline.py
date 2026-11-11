@@ -273,19 +273,21 @@ Never lump large paragraphs together under a single timestamp, and never output 
 
 def transcribe_audio(path, key, on_chunk=None):
     """Transcribe meeting recording with real-time SSE streaming. Automatically chunks audio files > 30 minutes
-    to guarantee output stays within Gemini's 8,192 token window."""
+    and parallelizes processing (up to 3 concurrent workers) to dramatically reduce ingestion latency while
+    staying safely within Gemini's token limits and Oracle VM memory boundaries."""
     total_sec = duration(path)
     if total_sec <= 1800:
         return stream_transcribe_audio(path, key, on_chunk=on_chunk, time_offset=0.0)
     
     # Slice into 20-minute (1200s) chunks for long audio to avoid token capping
     chunk_len = 1200
-    all_segments = []
-    raw_parts = []
     num_chunks = int((total_sec + chunk_len - 1) // chunk_len)
     
-    for i in range(num_chunks):
-        start_sec = i * chunk_len
+    if on_chunk:
+        on_chunk(f"Analyzing {int(total_sec // 60)}m audio in {num_chunks} parallel segments…\n\n")
+
+    def process_slice(chunk_idx):
+        start_sec = chunk_idx * chunk_len
         temp_chunk = f"/tmp/saamba_stream_chunk_{uuid.uuid4().hex[:8]}.mp3"
         try:
             cmd = [
@@ -294,24 +296,44 @@ def transcribe_audio(path, key, on_chunk=None):
             ]
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=120)
             if not os.path.exists(temp_chunk) or os.path.getsize(temp_chunk) == 0:
-                continue
+                return chunk_idx, [], ""
             
-            if on_chunk:
-                on_chunk(f"\n\n--- Part {i+1} of {num_chunks} [{int(start_sec//60)}:00] ---\n\n")
-            
-            try:
-                chunk_segs, chunk_raw = stream_transcribe_audio(temp_chunk, key, on_chunk=on_chunk, time_offset=float(start_sec))
-                if chunk_segs:
-                    all_segments.extend(chunk_segs)
-                if chunk_raw:
-                    raw_parts.append(chunk_raw)
-            except Exception as pe:
-                print(f"Notice: Chunk {i+1}/{num_chunks} transcription notice: {pe}")
+            def slice_on_chunk(token):
+                if on_chunk:
+                    on_chunk(token)
+
+            chunk_segs, chunk_raw = stream_transcribe_audio(
+                temp_chunk, key, on_chunk=slice_on_chunk, time_offset=float(start_sec)
+            )
+            return chunk_idx, chunk_segs or [], chunk_raw or ""
+        except Exception as pe:
+            print(f"Notice: Chunk {chunk_idx + 1}/{num_chunks} transcription notice: {pe}")
+            return chunk_idx, [], ""
         finally:
             if os.path.exists(temp_chunk):
-                try: os.remove(temp_chunk)
-                except Exception: pass
-                
+                try:
+                    os.remove(temp_chunk)
+                except Exception:
+                    pass
+
+    max_workers = min(3, num_chunks)
+    chunk_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process_slice, i) for i in range(num_chunks)]
+        for f in concurrent.futures.as_completed(futures):
+            chunk_results.append(f.result())
+
+    # Sort results in strict chronological chunk order
+    chunk_results.sort(key=lambda x: x[0])
+
+    all_segments = []
+    raw_parts = []
+    for idx, segs, raw in chunk_results:
+        if segs:
+            all_segments.extend(segs)
+        if raw:
+            raw_parts.append(raw)
+
     if not all_segments:
         all_segments = [{"start": 0.0, "speaker": None, "text": "[No audible speech detected in recording]"}]
     return all_segments, "\n\n".join(raw_parts) if raw_parts else "[No audible speech detected in recording]"

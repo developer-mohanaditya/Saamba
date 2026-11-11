@@ -115,6 +115,9 @@ export default function Home() {
       .then((m) => {
         if (!active) return;
         setCurrentMeeting(m);
+        if (m.status === 'transcribing') {
+          setActiveTab('transcript');
+        }
         // Load chat history for this meeting
         getChatMessages(m.id)
           .then((msgs) => {

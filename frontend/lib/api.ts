@@ -121,9 +121,78 @@ export async function getMeetings(): Promise<Meeting[]> {
   return [];
 }
 
+export function parseActionItems(summary: string, checks: Record<string, boolean> = {}): any[] {
+  let active = false;
+  const result: any[] = [];
+  const counts: Record<string, number> = {};
+
+  for (const line of (summary || '').split(/\r?\n/)) {
+    const stripped = line.trim();
+    const heading = stripped.match(/^(?:#{1,4}\s+(.+?)|\*\*(.+?)\*\*)\s*:?[ ]*$/);
+    if (heading) {
+      const rawName = (heading[1] || heading[2]).trim().replace(/:$/, '').toLowerCase();
+      const name = rawName.replace(/^\d+[\.\)]\s*/, '');
+      active = name === 'action items' || name === 'action item' || name === 'next steps';
+      continue;
+    }
+    const cleaned = stripped.toLowerCase().replace(/:$/, '').replace(/^\d+[\.\)]\s*/, '');
+    if (cleaned === 'action items' || cleaned === 'next steps') {
+      active = true;
+      continue;
+    }
+    if (stripped.startsWith('#')) {
+      active = false;
+      continue;
+    }
+    const item = stripped.match(/^[-*]\s+(?:\[[ xX]\]\s*)?(.+)/);
+    if (active && item) {
+      let text = item[1].trim();
+      const stamp = text.match(/\[(?:(\d+):(\d{2})|(\d+(?:\.\d+)?)s)\]/);
+      let seconds: number | null = null;
+      if (stamp) {
+        seconds = stamp[1] ? parseInt(stamp[1], 10) * 60 + parseInt(stamp[2], 10) : parseFloat(stamp[3]);
+        text = text.replace(stamp[0], ' ');
+      }
+      const spkMatch = text.match(/(?:\[|\()\s*(Speaker\s*\w+|[A-Z][a-z]+)\s*(?:\]|\))/i);
+      let speakerLabel: string | null = null;
+      if (spkMatch) {
+        speakerLabel = spkMatch[1].trim();
+        text = text.replace(spkMatch[0], ' ');
+      }
+      text = text.replace(/\s*[—–]\s*/g, ', ').replace(/\s+/g, ' ').trim();
+      if (text.endsWith(' .')) text = text.slice(0, -2) + '.';
+      text = text.replace(/\s+\.\s*$/, '.');
+      counts[text] = (counts[text] || 0) + 1;
+      const key = `${text}-${counts[text]}`;
+      result.push({
+        key,
+        text,
+        checked: Boolean(checks[key]),
+        start: seconds,
+        speaker: speakerLabel,
+      });
+    }
+  }
+  return result;
+}
+
 export async function getMeeting(id: string): Promise<Meeting> {
   const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user) {
+  const userId = sessionData.session?.user?.id;
+
+  try {
+    const headers: Record<string, string> = {};
+    if (userId) headers['X-User-Id'] = userId;
+    const data = await fetchJson<any>(`/api/meetings/${encodeURIComponent(id)}`, { headers });
+    if (data && data.id) {
+      if (!data.action_items || data.action_items.length === 0) {
+        data.action_items = parseActionItems(data.summary || '');
+      }
+      return data as Meeting;
+    }
+  } catch (_) {}
+
+  if (userId) {
     const { data: m, error } = await supabase.from('meetings').select('*').eq('id', id).single();
     if (!error && m) {
       const { data: checksData } = await supabase.from('action_checks').select('*').eq('meeting_id', id);
@@ -132,28 +201,6 @@ export async function getMeeting(id: string): Promise<Meeting> {
       const checks: Record<string, boolean> = {};
       (checksData || []).forEach((c: any) => {
         checks[c.item_key] = Boolean(c.checked);
-      });
-
-      // Parse action items from summary if available
-      const lines = (m.summary || '').split('\n');
-      const actionItems: any[] = [];
-      let inActionSection = false;
-      lines.forEach((line: string) => {
-        if (/action\s*items?/i.test(line)) {
-          inActionSection = true;
-          return;
-        }
-        if (inActionSection && line.startsWith('###')) {
-          inActionSection = false;
-        }
-        if (inActionSection && /^[-*]\s*\[[ xX]\]/.test(line)) {
-          const text = line.replace(/^[-*]\s*\[[ xX]\]\s*/, '').trim();
-          actionItems.push({
-            key: text,
-            text,
-            checked: Boolean(checks[text]),
-          });
-        }
       });
 
       return {
@@ -166,7 +213,7 @@ export async function getMeeting(id: string): Promise<Meeting> {
         error: m.error,
         transcript: m.transcript || [],
         summary: m.summary || '',
-        action_items: actionItems,
+        action_items: parseActionItems(m.summary || '', checks),
         translations: transData || [],
         has_summary: Boolean(m.summary && m.summary.trim().length > 0),
         has_transcript: Boolean(m.transcript && Array.isArray(m.transcript) && m.transcript.length > 0),
