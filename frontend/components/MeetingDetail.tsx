@@ -221,7 +221,7 @@ export function MeetingDetail({
     const q = searchQuery.toLowerCase();
     return (
       (s.text && s.text.toLowerCase().includes(q)) ||
-      (s.speaker && s.speaker.toLowerCase().includes(q))
+      (s.speaker != null && String(s.speaker).toLowerCase().includes(q))
     );
   });
 
@@ -956,9 +956,9 @@ export function MeetingDetail({
                             />
                           </div>
                           <div className="action-meta">
-                            {a.speaker && (
+                            {a.speaker != null && (
                               <>
-                                <span className="action-speaker">{a.speaker}</span>
+                                <span className="action-speaker">{speakerDisplayName(a.speaker)}</span>
                                 <span className="action-meta-dot" aria-hidden="true">
                                   ·
                                 </span>
@@ -1024,7 +1024,7 @@ export function MeetingDetail({
                       >
                         <span className="segment-time">{time(s.start)}</span>
                         <span className="segment-body">
-                          {s.speaker && (
+                          {s.speaker != null && (
                             <span
                               className="speaker-tag"
                               data-speaker={s.speaker}
@@ -1032,7 +1032,7 @@ export function MeetingDetail({
                               title="Click to rename or reassign speaker"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (onOpenSpeakerDialog) onOpenSpeakerDialog(s.speaker || '', idx);
+                                if (onOpenSpeakerDialog) onOpenSpeakerDialog(String(s.speaker ?? ''), idx);
                               }}
                             >
                               <strong>{speakerDisplayName(s.speaker)}</strong>

@@ -29,10 +29,17 @@ export const inline = (value: string) =>
 export const speakerDisplayName = (spk: any) => {
   if (spk == null) return '';
   const s = String(spk).trim();
-  const m = s.match(/^(?:SPEAKER_?|speaker\s*)(\d+)$/i);
-  if (m) {
-    const num = parseInt(m[1], 10);
-    return `Speaker ${num >= 0 && num <= 9 ? num + 1 : num}`;
+  if (/^speaker\s+\d+$/i.test(s)) {
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  const mZero = s.match(/^(?:SPEAKER_?)(\d+)$/i);
+  if (mZero) {
+    const num = parseInt(mZero[1], 10);
+    return `Speaker ${num + 1}`;
+  }
+  if (/^\d+$/.test(s)) {
+    const num = parseInt(s, 10);
+    return `Speaker ${num + 1}`;
   }
   return s;
 };
