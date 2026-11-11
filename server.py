@@ -1584,6 +1584,18 @@ async def meeting_events(mid: str, request: Request, max_events: Optional[int] =
         }
     )
 
+def format_speaker(spk):
+    if spk is None or spk == '' or spk == 'None':
+        return 'Speaker 1'
+    if isinstance(spk, int):
+        return f'Speaker {spk + 1}'
+    if isinstance(spk, str):
+        s_str = spk.strip()
+        if s_str.isdigit():
+            return f'Speaker {int(s_str) + 1}'
+        return s_str
+    return 'Speaker 1'
+
 @app.get('/api/meetings/{mid}/transcript/download')
 async def download_transcript(mid: str, format: str = 'txt'):
     with connect() as db:
@@ -1601,8 +1613,7 @@ async def download_transcript(mid: str, format: str = 'txt'):
         lines = [f"# {row['title']}", f"*Date: {row['created_at'][:10]}*", "", "---", ""]
         for s in segments:
             m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
-            spk = s.get('speaker')
-            spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
+            spk_str = format_speaker(s.get('speaker'))
             lines.append(f"**[{m_val:02d}:{s_val:02d}] {spk_str}:**")
             lines.append(s.get('text', ''))
             lines.append("")
@@ -1620,8 +1631,7 @@ async def download_transcript(mid: str, format: str = 'txt'):
         rows_html = []
         for s in segments:
             m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
-            spk = s.get('speaker')
-            spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
+            spk_str = format_speaker(s.get('speaker'))
             text_escaped = s.get('text', '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
             rows_html.append(f'<div class="row"><div class="meta"><span class="time">[{m_val:02d}:{s_val:02d}]</span> <strong class="speaker">{spk_str}:</strong></div><p class="text">{text_escaped}</p></div>')
         html = f"""<!DOCTYPE html>
@@ -1654,8 +1664,7 @@ async def download_transcript(mid: str, format: str = 'txt'):
         lines = [f"Meeting: {row['title']}", f"Date: {row['created_at'][:10]}", "------------------------------------------------------------", ""]
         for s in segments:
             m_val, s_val = int((s.get('start') or 0) // 60), int((s.get('start') or 0) % 60)
-            spk = s.get('speaker')
-            spk_str = f"Speaker {spk+1}" if isinstance(spk, int) else (str(spk) if spk else "Speaker")
+            spk_str = format_speaker(s.get('speaker'))
             lines.append(f"[{m_val:02d}:{s_val:02d}] {spk_str}:")
             lines.append(s.get('text', ''))
             lines.append("")
@@ -2118,7 +2127,7 @@ async def ask_question(request: Request):
     for row in rows:
         segments = json.loads(row['transcript'] or '[]')
         ranked = sorted(segments, key=lambda x: sum(w in x.get('text', '').lower() for w in words), reverse=True)[:12]
-        excerpts = '\n'.join('[%s] %s' % (round(float(x.get('start', 0)), 1), x.get('text', '')) for x in ranked)
+        excerpts = '\n'.join('[%s] %s: %s' % (round(float(x.get('start', 0)), 1), format_speaker(x.get('speaker')), x.get('text', '')) for x in ranked)
         contexts.append('Meeting: ' + row['title'] + '\nSummary: ' + (row['summary'] or '(not available)') + '\nSelected transcript excerpts (seconds):\n' + excerpts)
     context = '\n\n'.join(contexts)
     if len(context) > 40000:
