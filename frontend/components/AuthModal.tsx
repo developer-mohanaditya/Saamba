@@ -244,7 +244,7 @@ export function AuthModal() {
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="mohan.founder@profeshare.ai"
+                placeholder="you@company.com"
               />
             </label>
 
