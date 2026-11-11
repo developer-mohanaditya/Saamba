@@ -120,10 +120,21 @@ export async function startRecording({
       chromeMediaSource: 'tab',
       chromeMediaSourceId: extensionStream.streamId,
     };
-    screen = await (navigator.mediaDevices.getUserMedia as any)({
-      audio: { mandatory: source },
-      video: { mandatory: source },
-    });
+    try {
+      screen = await (navigator.mediaDevices.getUserMedia as any)({
+        audio: { mandatory: source },
+        video: { mandatory: source },
+      });
+    } catch (_) {
+      try {
+        screen = await (navigator.mediaDevices.getUserMedia as any)({
+          audio: { mandatory: source },
+        });
+      } catch (e) {
+        console.warn('Extension tab media capture failed, falling back to mic:', e);
+        screen = null;
+      }
+    }
     sharedTitle = extensionStream.title || '';
   } else if (navigator.mediaDevices.getDisplayMedia) {
     try {
@@ -136,11 +147,8 @@ export async function startRecording({
         sharedTitle = (videoTrack.label || '').replace(/^Meet\s*[-–]\s*/i, '').trim();
       }
     } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        const proceedWithMic = window.confirm(
-          'Screen sharing was cancelled. Would you like to record microphone audio instead?'
-        );
-        if (!proceedWithMic) throw err;
+      if (err.name === 'NotAllowedError' || err.name === 'NotReadableError') {
+        console.warn('Screen display media unavailable, proceeding with audio capture:', err);
         screen = null;
       } else {
         throw err;
